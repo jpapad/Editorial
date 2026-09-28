@@ -32,6 +32,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["R"], label: "Shape" },
       { keys: ["T"], label: "Text" },
       { keys: ["F"], label: "Fill (Color mode)" },
+      { keys: ["B"], label: "Brush (Color mode)" },
       { keys: ["M"], label: "Toggle mirror drawing" },
       { keys: ["[", "]"], label: "Thinner / thicker brush" },
     ],

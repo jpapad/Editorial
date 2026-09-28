@@ -31,6 +31,7 @@ import type {
   BookPage,
   CoverDesign,
   DrawingTool,
+  FillStyle,
   LineData,
   ObjectChanges,
   ObjectUpdate,
@@ -62,7 +63,7 @@ const NUDGE_HISTORY_WINDOW_MS = 600; // a burst of arrow-key nudges is one undo 
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const TOOL_KEYS: Record<string, DrawingTool> = { v: "select", p: "pen", e: "eraser", s: "stamp", r: "shape", t: "text", f: "fill" };
+const TOOL_KEYS: Record<string, DrawingTool> = { v: "select", p: "pen", e: "eraser", s: "stamp", r: "shape", t: "text", f: "fill", b: "brush" };
 
 function waitForNextPaint() {
   return new Promise<void>((resolve) => {
@@ -251,6 +252,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showGrid, setShowGrid] = useState(false);
   const [showGuides, setShowGuides] = useState(true);
   const [activeColor, setActiveColor] = useState("#111827");
+  const [fillStyle, setFillStyle] = useState<FillStyle>("solid");
   const [pendingPlacement, setPendingPlacement] = useState<PendingPlacement | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
@@ -1129,7 +1131,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         setStrokeWidth((w) => (e.key === "]" ? (widths.find((x) => x > w) ?? w) : ([...widths].reverse().find((x) => x < w) ?? w)));
       } else if (TOOL_KEYS[key]) {
         const next = TOOL_KEYS[key];
-        const allowed = next === "select" || (next === "fill" ? mode === "color" : mode === "draw" || mode === "cover");
+        const colorTool = next === "fill" || next === "brush";
+        const allowed = next === "select" || (colorTool ? mode === "color" : mode === "draw" || mode === "cover");
         if (allowed) handleToolChange(next);
       }
     };
@@ -1198,6 +1201,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               strokeWidth={strokeWidth}
               onStrokeWidthChange={setStrokeWidth}
               activeColor={activeColor}
+              fillStyle={fillStyle}
               onSampleColor={setActiveColor}
               onFillChange={(dataUrl) => updateActivePage({ fillDataUrl: dataUrl })}
               pendingPlacement={pendingPlacement}
@@ -1272,6 +1276,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           tool={tool}
           activeColor={activeColor}
           onSelectColor={setActiveColor}
+          fillStyle={fillStyle}
+          onFillStyleChange={setFillStyle}
           page={activePage}
           selectedIds={selectedIds}
           onSelectObject={handleSelectObject}

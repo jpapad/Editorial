@@ -3,17 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type Konva from "konva";
-import { ChevronLeft, Undo2, Circle, Download } from "lucide-react";
+import { ChevronLeft, Undo2, Download, PaintBucket, Paintbrush, Printer, Images, PartyPopper, X } from "lucide-react";
+import FillStylePicker from "@/components/studio/editor/FillStylePicker";
+import { printPageImage, Sticker, STICKERS } from "@/components/studio/coloring/rewards";
 import CanvasArea from "@/components/studio/editor/CanvasArea";
 import { captureStage } from "@/components/editor/CanvasEditor";
 import ColorSwatch from "@/components/studio/ui/ColorSwatch";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
 import { getBook, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
-import type { BookPage } from "@/types/editor";
+import type { BookPage, FillStyle } from "@/types/editor";
 import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeometry";
 
-const PALETTE = ["#e4b7a0", "#cfa77e", "#8fae8b", "#5d7f6f", "#d9cf9e", "#b98a8a", "#7b8fa8", "#42505f"];
+// Bright first (what kids reach for), then the softer studio tones.
+const PALETTE = ["#e5484d", "#f08c2e", "#f5c518", "#3cb371", "#2f80ed", "#8e5ad6", "#e05a9b", "#8a5a3c", "#e4b7a0", "#8fae8b", "#7b8fa8", "#111827"];
+const BRUSH_SIZES = [
+  { label: "Λεπτό", width: 8 },
+  { label: "Μεσαίο", width: 16 },
+  { label: "Χοντρό", width: 28 },
+];
+const THUMB_RATIO = 0.3;
 const SWIPE_THRESHOLD_PX = 60;
 const AUTOSAVE_DEBOUNCE_MS = 500;
 
@@ -87,12 +96,18 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
   const [undoSignal, setUndoSignal] = useState(0);
   const [canUndoFill, setCanUndoFill] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [kidTool, setKidTool] = useState<"fill" | "brush">("fill");
+  const [fillStyle, setFillStyle] = useState<FillStyle>("solid");
+  const [brushSize, setBrushSize] = useState(16);
+  const [reward, setReward] = useState<number | null>(null); // sticker index just earned
+  const [showGallery, setShowGallery] = useState(false);
 
   const swipeState = useRef<{ startX: number } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
 
   const activePage = pages[pageIndex] as BookPage | undefined;
+  const finished = pages.filter((p) => p.completedAt);
   const space = interiorSpace(initialBook?.trimSize, initialBook?.bleed ?? false);
 
   function persist(nextPages: BookPage[]) {
@@ -132,6 +147,26 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
     link.click();
   }
 
+  /** "I'm done!": snapshot the colored page for the gallery, mark it finished and hand out the next sticker. */
+  function handleDone() {
+    const stage = stageRef.current;
+    if (!stage || !activePage) return;
+    const alreadyDone = Boolean(activePage.completedAt);
+    const thumb = captureStage(stage, THUMB_RATIO);
+    setPages((prev) => {
+      const next = prev.map((p, i) => (i === pageIndex ? { ...p, completedAt: p.completedAt ?? new Date().toISOString(), thumbnailDataUrl: thumb } : p));
+      persist(next);
+      return next;
+    });
+    if (!alreadyDone) setReward(finished.length);
+  }
+
+  function handlePrintPage() {
+    const stage = stageRef.current;
+    if (!stage) return;
+    printPageImage(captureStage(stage, 300 / 72), space, `${title} — ${pageIndex + 1}`);
+  }
+
   function goToPage(nextIndex: number) {
     if (nextIndex < 0 || nextIndex >= pages.length) return;
     setPageIndex(nextIndex);
@@ -141,6 +176,8 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
   }
 
   function handlePaperPointerDown(e: React.PointerEvent) {
+    // A brush stroke is a drag too — only the bucket leaves swiping free for turning pages.
+    if (kidTool !== "fill") return;
     swipeState.current = { startX: e.clientX };
   }
 
@@ -190,6 +227,23 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
               </button>
               <button
                 type="button"
+                onClick={() => setShowGallery(true)}
+                aria-label={`Η συλλογή μου (${finished.length})`}
+                className="flex h-8 items-center gap-1.5 rounded-pill bg-[rgba(16,20,26,0.06)] px-2.5 text-helper font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              >
+                <Images size={14} /> {finished.length}
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintPage}
+                aria-label="Εκτύπωση σελίδας"
+                title="Εκτύπωση σελίδας"
+                className="flex h-8 w-8 items-center justify-center rounded-pill bg-[rgba(16,20,26,0.06)] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              >
+                <Printer size={14} />
+              </button>
+              <button
+                type="button"
                 onClick={handleDownloadPage}
                 aria-label="Download this page as PNG"
                 className="flex h-8 w-8 items-center justify-center rounded-pill bg-[rgba(16,20,26,0.06)] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
@@ -217,14 +271,18 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
               className="relative flex items-center justify-center rounded-[6px] bg-white p-[18px] shadow-paper"
               style={{ height: "100%", aspectRatio: `${space.width} / ${space.height}`, touchAction: "pan-y" }}
             >
+              {/* A definite box for the canvas viewport: CanvasArea sizes itself from its container, and a flex item with no height of its own would collapse to 0 here. */}
+              <div className="absolute inset-[18px] flex">
               <CanvasArea
                 page={activePage}
                 space={space}
+                padding={0}
                 mode="color"
-                tool="fill"
-                strokeWidth={1}
-                onStrokeWidthChange={() => {}}
+                tool={kidTool}
+                strokeWidth={brushSize}
+                onStrokeWidthChange={setBrushSize}
                 activeColor={activeColor}
+                fillStyle={fillStyle}
                 onSampleColor={setActiveColor}
                 onFillChange={handleFillChange}
                 undoFillSignal={undoSignal}
@@ -242,38 +300,159 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
                   stageRef.current = stage;
                 }}
               />
+              </div>
             </div>
           </div>
 
           {/* Bottom zone: floating toolbar + mono caption — hidden in Quiet mode */}
           <div className={cn("absolute inset-x-0 bottom-0 flex h-[104px] flex-col items-center justify-center gap-2 transition-opacity duration-200 motion-reduce:transition-none", quietMode && "pointer-events-none opacity-0")}>
             <div className="flex items-center gap-2 rounded-pill bg-panel px-3 py-2 shadow-toolbar">
-              {PALETTE.map((hex) => (
-                <ColorSwatch key={hex} hex={hex} sizePx={38} context="toolbar" selected={activeColor === hex} onClick={() => setActiveColor(hex)} />
+              <div className="grid grid-cols-6 gap-1.5">
+                {PALETTE.map((hex) => (
+                  <ColorSwatch key={hex} hex={hex} sizePx={26} context="toolbar" selected={activeColor === hex} onClick={() => setActiveColor(hex)} />
+                ))}
+              </div>
+
+              <div className="mx-1 h-10 w-px bg-hairline" />
+
+              {(
+                [
+                  { id: "fill", label: "Κουβάς", Icon: PaintBucket },
+                  { id: "brush", label: "Πινέλο", Icon: Paintbrush },
+                ] as const
+              ).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-label={label}
+                  aria-pressed={kidTool === id}
+                  title={label}
+                  onClick={() => setKidTool(id)}
+                  className={cn(
+                    "flex h-11 w-11 items-center justify-center rounded-pill outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+                    kidTool === id ? "bg-ink text-white" : "bg-inset-alt text-ink-secondary"
+                  )}
+                >
+                  <Icon size={18} />
+                </button>
               ))}
 
-              <div className="mx-1 h-6 w-px bg-hairline" />
-
-              <div
-                aria-label="Fill tool (always on in coloring mode)"
-                className="relative flex h-11 w-11 items-center justify-center rounded-pill bg-ink"
-              >
-                <Circle size={10} className="fill-white text-white" />
+              <div className="flex min-w-[150px] items-center justify-center">
+                {kidTool === "fill" ? (
+                  <FillStylePicker value={fillStyle} color={activeColor} onChange={setFillStyle} size={26} />
+                ) : (
+                  <div className="flex gap-1" role="group" aria-label="Μέγεθος πινέλου">
+                    {BRUSH_SIZES.map((b, i) => (
+                      <button
+                        key={b.width}
+                        type="button"
+                        aria-label={b.label}
+                        aria-pressed={brushSize === b.width}
+                        title={b.label}
+                        onClick={() => setBrushSize(b.width)}
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-pill outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                          brushSize === b.width ? "bg-accent-tint ring-2 ring-accent" : "bg-inset-alt"
+                        )}
+                      >
+                        <span className="rounded-pill" style={{ width: 6 + i * 6, height: 6 + i * 6, background: activeColor }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
               <button
                 type="button"
-                aria-label="Undo last fill"
+                aria-label="Undo"
                 disabled={!canUndoFill}
                 onClick={() => setUndoSignal((s) => s + 1)}
                 className="flex h-11 w-11 items-center justify-center rounded-pill bg-inset-alt text-ink-secondary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Undo2 size={18} />
               </button>
+              <button
+                type="button"
+                onClick={handleDone}
+                className="flex h-11 items-center gap-1.5 rounded-pill bg-success px-4 text-body font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              >
+                <PartyPopper size={16} />
+                {activePage.completedAt ? "Ξανά!" : "Τελείωσα!"}
+              </button>
             </div>
             <MetaLabel>
-              Σελίδα {pageIndex + 1} από {pages.length} · Σύρε για επόμενη
+              Σελίδα {pageIndex + 1} από {pages.length} · {kidTool === "fill" ? "Σύρε για επόμενη" : "Ζωγράφισε με το πινέλο"}
             </MetaLabel>
           </div>
+
+          {reward !== null && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-6" onClick={() => setReward(null)}>
+              <div role="dialog" aria-modal="true" aria-label="Κέρδισες αυτοκόλλητο" onClick={(e) => e.stopPropagation()} className="flex w-[340px] flex-col items-center gap-4 rounded-panel bg-panel p-6 text-center shadow-panel">
+                <Sticker index={reward} size={96} />
+                <p className="text-modal-title font-semibold text-ink">Μπράβο!</p>
+                <p className="text-body text-ink-secondary">
+                  Κέρδισες το αυτοκόλλητο «{STICKERS[reward % STICKERS.length].name}». Έχεις {reward + 1} {reward === 0 ? "αυτοκόλλητο" : "αυτοκόλλητα"}!
+                </p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => {
+                      setReward(null);
+                      setShowGallery(true);
+                    }} className="rounded-pill bg-inset-alt px-4 py-2 text-body font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    Η συλλογή μου
+                  </button>
+                  <button
+                    type="button"
+                    autoFocus
+                    onClick={() => {
+                      setReward(null);
+                      if (pageIndex < pages.length - 1) goToPage(pageIndex + 1);
+                    }}
+                    className="rounded-pill bg-accent px-4 py-2 text-body font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  >
+                    {pageIndex < pages.length - 1 ? "Επόμενη σελίδα" : "Εντάξει"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showGallery && (
+            <div className="absolute inset-0 z-30 flex flex-col gap-4 bg-tablet-ground p-6" role="dialog" aria-modal="true" aria-label="Η συλλογή μου">
+              <div className="flex items-center justify-between">
+                <p className="text-modal-title font-semibold text-ink">Η συλλογή μου</p>
+                <button type="button" aria-label="Κλείσιμο" onClick={() => setShowGallery(false)} className="flex h-9 w-9 items-center justify-center rounded-pill bg-panel text-ink-secondary shadow-resting outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex min-h-[64px] flex-wrap items-center gap-2 rounded-panel bg-panel p-3 shadow-resting">
+                {finished.length === 0 ? (
+                  <p className="text-body text-ink-muted">Τελείωσε μια σελίδα για να κερδίσεις το πρώτο σου αυτοκόλλητο!</p>
+                ) : (
+                  finished.map((_, i) => <Sticker key={i} index={i} size={44} />)
+                )}
+              </div>
+              <div className="grid flex-1 auto-rows-min grid-cols-5 gap-3 overflow-auto">
+                {finished.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      goToPage(pages.findIndex((x) => x.id === p.id));
+                      setShowGallery(false);
+                    }}
+                    className="overflow-hidden rounded-paper bg-white shadow-resting outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    style={{ aspectRatio: `${space.width} / ${space.height}` }}
+                    aria-label={`Σελίδα ${pages.findIndex((x) => x.id === p.id) + 1}`}
+                  >
+                    {p.thumbnailDataUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element -- stage snapshot data URL
+                      <img src={p.thumbnailDataUrl} alt="" className="h-full w-full object-contain" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

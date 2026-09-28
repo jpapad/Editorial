@@ -9,7 +9,7 @@ import type { GuideSpec } from "@/components/editor/CanvasEditor";
 import { SYMMETRY_OPTIONS } from "@/components/editor/strokeTools";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
-import type { BookPage, DrawingTool, LineData, ObjectUpdate, PageSpace, PendingPlacement, SymmetryMode } from "@/types/editor";
+import type { BookPage, DrawingTool, FillStyle, LineData, ObjectUpdate, PageSpace, PendingPlacement, SymmetryMode } from "@/types/editor";
 import type { EditorMode } from "@/components/studio/types";
 
 const CANVAS_PADDING_PX = 24; // breathing room so the paper never touches the container edge exactly
@@ -43,6 +43,7 @@ export interface CanvasAreaProps {
   strokeWidth: number;
   onStrokeWidthChange: (pt: number) => void;
   activeColor: string;
+  fillStyle?: FillStyle;
   onSampleColor: (hex: string) => void;
   onFillChange?: (dataUrl: string) => void;
   undoFillSignal?: number;
@@ -67,6 +68,8 @@ export interface CanvasAreaProps {
   gapMarkers?: GapMarker[] | null;
   /** Hides the view toolbar (zoom/grid/guides) — for embedded, child-facing uses like ColoringView. */
   hideViewControls?: boolean;
+  /** Space kept around the page inside the viewport (default 24px; 0 when the host already frames it). */
+  padding?: number;
   /** Dark canvas surround (the 2a variant) — scoped to just this background, never the rest of the shell. */
   darkSurround?: boolean;
 }
@@ -101,8 +104,10 @@ function ToolbarIconButton({ label, pressed, onClick, children }: { label: strin
  * flood-fill snapshots and exports all stay in native page units.
  */
 export default function CanvasArea(props: CanvasAreaProps) {
-  const { mode, tool, strokeWidth, onStrokeWidthChange, darkSurround = false, hideViewControls = false } = props;
+  const { mode, tool, strokeWidth, onStrokeWidthChange, darkSurround = false, hideViewControls = false, padding = CANVAS_PADDING_PX } = props;
   const showStrokeToolbar = (mode === "draw" || mode === "cover") && (tool === "pen" || tool === "eraser");
+  // The coloring brush gets sizes only — no smoothing or mirror.
+  const showBrushToolbar = mode === "color" && tool === "brush" && !hideViewControls;
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const paperRef = useRef<HTMLDivElement | null>(null);
@@ -115,6 +120,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
   const zoomAnchorRef = useRef<{ pageX: number; pageY: number; clientX: number; clientY: number } | null>(null);
 
   const spaceRef = useRef(props.space);
+  const paddingRef = useRef(padding);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -122,8 +128,8 @@ export default function CanvasArea(props: CanvasAreaProps) {
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0]?.contentRect ?? {};
       if (!width || !height) return;
-      const availableWidth = width - CANVAS_PADDING_PX * 2;
-      const availableHeight = height - CANVAS_PADDING_PX * 2;
+      const availableWidth = width - paddingRef.current * 2;
+      const availableHeight = height - paddingRef.current * 2;
       setFitScale(Math.min(availableWidth / spaceRef.current.width, availableHeight / spaceRef.current.height, 1));
     });
     observer.observe(el);
@@ -134,12 +140,13 @@ export default function CanvasArea(props: CanvasAreaProps) {
   const { width: spaceWidth, height: spaceHeight } = props.space;
   useEffect(() => {
     spaceRef.current = { ...spaceRef.current, width: spaceWidth, height: spaceHeight };
+    paddingRef.current = padding;
     const el = scrollRef.current;
     if (!el) return;
-    const width = el.clientWidth - CANVAS_PADDING_PX * 2;
-    const height = el.clientHeight - CANVAS_PADDING_PX * 2;
+    const width = el.clientWidth - padding * 2;
+    const height = el.clientHeight - padding * 2;
     if (width > 0 && height > 0) setFitScale(Math.min(width / spaceWidth, height / spaceHeight, 1));
-  }, [spaceWidth, spaceHeight]);
+  }, [spaceWidth, spaceHeight, padding]);
 
   function zoomTo(next: number, anchor?: { clientX: number; clientY: number }) {
     const paper = paperRef.current?.getBoundingClientRect();
@@ -222,7 +229,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
     <div className={cn("relative flex min-h-0 flex-1 overflow-hidden rounded-panel", darkSurround && "canvas-dark")}>
       <div ref={scrollRef} className="absolute inset-0 overflow-auto">
         {/* min-w/min-h-full + w/h-max: centered while the page fits, scrollable (not clipped) once zoomed past the viewport. */}
-        <div className="grid min-h-full min-w-full place-items-center" style={{ width: "max-content", height: "max-content", padding: CANVAS_PADDING_PX }}>
+        <div className="grid min-h-full min-w-full place-items-center" style={{ width: "max-content", height: "max-content", padding }}>
           <div ref={paperRef}>
             <CanvasEditor
               page={props.page}
@@ -242,6 +249,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
               isCover={props.page.isCover}
               coverBackgroundColor={props.page.coverBackgroundColor}
               activeColor={props.activeColor}
+              fillStyle={props.fillStyle}
               onSampleColor={props.onSampleColor}
               onFillChange={props.onFillChange}
               undoFillSignal={props.undoFillSignal}
@@ -305,6 +313,29 @@ export default function CanvasArea(props: CanvasAreaProps) {
           <ToolbarIconButton label="Print guides (G)" pressed={props.showGuides} onClick={() => props.onShowGuidesChange?.(!props.showGuides)}>
             <Ruler size={14} />
           </ToolbarIconButton>
+        </div>
+      )}
+
+      {showBrushToolbar && (
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill bg-panel py-2 pl-2 pr-4 shadow-toolbar">
+          <div className="flex items-center gap-0.5" role="group" aria-label="Brush sizes">
+            {[8, 16, 28].map((w, i) => (
+              <button
+                key={w}
+                type="button"
+                aria-pressed={strokeWidth === w}
+                onClick={() => onStrokeWidthChange(w)}
+                className={cn(
+                  "flex h-8 items-center gap-1.5 rounded-pill px-2.5 text-helper font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  strokeWidth === w ? "bg-ink text-white" : "text-ink-secondary hover:bg-inset-alt"
+                )}
+              >
+                <span className="inline-block rounded-pill bg-current" style={{ width: 6 + i * 4, height: 6 + i * 4 }} aria-hidden />
+                {["Thin", "Medium", "Thick"][i]}
+              </button>
+            ))}
+          </div>
+          <Slider layout="inline" min={2} max={60} step={1} value={strokeWidth} onChange={onStrokeWidthChange} valueLabel={`${strokeWidth}PX`} />
         </div>
       )}
 

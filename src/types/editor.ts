@@ -3,7 +3,12 @@
 // "fill" added for Color mode's raster bucket-fill (merged Pagewright
 // editor) — a click paints a flood-filled region on the paint layer
 // beneath the ink, rather than drawing a line.
-export type DrawingTool = "pen" | "eraser" | "select" | "stamp" | "shape" | "text" | "fill";
+// "brush" paints freehand on that same paint layer (under the ink, like a
+// marker that can't cover the outlines).
+export type DrawingTool = "pen" | "eraser" | "select" | "stamp" | "shape" | "text" | "fill" | "brush";
+
+/** What the paint bucket lays down: flat color, or a two-tone pattern in that color. */
+export type FillStyle = "solid" | "stars" | "stripes" | "dots" | "hearts";
 
 export interface LineData {
   id: string;
@@ -91,6 +96,7 @@ export interface BookPage {
   isCover?: boolean; // page 1 can be flagged as the book's front cover
   coverBackgroundColor?: string; // solid RGB fill, only used while isCover is true
   fillDataUrl?: string; // Color mode's raster paint layer (rasterFloodFill.ts), serialized as a PNG data URL so it survives page navigation/reload/autosave
+  completedAt?: string; // the child tapped "I'm done!" in the coloring view — earns a sticker, shows in their gallery
   isBlankBack?: boolean; // an intentionally empty reverse side (single-sided coloring pages) — inserted/removed as a set by the filmstrip's "Blank backs" action
   thumbnailDataUrl?: string; // Low-res snapshot of the full rendered page (ink + fills + objects), captured on page-switch/export — real preview art for Library/Assemble instead of the striped placeholder
 }

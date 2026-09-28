@@ -1,4 +1,4 @@
-import { MousePointer2, PenTool, Eraser, Square, Type, Sticker, PaintBucket, Sparkles } from "lucide-react";
+import { MousePointer2, PenTool, Eraser, Square, Type, Sticker, PaintBucket, Paintbrush, Sparkles } from "lucide-react";
 import { cn } from "@/utils/cn";
 import type { EditorMode } from "@/components/studio/types";
 import type { DrawingTool } from "@/types/editor";
@@ -42,6 +42,7 @@ const TOOLS_BY_MODE: Record<EditorMode, ToolDef[]> = {
   color: [
     { id: "select", icon: MousePointer2, label: "Select" },
     { id: "fill", icon: PaintBucket, label: "Fill" },
+    { id: "brush", icon: Paintbrush, label: "Brush" },
   ],
   assemble: [],
   // The cover is drawn with the same tools as a page.

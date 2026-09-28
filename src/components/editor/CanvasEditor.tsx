@@ -18,7 +18,8 @@ import useImage from "use-image";
 // A value import (not `import type`) — Konva.Filters.Grayscale/Threshold are
 // runtime functions we apply to cached stamp nodes for the line-art filter.
 import Konva from "konva";
-import type { BookPage, DrawingTool, LineData, ObjectChanges, ObjectUpdate, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
+import type { BookPage, DrawingTool, FillStyle, LineData, ObjectChanges, ObjectUpdate, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
+import { patternPixels } from "@/components/studio/editor/fillPatterns";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 import { isOpenStroke, isPolygonShape, polygonPoints } from "@/components/editor/shapeGeometry";
 import { smoothStroke, stabilize, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
@@ -70,6 +71,8 @@ const MARQUEE_MIN_PX = 4;
 /** Name carried by every editor-only node (guides, grid, gap markers, selection UI) — captureStage hides them so they never reach an export or thumbnail. */
 const OVERLAY_NAME = "editor-overlay";
 const INK_LAYER_NAME = "ink-layer";
+/** The paint image inside the ink layer — part of every export, but never a wall for the bucket. */
+const PAINT_NAME = "paint";
 
 /**
  * Page image at a fixed resolution regardless of the current on-screen
@@ -91,7 +94,7 @@ export function captureStage(stage: Konva.Stage, pixelRatio: number): string {
 export function captureInk(stage: Konva.Stage): PixelBuffer | null {
   const layer = stage.findOne(`.${INK_LAYER_NAME}`) as Konva.Layer | undefined;
   if (!layer) return null;
-  const overlays = layer.find(`.${OVERLAY_NAME}`).filter((n) => n.visible());
+  const overlays = layer.find(`.${OVERLAY_NAME}, .${PAINT_NAME}`).filter((n) => n.visible());
   overlays.forEach((n) => n.hide());
   try {
     const canvas = layer.toCanvas({ pixelRatio: 1 / stage.scaleX() });
@@ -153,6 +156,8 @@ interface CanvasEditorProps {
   mode?: EditorMode;
   /** Fill color for the "fill" tool in Color mode. */
   activeColor?: string;
+  /** Flat color or a two-tone pattern for the bucket (fillPatterns.ts). */
+  fillStyle?: FillStyle;
   /** Long-press-to-sample in Color mode reports the sampled hex here (mirrors 3a's demo interaction, now against real per-pixel paint). */
   onSampleColor?: (hex: string) => void;
   /** Fires after every committed fill with the paint layer's current PNG data URL, so a caller can persist it on `page.fillDataUrl` (see loadFillCanvas below for the read side). */
@@ -455,6 +460,7 @@ export default function CanvasEditor({
   coverBackgroundColor,
   mode = "draw",
   activeColor = "#000000",
+  fillStyle = "solid",
   onSampleColor,
   onFillChange,
   undoFillSignal,
@@ -574,6 +580,23 @@ export default function CanvasEditor({
 
   const isFreehand = tool === "pen" || tool === "eraser";
   const isFillTool = mode === "color" && tool === "fill";
+  // Brush: paints straight onto the paint layer, under the ink.
+  const isBrush = mode === "color" && tool === "brush";
+  const brushRef = useRef<{ x: number; y: number; before: string } | null>(null);
+
+  function brushSegment(x0: number, y0: number, x1: number, y1: number) {
+    const ctx = fillCanvas.getContext("2d");
+    if (!ctx) return;
+    ctx.strokeStyle = activeColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    fillImageRef.current?.getLayer()?.batchDraw();
+  }
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -670,7 +693,25 @@ export default function CanvasEditor({
     const target = getFillTarget();
     if (!boundary || !target) return;
 
-    const result = floodFill(boundary, target.buffer, x, y, hexToRgba(activeColor));
+    let result;
+    if (fillStyle === "solid") {
+      result = floodFill(boundary, target.buffer, x, y, hexToRgba(activeColor));
+    } else {
+      // Same region, patterned: flood a blank mask, then copy pattern pixels through it.
+      const mask: PixelBuffer = { width: target.buffer.width, height: target.buffer.height, data: new Uint8ClampedArray(target.buffer.data.length) };
+      result = floodFill(boundary, mask, x, y, [0, 0, 0, 255]);
+      const pattern = result.filled ? patternPixels(fillStyle, activeColor, mask.width, mask.height) : null;
+      if (pattern) {
+        const d = target.buffer.data;
+        for (let i = 3; i < mask.data.length; i += 4) {
+          if (!mask.data[i]) continue;
+          d[i - 3] = pattern[i - 3];
+          d[i - 2] = pattern[i - 2];
+          d[i - 1] = pattern[i - 1];
+          d[i] = 255;
+        }
+      }
+    }
     if (!result.filled) return;
 
     // Snapshot BEFORE writing the fill back to the canvas, so this is the
@@ -723,6 +764,12 @@ export default function CanvasEditor({
       return;
     }
 
+    if (isBrush) {
+      brushRef.current = { x: pos.x, y: pos.y, before: fillCanvas.toDataURL() };
+      brushSegment(pos.x, pos.y, pos.x + 0.01, pos.y);
+      return;
+    }
+
     if (tool === "select") {
       // Empty page (every non-object layer is listening={false}, so the
       // target is the Stage itself): start a marquee selection.
@@ -754,6 +801,14 @@ export default function CanvasEditor({
       return;
     }
 
+    if (brushRef.current) {
+      const pos = pagePointer(stage);
+      if (!pos) return;
+      brushSegment(brushRef.current.x, brushRef.current.y, pos.x, pos.y);
+      brushRef.current = { ...brushRef.current, x: pos.x, y: pos.y };
+      return;
+    }
+
     if (!isDrawing.current || !draftLine) return;
     const pos = pagePointer(stage);
     if (!pos) return;
@@ -775,6 +830,15 @@ export default function CanvasEditor({
     if (marquee) {
       finishMarquee(marquee);
       setMarquee(null);
+      return;
+    }
+
+    if (brushRef.current) {
+      // One stroke = one undo step, same history as the bucket.
+      fillHistoryRef.current = [...fillHistoryRef.current, brushRef.current.before].slice(-MAX_FILL_HISTORY);
+      onCanUndoFillChange?.(true);
+      brushRef.current = null;
+      onFillChange?.(fillCanvas.toDataURL());
       return;
     }
 
@@ -830,6 +894,7 @@ export default function CanvasEditor({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         style={{ cursor: tool === "select" ? "default" : isFillTool ? "pointer" : "crosshair", touchAction: "none" }}
+        onPointerLeave={(e) => brushRef.current && handlePointerUp(e)}
       >
         {isCover && (
           <Layer listening={false}>
@@ -838,21 +903,6 @@ export default function CanvasEditor({
         )}
 
         {backgroundPatternId && <BackgroundPatternLayer patternId={backgroundPatternId} width={pageWidth} height={pageHeight} />}
-
-        {/* Color mode's paint, beneath the ink/objects layer — "flood
-            fill on the active layer beneath the locked line-art layer"
-            (README) made literal. listening={false}: clicks go to the
-            Stage/main layer's pointer handlers above, not this image. */}
-        <Layer listening={false}>
-          <KonvaImage
-            ref={(node) => {
-              fillImageRef.current = node;
-            }}
-            image={fillCanvas}
-            width={pageWidth}
-            height={pageHeight}
-          />
-        </Layer>
 
         {showGrid && (
           <Layer listening={false} name={OVERLAY_NAME}>
@@ -927,6 +977,24 @@ export default function CanvasEditor({
                 globalCompositeOperation={draftLine.tool === "eraser" ? "destination-out" : "source-over"}
               />
             ))}
+
+          {/* Color mode's paint, multiplied OVER the line art in this same
+              layer (blend modes only mix within one layer's canvas): on
+              white — including white-filled shapes, frame motifs and hollow
+              letters — it shows its true color; on black ink it stays black,
+              so outlines are never covered. The flood fill's wall snapshot
+              (captureInk) leaves it out, so paint never turns into a wall. */}
+          <KonvaImage
+            ref={(node) => {
+              fillImageRef.current = node;
+            }}
+            name={PAINT_NAME}
+            image={fillCanvas}
+            width={pageWidth}
+            height={pageHeight}
+            listening={false}
+            globalCompositeOperation="multiply"
+          />
 
           <Transformer ref={transformerRef} name={OVERLAY_NAME} rotateEnabled flipEnabled={false} ignoreStroke />
         </Layer>

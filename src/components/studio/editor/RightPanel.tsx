@@ -40,7 +40,8 @@ import { FONT_OPTIONS } from "@/components/editor/kidFonts";
 import { cn } from "@/utils/cn";
 import type { AlignEdge } from "@/utils/objectGeometry";
 import type { EditorMode } from "@/components/studio/types";
-import type { BookPage, DrawingTool, ObjectChanges, PageObject, ShapeKind, StampFilter, TextData } from "@/types/editor";
+import type { BookPage, DrawingTool, FillStyle, ObjectChanges, PageObject, ShapeKind, StampFilter, TextData } from "@/types/editor";
+import FillStylePicker from "@/components/studio/editor/FillStylePicker";
 
 const PALETTE = ["#111827", "#e4b7a0", "#cfa77e", "#8fae8b", "#5d7f6f", "#d9cf9e", "#b98a8a", "#7b8fa8", "#42505f", "#ffffff"];
 
@@ -64,6 +65,8 @@ export interface RightPanelProps {
   tool: DrawingTool;
   activeColor: string;
   onSelectColor: (hex: string) => void;
+  fillStyle: FillStyle;
+  onFillStyleChange: (style: FillStyle) => void;
   page: BookPage;
   selectedIds: string[];
   onSelectObject: (id: string | null, additive: boolean) => void;
@@ -361,7 +364,12 @@ export default function RightPanel(props: RightPanelProps) {
             <ColorSwatch key={hex} hex={hex} selected={hex === activeColor} onClick={() => onSelectColor(hex)} sizePx={28} context="panel" className={hex === "#ffffff" ? "border border-hairline" : undefined} />
           ))}
         </div>
-        {mode === "color" && <p className="text-helper text-ink-muted">Fill color for the bucket tool.</p>}
+        {mode === "color" && (
+          <>
+            <p className="text-helper text-ink-muted">Color for the bucket and the brush.</p>
+            <FillStylePicker value={props.fillStyle} color={activeColor} onChange={props.onFillStyleChange} />
+          </>
+        )}
       </Card>
 
       {showAssetPicker && (
