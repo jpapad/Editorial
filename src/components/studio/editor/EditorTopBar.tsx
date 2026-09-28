@@ -40,6 +40,7 @@ const MODE_OPTIONS: { value: EditorMode; label: string }[] = [
   { value: "draw", label: "Σχέδιο" },
   { value: "color", label: "Χρώμα" },
   { value: "assemble", label: "Σελίδες" },
+  { value: "cover", label: "Εξώφυλλο" },
 ];
 
 /**
@@ -77,7 +78,7 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
             className="-mx-1 rounded-row-sm border border-transparent bg-transparent px-1 text-card-title font-semibold text-ink outline-none hover:border-hairline focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             style={{ width: `${Math.max(title.length, 8)}ch` }}
           />
-          <MetaLabel>
+          <MetaLabel className="block whitespace-nowrap">
             Page {String(pageNumber).padStart(2, "0")} / {pages.length} · {trimSizeLabel}
           </MetaLabel>
         </div>

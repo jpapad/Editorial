@@ -115,7 +115,7 @@ export default function LibraryScreen() {
     const next = window.prompt("Collection name (leave blank to remove)", book.collection ?? "");
     if (next === null) return;
     try {
-      await saveBook({ ...book, collection: next.trim() || undefined, updatedAt: new Date().toISOString() });
+      await saveBook({ ...book, collection: next.trim() || null, updatedAt: new Date().toISOString() });
       refresh();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "Could not update this book's collection.");

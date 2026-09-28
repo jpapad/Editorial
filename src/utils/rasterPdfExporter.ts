@@ -24,16 +24,14 @@
 // pipeline uses); that's real, separate work this pass doesn't attempt, so
 // the embedded pages stay RGB. Said plainly rather than implied.
 //
-// Trim size: the source image is always the editor's fixed 595x842pt
-// working canvas (CanvasEditor.tsx), whatever aspect ratio the chosen
-// KDP trim size actually is (utils/trimSizes.ts) — those don't usually
-// match (e.g. 6x9in is noticeably squarer). PDFKit's `fit` option scales
-// the image to the largest size that stays inside the target page and
-// centers it, so a mismatched aspect ratio letterboxes (white margin on
-// one axis) rather than distorting/stretching the art.
+// Page size: each page arrives with its own PDF page size and placement
+// (see ExportPage). The editor's canvas is the real trim (+ bleed) in
+// points, so an image is placed 1:1 — no letterboxing. Interior bleed pages
+// are trim + 0.125in wide (outside edge only) and + 0.25in tall, per KDP;
+// the caller shifts the image left on right-hand pages to drop the bleed on
+// the gutter side. A cover is a single page the size of the whole spread.
 
 import PDFDocument from "pdfkit";
-import { getTrimSize } from "@/utils/trimSizes";
 
 function dataUrlToBuffer(dataUrl: string): Buffer {
   const commaIndex = dataUrl.indexOf(",");
@@ -43,15 +41,25 @@ function dataUrlToBuffer(dataUrl: string): Buffer {
   return Buffer.from(dataUrl.slice(commaIndex + 1), "base64");
 }
 
-/** One rasterized page image per book page, fit (letterboxed, never stretched) into the chosen trim size, streamed into a single PDF. */
-export async function exportRasterPagesToPdf(pageDataUrls: string[], title?: string, trimSizeId?: string): Promise<Buffer> {
-  if (pageDataUrls.length === 0) throw new Error("No pages to export.");
+export interface ExportPage {
+  /** PNG data URL of the full canvas. */
+  src: string;
+  /** PDF page size, in points. */
+  pageWidth: number;
+  pageHeight: number;
+  /** Where the image's top-left lands, and its size, in points (it may extend past the page — that part is cropped). */
+  x: number;
+  y: number;
+  imageWidth: number;
+  imageHeight: number;
+}
 
-  const trim = getTrimSize(trimSizeId);
-  const pageSize: [number, number] = [trim.widthPt, trim.heightPt];
+/** One rasterized image per page, placed exactly as described, streamed into a single PDF. */
+export async function exportRasterPagesToPdf(pages: ExportPage[], title?: string): Promise<Buffer> {
+  if (pages.length === 0) throw new Error("No pages to export.");
 
   const doc = new PDFDocument({
-    size: pageSize,
+    size: [pages[0].pageWidth, pages[0].pageHeight],
     margin: 0,
     autoFirstPage: false,
     info: title ? { Title: title } : undefined,
@@ -64,9 +72,9 @@ export async function exportRasterPagesToPdf(pageDataUrls: string[], title?: str
     doc.on("error", reject);
   });
 
-  for (const dataUrl of pageDataUrls) {
-    doc.addPage({ size: pageSize, margin: 0 });
-    doc.image(dataUrlToBuffer(dataUrl), 0, 0, { fit: pageSize, align: "center", valign: "center" });
+  for (const page of pages) {
+    doc.addPage({ size: [page.pageWidth, page.pageHeight], margin: 0 });
+    doc.image(dataUrlToBuffer(page.src), page.x, page.y, { width: page.imageWidth, height: page.imageHeight });
   }
 
   doc.end();

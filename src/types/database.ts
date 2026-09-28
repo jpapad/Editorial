@@ -4,7 +4,7 @@
 // atomic unit in memory). Regenerate via `supabase gen types typescript`
 // if the schema changes.
 
-import type { BookPage } from "@/types/editor";
+import type { BookPage, CoverDesign, PaperType } from "@/types/editor";
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
@@ -27,6 +27,10 @@ export type BookRow = {
   trim_size: string | null;
   created_at: string;
   updated_at: string;
+  // supabase/migrations/20260928140000_book_print_settings.sql — absent until it runs.
+  bleed?: boolean;
+  paper?: PaperType;
+  cover?: CoverDesign | null;
 };
 
 /** supabase/migrations/20260928130000_page_comments.sql */

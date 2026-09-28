@@ -18,19 +18,26 @@ import BookPreviewModal from "@/components/editor/BookPreviewModal";
 import PreflightBlockingModal, { type FlaggedPage, type PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
 import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from "@/components/editor/pageTemplates";
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
-import { captureInk, captureStage, PAGE_HEIGHT, PAGE_WIDTH, SAFE_MARGIN } from "@/components/editor/CanvasEditor";
+import { captureInk, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
+import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
+import ListingKitModal from "@/components/studio/editor/ListingKitModal";
+import { convertPages, geometryFromSpace, interiorSpace, needsConversion, type PageGeometry } from "@/utils/pageGeometry";
+import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
 import type { EditorMode } from "@/components/studio/types";
 import type {
   BookPage,
+  CoverDesign,
   DrawingTool,
   LineData,
   ObjectChanges,
   ObjectUpdate,
   PageObject,
+  PageSpace,
   PageTemplate,
+  PaperType,
   PendingPlacement,
   ShapeKind,
   StampData,
@@ -38,11 +45,11 @@ import type {
   SymmetryMode,
   TextData,
 } from "@/types/editor";
-import { EXPORT_PIXEL_RATIO, exportPagesToPdf } from "@/utils/pdfExport";
+import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPage } from "@/utils/pdfExport";
 import { downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import { clampObjectsToMargin, pagesNeededForMultipleOf4, runEditorPreflightCheck, thickenThinStrokes, type EditorPreflightIssue } from "@/utils/editorPreflight";
 import { alignDeltas, distributeDeltas, flippedHorizontally, flippedVertically, objectBounds, unionBounds, type AlignEdge } from "@/utils/objectGeometry";
-import { DEFAULT_TRIM_SIZE_ID, getTrimSize } from "@/utils/trimSizes";
+import { DEFAULT_TRIM_SIZE_ID, trimShortLabel } from "@/utils/trimSizes";
 
 const MAX_HISTORY = 50;
 const DEFAULT_STAMP_SIZE = 120;
@@ -72,9 +79,10 @@ function computeStampDimensions(naturalSize?: { width: number; height: number })
 }
 
 /** A stamp scaled to fill the page's safe area (keeping its aspect ratio) and centered — leaving `captionSpace` free at the bottom. */
-function fullPageStamp(src: string, size: ImageSize, captionSpace = 0): StampData {
-  const availW = PAGE_WIDTH - SAFE_MARGIN * 2;
-  const availH = PAGE_HEIGHT - SAFE_MARGIN * 2 - captionSpace;
+function fullPageStamp(src: string, size: ImageSize, geo: PageGeometry, captionSpace = 0): StampData {
+  const { safe } = geo;
+  const availW = safe.right - safe.left;
+  const availH = safe.bottom - safe.top - captionSpace;
   const k = Math.min(availW / size.width, availH / size.height);
   const width = size.width * k;
   const height = size.height * k;
@@ -82,8 +90,8 @@ function fullPageStamp(src: string, size: ImageSize, captionSpace = 0): StampDat
     kind: "stamp",
     id: makeId("stamp"),
     src,
-    x: (PAGE_WIDTH - width) / 2,
-    y: SAFE_MARGIN + (availH - height) / 2,
+    x: safe.left + (availW - width) / 2,
+    y: safe.top + (availH - height) / 2,
     width,
     height,
     rotation: 0,
@@ -95,8 +103,8 @@ function fullPageStamp(src: string, size: ImageSize, captionSpace = 0): StampDat
 
 const CAPTION_SPACE = 90;
 
-function captionText(text: string): TextData {
-  const width = PAGE_WIDTH - SAFE_MARGIN * 2;
+function captionText(text: string, geo: PageGeometry): TextData {
+  const width = geo.safe.right - geo.safe.left;
   return {
     kind: "text",
     id: makeId("text"),
@@ -104,8 +112,8 @@ function captionText(text: string): TextData {
     fontFamily: '"Fredoka", "Comic Sans MS", cursive',
     fontSize: 44,
     align: "center",
-    x: SAFE_MARGIN,
-    y: PAGE_HEIGHT - SAFE_MARGIN - CAPTION_SPACE + 18,
+    x: geo.safe.left,
+    y: geo.safe.bottom - CAPTION_SPACE + 18,
     width,
     height: 62,
     rotation: 0,
@@ -124,6 +132,21 @@ function slugify(title: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   return slug || "coloring-book-project";
+}
+
+function coverGuides(layout: CoverLayout): GuideSpec {
+  const { back, spineRect, front } = layout;
+  const label = (x: number, text: string) => ({ x: x + 6, y: back.top + 6, text, color: "#3357d4" });
+  return {
+    trim: layout.trim,
+    safe: coverSafeAreas(layout),
+    folds: [
+      [spineRect.left, 0, spineRect.left, layout.space.height],
+      [spineRect.right, 0, spineRect.right, layout.space.height],
+    ],
+    blocked: [layout.barcode],
+    labels: [label(back.left, "BACK COVER"), label(front.left, "FRONT COVER")],
+  };
 }
 
 /** Page numbers follow array order — re-stamp them after any structural change. */
@@ -170,7 +193,11 @@ export default function EditorShell({ darkSurround = false }: EditorShellProps) 
     if (!bookId) return;
     let cancelled = false;
     getBook(bookId)
-      .then((book) => {
+      .then(async (book) => {
+        // Pages drawn on the old fixed A4 canvas (or before bleed was
+        // toggled) are re-expressed in this book's real page size first.
+        const target = interiorSpace(book?.trimSize, book?.bleed ?? false);
+        if (book && needsConversion(book.pages, target)) book = { ...book, pages: await convertPages(book.pages, target) };
         if (!cancelled) setLoaded({ book });
       })
       .catch(() => {
@@ -197,17 +224,23 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
 
   const [title, setTitle] = useState(initialBook?.title || DEFAULT_TITLE);
-  const [pages, setPages] = useState<BookPage[]>(initialBook && initialBook.pages.length > 0 ? initialBook.pages : [createPageFromTemplate(1)]);
-  const [bookStatus, setBookStatus] = useState<BookStatus>(initialBook?.status ?? "draft");
   // Fixed at creation (Onboarding's trim-size row), not editable here — see
   // utils/trimSizes.ts's own note on why re-flowing existing pages to a new
   // trim size mid-book isn't attempted in this pass.
   const trimSizeId = initialBook?.trimSize ?? DEFAULT_TRIM_SIZE_ID;
+  const [bleed, setBleed] = useState(initialBook?.bleed ?? false);
+  const [paper, setPaper] = useState<PaperType>(initialBook?.paper ?? "white");
+  const [convertingBleed, setConvertingBleed] = useState(false);
+  const space: PageSpace = interiorSpace(trimSizeId, bleed);
+  const geo = geometryFromSpace(space);
+  const [pages, setPages] = useState<BookPage[]>(initialBook && initialBook.pages.length > 0 ? initialBook.pages : [createPageFromTemplate(1, space)]);
+  const [coverDesign, setCoverDesign] = useState<CoverDesign | null>(initialBook?.cover ?? null);
+  const [bookStatus, setBookStatus] = useState<BookStatus>(initialBook?.status ?? "draft");
   const [activePageId, setActivePageId] = useState(pages[0].id);
   const [mode, setMode] = useState<EditorMode>(() => {
     if (typeof window === "undefined") return "draw";
     const requested = new URLSearchParams(window.location.search).get("mode");
-    return requested === "color" || requested === "assemble" ? requested : "draw";
+    return requested === "color" || requested === "assemble" || requested === "cover" ? requested : "draw";
   });
   // Color mode's only real job is the bucket, so it starts armed with it.
   const [tool, setTool] = useState<DrawingTool>(() => (mode === "color" ? "fill" : "select"));
@@ -230,6 +263,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const reviewMode = Boolean(user && initialBook?.ownerId && initialBook.ownerId !== user.id);
   const [sidePanel, setSidePanel] = useState<"default" | "ai" | "comments">("default");
   const [isSupervisor, setIsSupervisor] = useState(false);
+  const [showListing, setShowListing] = useState(false);
   const [comments, setComments] = useState<PageComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentsError, setCommentsError] = useState<string | null>(null);
@@ -237,17 +271,24 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   // new page object, so stale markers disappear on their own.
   const [gapCheck, setGapCheck] = useState<{ page: BookPage; markers: GapMarker[] } | null>(null);
 
-  // Undo/redo cover page content and page-list changes alike: each entry
-  // is a full snapshot of `pages`.
-  const historyRef = useRef<BookPage[][]>([]);
-  const redoRef = useRef<BookPage[][]>([]);
+  // Undo/redo cover page content, page-list changes and the cover alike:
+  // each entry is a full snapshot.
+  type Snapshot = { pages: BookPage[]; cover: CoverDesign | null };
+  const historyRef = useRef<Snapshot[]>([]);
+  const redoRef = useRef<Snapshot[]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const lastNudgeRef = useRef(0);
 
   const stageRef = useRef<Konva.Stage | null>(null);
 
-  const activePage = pages.find((p) => p.id === activePageId) ?? pages[0];
+  // The cover's size follows the book: spine = interior page count × paper.
+  const cover: CoverLayout = coverLayout(trimSizeId, pages.length, paper);
+  const fittedCover = coverDesign ? refitCover(coverDesign, cover) : emptyCover(cover, "cover");
+  const editingCover = mode === "cover";
+  const activePage = editingCover ? fittedCover.page : (pages.find((p) => p.id === activePageId) ?? pages[0]);
+  const activeSpace = editingCover ? cover.space : space;
+  const activeGeo = geometryFromSpace(activeSpace);
   const selectedObjects = activePage.objects.filter((o) => selectedIds.includes(o.id));
   const gapMarkers = gapCheck && gapCheck.page === activePage ? gapCheck.markers : null;
 
@@ -261,7 +302,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     const url = new URL(window.location.href);
     url.searchParams.set("book", bookId);
     window.history.replaceState(null, "", url.toString());
-    saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, createdAt: createdAtRef.current, updatedAt: createdAtRef.current }).catch((err) =>
+    saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, createdAt: createdAtRef.current, updatedAt: createdAtRef.current }).catch((err) =>
       window.alert(err instanceof Error ? err.message : "Could not save this book.")
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,12 +311,12 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   useEffect(() => {
     if (!bookId || sessionLoading || reviewMode) return;
     const timer = setTimeout(() => {
-      saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }).catch((err) =>
+      saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: coverDesign, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }).catch((err) =>
         window.alert(err instanceof Error ? err.message : "Could not save this book.")
       );
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [bookId, title, pages, bookStatus, trimSizeId, sessionLoading, reviewMode]);
+  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, reviewMode]);
 
   // Comments + supervisor flag. Both degrade quietly: no migration yet
   // means no comments table (a friendly note in the panel), not an error.
@@ -345,42 +386,56 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
   // ---------- History ----------
 
+  function snapshot(): Snapshot {
+    return structuredClone({ pages, cover: coverDesign });
+  }
+
   function pushHistory() {
-    historyRef.current = [...historyRef.current, structuredClone(pages)].slice(-MAX_HISTORY);
+    historyRef.current = [...historyRef.current, snapshot()].slice(-MAX_HISTORY);
     redoRef.current = [];
     setCanUndo(true);
     setCanRedo(false);
   }
 
-  function restorePages(next: BookPage[]) {
+  function restoreSnapshot({ pages: next, cover: nextCover }: Snapshot) {
     setPages(next);
+    setCoverDesign(nextCover);
     if (!next.some((p) => p.id === activePageId)) setActivePageId(next[0].id);
-    setSelectedIds((ids) => ids.filter((id) => next.some((p) => p.objects.some((o) => o.id === id))));
+    const exists = (id: string) => next.some((p) => p.objects.some((o) => o.id === id)) || Boolean(nextCover?.page.objects.some((o) => o.id === id));
+    setSelectedIds((ids) => ids.filter(exists));
   }
 
   function handleUndo() {
     const previous = historyRef.current.at(-1);
     if (!previous) return;
     historyRef.current = historyRef.current.slice(0, -1);
-    redoRef.current = [...redoRef.current, structuredClone(pages)].slice(-MAX_HISTORY);
+    redoRef.current = [...redoRef.current, snapshot()].slice(-MAX_HISTORY);
     setCanUndo(historyRef.current.length > 0);
     setCanRedo(true);
-    restorePages(previous);
+    restoreSnapshot(previous);
   }
 
   function handleRedo() {
     const next = redoRef.current.at(-1);
     if (!next) return;
     redoRef.current = redoRef.current.slice(0, -1);
-    historyRef.current = [...historyRef.current, structuredClone(pages)].slice(-MAX_HISTORY);
+    historyRef.current = [...historyRef.current, snapshot()].slice(-MAX_HISTORY);
     setCanRedo(redoRef.current.length > 0);
     setCanUndo(true);
-    restorePages(next);
+    restoreSnapshot(next);
   }
 
   // ---------- Page content ----------
 
+  /** Edits go to whatever the canvas shows: the current interior page, or the cover in Cover mode. */
   function updateActivePage(update: Partial<BookPage>) {
+    if (editingCover) {
+      setCoverDesign((prev) => {
+        const base = prev ? refitCover(prev, cover) : fittedCover;
+        return { ...base, page: { ...base.page, ...update } };
+      });
+      return;
+    }
     setPages((prev) => prev.map((p) => (p.id === activePage.id ? { ...p, ...update } : p)));
   }
 
@@ -393,7 +448,12 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   }
 
   function patchActiveObject(id: string, changes: ObjectChanges) {
-    setPages((prev) => prev.map((p) => (p.id !== activePage.id ? p : { ...p, objects: p.objects.map((o) => (o.id === id ? ({ ...o, ...changes } as PageObject) : o)) })));
+    const patch = (p: BookPage): BookPage => ({ ...p, objects: p.objects.map((o) => (o.id === id ? ({ ...o, ...changes } as PageObject) : o)) });
+    if (editingCover) {
+      setCoverDesign((prev) => (prev ? { ...prev, page: patch(prev.page) } : prev));
+      return;
+    }
+    setPages((prev) => prev.map((p) => (p.id !== activePage.id ? p : patch(p))));
   }
 
   function handleAddLines(lines: LineData[]) {
@@ -444,7 +504,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   /** Replaces the page's frame (at most one, always at the back), or removes it for `null`. */
   function handleSetFrame(frameId: string | null) {
     const withoutFrame = activePage.objects.filter((o) => !(o.kind === "stamp" && o.isFrame));
-    const frame = frameId ? createFrameStamp(frameId) : null;
+    const frame = frameId ? createFrameStamp(frameId, activeGeo) : null;
     pushHistory();
     setActiveObjects(frame ? [frame, ...withoutFrame] : withoutFrame);
     setSelectedIds([]);
@@ -618,7 +678,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   function handleAlign(edge: AlignEdge) {
     const movable = selectedObjects.filter((o) => !o.locked);
     if (movable.length === 0) return;
-    const target = movable.length === 1 ? { left: 0, top: 0, right: PAGE_WIDTH, bottom: PAGE_HEIGHT } : unionBounds(movable.map(objectBounds));
+    const target = movable.length === 1 ? activeGeo.trim : unionBounds(movable.map(objectBounds));
     if (!target) return;
     const deltas = alignDeltas(movable, edge, target);
     pushHistory();
@@ -676,10 +736,85 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setGapCheck({ page: activePage, markers: findGaps(ink) });
   }
 
+  // ---------- Print settings & cover ----------
+
+  /** Bleed on/off resizes every page canvas by 0.125in a side; content keeps its place relative to the trim. */
+  async function handleToggleBleed(on: boolean) {
+    if (on === bleed || convertingBleed) return;
+    captureActiveThumbnail();
+    pushHistory();
+    setConvertingBleed(true);
+    try {
+      const converted = await convertPages(pages, interiorSpace(trimSizeId, on));
+      setPages(converted);
+      setBleed(on);
+      setSelectedIds([]);
+    } finally {
+      setConvertingBleed(false);
+    }
+  }
+
+  function handlePaperChange(next: PaperType) {
+    pushHistory();
+    setCoverDesign(fittedCover); // pin the current layout so the refit on the next render moves content with the spine
+    setPaper(next);
+  }
+
+  function handleCoverBackground(color: string) {
+    pushHistory();
+    updateActivePage({ isCover: true, coverBackgroundColor: color });
+  }
+
+  /** The book title, rotated to read top-to-bottom down the spine (the US/UK convention). */
+  function handleAddSpineText() {
+    if (!cover.spineTextAllowed) return;
+    const s = cover.spineRect;
+    const length = s.bottom - s.top - 72; // clear of the top and bottom edges
+    const fontSize = Math.max(8, Math.min(24, cover.spine * 0.6));
+    const spineText: TextData = {
+      kind: "text",
+      id: makeId("text"),
+      text: title,
+      fontFamily: FONT_OPTIONS[0].value,
+      fontSize,
+      align: "center",
+      // Rotated 90° clockwise around its top-left: it then extends left of x.
+      x: (s.left + s.right) / 2 + fontSize * 0.6,
+      y: s.top + 36,
+      width: length,
+      height: fontSize * 1.2,
+      rotation: 90,
+      scaleX: 1,
+      scaleY: 1,
+      fill: "#111827",
+      isDragging: false,
+    };
+    pushHistory();
+    setActiveObjects([...activePage.objects, spineText]);
+    setSelectedIds([spineText.id]);
+  }
+
+  const [isExportingCover, setIsExportingCover] = useState(false);
+  async function handleExportCover() {
+    const stage = stageRef.current;
+    if (!stage || !editingCover || isExportingCover) return;
+    setIsExportingCover(true);
+    setSelectedIds([]);
+    try {
+      await waitForNextPaint();
+      const src = captureStage(stage, EXPORT_PIXEL_RATIO);
+      await exportPagesToPdf([coverExportPage(src, cover.space)], `${slugify(title)}-cover.pdf`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Could not export the cover.");
+    } finally {
+      setIsExportingCover(false);
+    }
+  }
+
   // ---------- AI & import ----------
 
   function handlePlaceFullPage(src: string, size: ImageSize) {
-    const stamp = fullPageStamp(src, size);
+    const stamp = fullPageStamp(src, size, activeGeo);
     pushHistory();
     setActiveObjects([...activePage.objects, stamp]);
     setTool("select");
@@ -693,8 +828,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
   /** Called as each series page finishes — functional update, since the series runs across many renders. */
   function handleAppendImagePage(src: string, size: ImageSize, caption?: string) {
-    const page = createPageFromTemplate(0);
-    page.objects = caption ? [fullPageStamp(src, size, CAPTION_SPACE), captionText(caption)] : [fullPageStamp(src, size)];
+    const page = createPageFromTemplate(0, space);
+    page.objects = caption ? [fullPageStamp(src, size, geo, CAPTION_SPACE), captionText(caption, geo)] : [fullPageStamp(src, size, geo)];
     setPages((prev) => renumber([...prev, page]));
     setActivePageId(page.id);
     setSelectedIds([]);
@@ -705,7 +840,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   function handleAddPage(template: PageTemplate) {
     captureActiveThumbnail();
     pushHistory();
-    const page = createPageFromTemplate(pages.length + 1, template);
+    const page = createPageFromTemplate(pages.length + 1, space, template);
     setPages((prev) => [...prev, page]);
     setActivePageId(page.id);
     setSelectedIds([]);
@@ -736,7 +871,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       setPages(next);
       if (!next.some((p) => p.id === activePageId)) setActivePageId(next[0].id);
     } else {
-      setPages(renumber(pages.flatMap((p) => [p, { ...createPageFromTemplate(0), isBlankBack: true }])));
+      setPages(renumber(pages.flatMap((p) => [p, { ...createPageFromTemplate(0, space), isBlankBack: true }])));
     }
     setSelectedIds([]);
   }
@@ -775,7 +910,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     try {
       const project = await readProjectFromFile(file);
       if (!window.confirm("Loading a project will replace your current work. Continue?")) return;
-      const nextPages = project.pages.length > 0 ? project.pages : [createPageFromTemplate(1)];
+      const nextPages = project.pages.length > 0 ? await convertPages(project.pages, space) : [createPageFromTemplate(1, space)];
       setPages(nextPages);
       setActivePageId(nextPages[0].id);
       setTitle(project.title || DEFAULT_TITLE);
@@ -794,6 +929,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   async function renderAllPages(pixelRatio: number): Promise<string[]> {
     setSelectedIds([]);
     const originalActivePageId = activePageId;
+    // Cover and Assemble don't show interior pages on the canvas — render in Draw, then come back.
+    const originalMode = mode;
+    if (mode === "cover" || mode === "assemble") setMode("draw");
     const images: string[] = [];
     const thumbnails: Record<string, string> = {};
     try {
@@ -810,6 +948,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       setPages((prev) => prev.map((p) => (thumbnails[p.id] ? { ...p, thumbnailDataUrl: thumbnails[p.id] } : p)));
     } finally {
       setActivePageId(originalActivePageId);
+      setMode(originalMode);
     }
     return images;
   }
@@ -819,7 +958,10 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setIsExporting(true);
     try {
       const dataUrls = await renderAllPages(EXPORT_PIXEL_RATIO);
-      await exportPagesToPdf(dataUrls, `${slugify(title)}.pdf`, trimSizeId);
+      await exportPagesToPdf(
+        dataUrls.map((src, i) => interiorExportPage(src, space, i + 1)),
+        `${slugify(title)}.pdf`
+      );
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "Could not export this book to PDF.");
     } finally {
@@ -853,7 +995,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         autoFixLabel: `Add ${toAdd} blank page${toAdd === 1 ? "" : "s"}`,
         onAutoFix: () => {
           pushHistory();
-          setPages((prev) => renumber([...prev, ...Array.from({ length: toAdd }, () => createPageFromTemplate(0))]));
+          setPages((prev) => renumber([...prev, ...Array.from({ length: toAdd }, () => createPageFromTemplate(0, space))]));
         },
       };
     }
@@ -908,6 +1050,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setSelectedIds([]); // a selection carrying over across a mode switch has no meaning here — also avoids a stale Transformer contaminating Color mode's flood-fill boundary snapshot
     setPendingPlacement(null);
     setTool(next === "color" ? "fill" : "select");
+    setGapCheck(null);
   }
 
   function handleToolChange(next: DrawingTool) {
@@ -979,14 +1122,14 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         setShowShortcuts((v) => !v);
       } else if (key === "g") {
         setShowGuides((v) => !v);
-      } else if (key === "m" && mode === "draw") {
+      } else if (key === "m" && (mode === "draw" || mode === "cover")) {
         setSymmetry((s) => (s === "off" ? "mirror-x" : "off"));
       } else if (e.key === "[" || e.key === "]") {
         const widths = [...new Set([1, 2, ...BRUSH_PRESETS.map((b) => b.width), 30, 40])].sort((a, b) => a - b);
         setStrokeWidth((w) => (e.key === "]" ? (widths.find((x) => x > w) ?? w) : ([...widths].reverse().find((x) => x < w) ?? w)));
       } else if (TOOL_KEYS[key]) {
         const next = TOOL_KEYS[key];
-        const allowed = next === "select" || (next === "fill" ? mode === "color" : mode === "draw");
+        const allowed = next === "select" || (next === "fill" ? mode === "color" : mode === "draw" || mode === "cover");
         if (allowed) handleToolChange(next);
       }
     };
@@ -1005,7 +1148,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         onTitleChange={setTitle}
         pages={pages}
         activePageId={activePageId}
-        trimSizeLabel={getTrimSize(trimSizeId).label}
+        trimSizeLabel={`${trimShortLabel(trimSizeId)}${bleed ? " + bleed" : ""}`}
         mode={mode}
         onModeChange={handleModeChange}
         onSave={handleSaveProject}
@@ -1048,6 +1191,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           <>
             <CanvasArea
               page={activePage}
+              space={activeSpace}
+              guides={editingCover ? coverGuides(cover) : undefined}
               mode={mode}
               tool={tool}
               strokeWidth={strokeWidth}
@@ -1077,6 +1222,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               gapMarkers={gapMarkers}
               darkSurround={darkSurround}
             />
+            {!editingCover && (
             <PageFilmstrip
               pages={pages}
               activePageId={activePageId}
@@ -1088,6 +1234,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               onToggleBlankBacks={handleToggleBlankBacks}
               commentCounts={openCommentCounts}
             />
+            )}
           </>
         )}
       </div>
@@ -1150,12 +1297,31 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           gapCount={gapMarkers ? gapMarkers.length : null}
           onRunGapCheck={handleRunGapCheck}
           onClearGapCheck={() => setGapCheck(null)}
+          extraCards={
+            editingCover ? (
+              <CoverCard
+                layout={cover}
+                pageCount={pages.length}
+                paper={paper}
+                onPaperChange={handlePaperChange}
+                backgroundColor={fittedCover.page.coverBackgroundColor ?? "#ffffff"}
+                onBackgroundColorChange={handleCoverBackground}
+                onAddSpineText={handleAddSpineText}
+                onExportCover={() => void handleExportCover()}
+                exporting={isExportingCover}
+              />
+            ) : mode === "draw" ? (
+              <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} />
+            ) : null
+          }
         />
       )}
 
       {previewImages && <BookPreviewModal images={previewImages} onClose={() => setPreviewImages(null)} />}
 
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
+      {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
 
       {showPreflight && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={() => setShowPreflight(false)}>

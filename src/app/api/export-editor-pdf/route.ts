@@ -5,12 +5,20 @@
 // not add `export const runtime = "edge"` (pdfkit doesn't exist on edge).
 
 import { NextResponse } from "next/server";
-import { exportRasterPagesToPdf } from "@/utils/rasterPdfExporter";
+import { exportRasterPagesToPdf, type ExportPage } from "@/utils/rasterPdfExporter";
 
 interface ExportRequestBody {
-  pages: string[];
+  pages: ExportPage[];
   title?: string;
-  trimSizeId?: string;
+}
+
+const MAX_PAGE_PT = 72 * 60; // 60in — generous for any cover spread; rejects nonsense sizes
+
+function isExportPage(p: unknown): p is ExportPage {
+  if (!p || typeof p !== "object") return false;
+  const o = p as Record<string, unknown>;
+  const num = (v: unknown, min: number) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= MAX_PAGE_PT;
+  return typeof o.src === "string" && num(o.pageWidth, 1) && num(o.pageHeight, 1) && num(o.imageWidth, 1) && num(o.imageHeight, 1) && num(o.x, -MAX_PAGE_PT) && num(o.y, -MAX_PAGE_PT);
 }
 
 export async function POST(request: Request) {
@@ -21,12 +29,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 });
   }
 
-  if (!body || !Array.isArray(body.pages) || body.pages.some((p) => typeof p !== "string")) {
-    return NextResponse.json({ error: "Request body must be { pages: string[] } (data URLs)" }, { status: 400 });
+  if (!body || !Array.isArray(body.pages) || body.pages.length === 0 || !body.pages.every(isExportPage)) {
+    return NextResponse.json({ error: "Request body must be { pages: ExportPage[] } (data URL + page size and placement in points)" }, { status: 400 });
   }
 
   try {
-    const pdfBuffer = await exportRasterPagesToPdf(body.pages, body.title, body.trimSizeId);
+    const pdfBuffer = await exportRasterPagesToPdf(body.pages, body.title);
     const safeName = (body.title ?? "coloring-book").replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "coloring-book";
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {

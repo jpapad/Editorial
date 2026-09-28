@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import OnboardingScreen from "@/components/studio/screens/OnboardingScreen";
 import RequireAuth from "@/components/studio/RequireAuth";
 import { createPageFromTemplate } from "@/components/editor/pageTemplates";
+import { interiorSpace } from "@/utils/pageGeometry";
 import { createBook } from "@/utils/storage";
 import { DEFAULT_TRIM_SIZE_ID, TRIM_SIZES } from "@/utils/trimSizes";
 import { cn } from "@/utils/cn";
@@ -46,7 +47,7 @@ function OnboardingPageContent() {
   async function handleContinue(intentId: string) {
     try {
       const template = INTENT_TEMPLATES[intentId] ?? "blank";
-      const book = await createBook("Untitled Book", [createPageFromTemplate(1, template)], trimSize);
+      const book = await createBook("Untitled Book", [createPageFromTemplate(1, interiorSpace(trimSize, false), template)], trimSize);
       const modeParam = intentId === "color" ? "&mode=color" : "";
       router.push(`/studio/editor?book=${book.id}${modeParam}`);
     } catch (err) {
@@ -56,7 +57,7 @@ function OnboardingPageContent() {
 
   async function handleSkip() {
     try {
-      const book = await createBook("Untitled Book", [createPageFromTemplate(1)], trimSize);
+      const book = await createBook("Untitled Book", [createPageFromTemplate(1, interiorSpace(trimSize, false))], trimSize);
       router.push(`/studio/editor?book=${book.id}`);
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "Could not create this book.");

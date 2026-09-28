@@ -11,6 +11,7 @@ import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
 import { getBook, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import type { BookPage } from "@/types/editor";
+import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeometry";
 
 const PALETTE = ["#e4b7a0", "#cfa77e", "#8fae8b", "#5d7f6f", "#d9cf9e", "#b98a8a", "#7b8fa8", "#42505f"];
 const SWIPE_THRESHOLD_PX = 60;
@@ -46,7 +47,10 @@ export default function ColoringView() {
   useEffect(() => {
     let cancelled = false;
     Promise.resolve(bookId ? getBook(bookId) : null)
-      .then((book) => {
+      .then(async (book) => {
+        // Same page-size normalization the editor does on open.
+        const target = interiorSpace(book?.trimSize, book?.bleed ?? false);
+        if (book && needsConversion(book.pages, target)) book = { ...book, pages: await convertPages(book.pages, target) };
         if (!cancelled) setLoaded({ book });
       })
       .catch(() => {
@@ -89,6 +93,7 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
   const stageRef = useRef<Konva.Stage | null>(null);
 
   const activePage = pages[pageIndex] as BookPage | undefined;
+  const space = interiorSpace(initialBook?.trimSize, initialBook?.bleed ?? false);
 
   function persist(nextPages: BookPage[]) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -204,16 +209,17 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
           {/* Quiet mode dims the shell (the tablet ground outside the paper), not the paper itself. */}
           <div className={cn("absolute inset-0 bg-ink/0 transition-colors duration-200 motion-reduce:transition-none", quietMode && "bg-ink/15")} style={{ top: quietMode ? 0 : 46 }} aria-hidden />
 
-          {/* Paper — aspect-ratio locked to the real page (595x842), not a fixed box, so it never stretches real book content. */}
+          {/* Paper — aspect-ratio locked to the real page size, not a fixed box, so it never stretches real book content. */}
           <div className="flex items-center justify-center" style={{ height: quietMode ? 660 : 660 - 46 - 104 }}>
             <div
               onPointerDown={handlePaperPointerDown}
               onPointerUp={handlePaperPointerUp}
               className="relative flex items-center justify-center rounded-[6px] bg-white p-[18px] shadow-paper"
-              style={{ height: "100%", aspectRatio: "595 / 842", touchAction: "pan-y" }}
+              style={{ height: "100%", aspectRatio: `${space.width} / ${space.height}`, touchAction: "pan-y" }}
             >
               <CanvasArea
                 page={activePage}
+                space={space}
                 mode="color"
                 tool="fill"
                 strokeWidth={1}

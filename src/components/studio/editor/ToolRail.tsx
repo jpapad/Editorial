@@ -28,20 +28,24 @@ interface ToolDef {
  * (add/reorder) live in the filmstrip, matching how the old editor's
  * PageManager already worked, so its rail is just the AI item.
  */
+const DRAW_TOOLS: ToolDef[] = [
+  { id: "select", icon: MousePointer2, label: "Select" },
+  { id: "pen", icon: PenTool, label: "Pen" },
+  { id: "eraser", icon: Eraser, label: "Eraser" },
+  { id: "stamp", icon: Sticker, label: "Stamp" },
+  { id: "shape", icon: Square, label: "Shape" },
+  { id: "text", icon: Type, label: "Text" },
+];
+
 const TOOLS_BY_MODE: Record<EditorMode, ToolDef[]> = {
-  draw: [
-    { id: "select", icon: MousePointer2, label: "Select" },
-    { id: "pen", icon: PenTool, label: "Pen" },
-    { id: "eraser", icon: Eraser, label: "Eraser" },
-    { id: "stamp", icon: Sticker, label: "Stamp" },
-    { id: "shape", icon: Square, label: "Shape" },
-    { id: "text", icon: Type, label: "Text" },
-  ],
+  draw: DRAW_TOOLS,
   color: [
     { id: "select", icon: MousePointer2, label: "Select" },
     { id: "fill", icon: PaintBucket, label: "Fill" },
   ],
   assemble: [],
+  // The cover is drawn with the same tools as a page.
+  cover: DRAW_TOOLS,
 };
 
 function ToolButton({ tool, active, onClick }: { tool: ToolDef; active: boolean; onClick: () => void }) {

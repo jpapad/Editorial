@@ -5,11 +5,11 @@ import dynamic from "next/dynamic";
 import { Grid3x3, Minus, Plus, Ruler } from "lucide-react";
 import Slider from "@/components/studio/ui/Slider";
 import { cn } from "@/utils/cn";
-import { PAGE_WIDTH, PAGE_HEIGHT } from "@/components/editor/CanvasEditor";
+import type { GuideSpec } from "@/components/editor/CanvasEditor";
 import { SYMMETRY_OPTIONS } from "@/components/editor/strokeTools";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
-import type { BookPage, DrawingTool, LineData, ObjectUpdate, PendingPlacement, SymmetryMode } from "@/types/editor";
+import type { BookPage, DrawingTool, LineData, ObjectUpdate, PageSpace, PendingPlacement, SymmetryMode } from "@/types/editor";
 import type { EditorMode } from "@/components/studio/types";
 
 const CANVAS_PADDING_PX = 24; // breathing room so the paper never touches the container edge exactly
@@ -30,11 +30,14 @@ export const BRUSH_PRESETS = [
 // editor's own dynamic import.
 const CanvasEditor = dynamic(() => import("@/components/editor/CanvasEditor"), {
   ssr: false,
-  loading: () => <div className="animate-pulse rounded-paper-sm bg-inset" style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT }} />,
+  loading: () => <div className="h-[60vh] w-[42vh] animate-pulse rounded-paper-sm bg-inset" />,
 });
 
 export interface CanvasAreaProps {
   page: BookPage;
+  /** Canvas size in points (trim + bleed, or a cover spread). */
+  space: PageSpace;
+  guides?: GuideSpec;
   mode: EditorMode;
   tool: DrawingTool;
   strokeWidth: number;
@@ -99,7 +102,7 @@ function ToolbarIconButton({ label, pressed, onClick, children }: { label: strin
  */
 export default function CanvasArea(props: CanvasAreaProps) {
   const { mode, tool, strokeWidth, onStrokeWidthChange, darkSurround = false, hideViewControls = false } = props;
-  const showStrokeToolbar = mode === "draw" && (tool === "pen" || tool === "eraser");
+  const showStrokeToolbar = (mode === "draw" || mode === "cover") && (tool === "pen" || tool === "eraser");
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const paperRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +114,8 @@ export default function CanvasArea(props: CanvasAreaProps) {
   // Page point to keep under the pointer across a zoom-at-pointer step, applied after the re-render.
   const zoomAnchorRef = useRef<{ pageX: number; pageY: number; clientX: number; clientY: number } | null>(null);
 
+  const spaceRef = useRef(props.space);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -119,11 +124,22 @@ export default function CanvasArea(props: CanvasAreaProps) {
       if (!width || !height) return;
       const availableWidth = width - CANVAS_PADDING_PX * 2;
       const availableHeight = height - CANVAS_PADDING_PX * 2;
-      setFitScale(Math.min(availableWidth / PAGE_WIDTH, availableHeight / PAGE_HEIGHT, 1));
+      setFitScale(Math.min(availableWidth / spaceRef.current.width, availableHeight / spaceRef.current.height, 1));
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // A different page size (bleed toggled, cover vs interior) needs a new fit.
+  const { width: spaceWidth, height: spaceHeight } = props.space;
+  useEffect(() => {
+    spaceRef.current = { ...spaceRef.current, width: spaceWidth, height: spaceHeight };
+    const el = scrollRef.current;
+    if (!el) return;
+    const width = el.clientWidth - CANVAS_PADDING_PX * 2;
+    const height = el.clientHeight - CANVAS_PADDING_PX * 2;
+    if (width > 0 && height > 0) setFitScale(Math.min(width / spaceWidth, height / spaceHeight, 1));
+  }, [spaceWidth, spaceHeight]);
 
   function zoomTo(next: number, anchor?: { clientX: number; clientY: number }) {
     const paper = paperRef.current?.getBoundingClientRect();
@@ -210,6 +226,8 @@ export default function CanvasArea(props: CanvasAreaProps) {
           <div ref={paperRef}>
             <CanvasEditor
               page={props.page}
+              space={props.space}
+              guides={props.guides}
               tool={props.tool}
               strokeWidth={props.strokeWidth}
               pendingPlacement={props.pendingPlacement}
@@ -219,7 +237,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
               symmetry={symmetry}
               smoothing={props.smoothing ?? 0}
               gapMarkers={props.gapMarkers}
-              mode={props.mode}
+              mode={props.mode === "cover" ? "draw" : props.mode}
               backgroundPatternId={props.page.backgroundPatternId}
               isCover={props.page.isCover}
               coverBackgroundColor={props.page.coverBackgroundColor}

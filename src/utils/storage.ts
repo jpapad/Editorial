@@ -1,6 +1,7 @@
 import type { BookPage } from "@/types/editor";
 import { supabase } from "@/lib/supabase/client";
 import type { BookRow } from "@/types/database";
+import type { CoverDesign, PaperType } from "@/types/editor";
 
 export type BookStatus = "draft" | "published";
 
@@ -11,9 +12,12 @@ export interface StoredBook {
   status: BookStatus;
   createdAt: string;
   updatedAt: string;
-  collection?: string; // free-text, user-assigned — Library's real replacement for the old decorative "Collections" list
+  collection?: string | null; // free-text, user-assigned (null clears it on save, undefined leaves it alone) — Library's real replacement for the old decorative "Collections" list
   trimSize?: string; // TrimSize id (see utils/trimSizes.ts) — fixed at creation, applied at export time
   ownerId?: string; // the owning user — read-only here; lets the editor spot a supervisor opening someone else's book
+  bleed?: boolean; // interior prints to the edge — see utils/pageGeometry.ts
+  paper?: PaperType;
+  cover?: CoverDesign | null;
 }
 
 /** Plain project data — used for JSON export/import (a single book's portable file), independent of which library entry it came from or goes to. */
@@ -46,6 +50,9 @@ function fromRow(row: BookRow): StoredBook {
     collection: row.collection ?? undefined,
     trimSize: row.trim_size ?? undefined,
     ownerId: row.user_id,
+    bleed: row.bleed ?? false,
+    paper: row.paper ?? "white",
+    cover: row.cover ?? null,
   };
 }
 
@@ -65,21 +72,47 @@ export async function getBook(id: string): Promise<StoredBook | null> {
   return data ? fromRow(data) : null;
 }
 
-/** Upsert — used for both the initial create and every autosave. */
+const PRINT_SETTINGS_COLUMNS = ["bleed", "paper", "cover"] as const;
+
+/** Postgres "column does not exist" for one of the print-settings columns — the migration hasn't run yet. */
+function isMissingPrintSettings(message: string): boolean {
+  return PRINT_SETTINGS_COLUMNS.some((c) => message.includes(`'${c}'`) || message.includes(`"${c}"`) || message.includes(` ${c} `)) && /column|schema cache/i.test(message);
+}
+let printSettingsAvailable = true;
+
+/**
+ * Upsert — used for both the initial create and every autosave. Optional
+ * fields left undefined are left out of the write entirely, so an upsert
+ * never clears a value the caller simply didn't have (e.g. the coloring
+ * view saving a page used to reset the book's trim size to null).
+ */
 export async function saveBook(book: StoredBook): Promise<void> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error("Not signed in.");
 
-  const { error } = await supabase.from("books").upsert({
+  const row: Record<string, unknown> = {
     id: book.id,
     user_id: userData.user.id,
     title: book.title,
     pages: book.pages,
     status: book.status,
-    collection: book.collection ?? null,
-    trim_size: book.trimSize ?? null,
     updated_at: book.updatedAt,
-  });
+  };
+  if (book.collection !== undefined) row.collection = book.collection ?? null;
+  if (book.trimSize !== undefined) row.trim_size = book.trimSize;
+  if (printSettingsAvailable) {
+    if (book.bleed !== undefined) row.bleed = book.bleed;
+    if (book.paper !== undefined) row.paper = book.paper;
+    if (book.cover !== undefined) row.cover = book.cover;
+  }
+
+  let { error } = await supabase.from("books").upsert(row as never);
+  if (error && isMissingPrintSettings(error.message)) {
+    // Migration not run yet: keep saving everything else.
+    printSettingsAvailable = false;
+    for (const c of PRINT_SETTINGS_COLUMNS) delete row[c];
+    ({ error } = await supabase.from("books").upsert(row as never));
+  }
   if (error) throw new Error(error.message);
 }
 

@@ -27,6 +27,11 @@ export const TRIM_SIZES: TrimSize[] = [
 
 export const DEFAULT_TRIM_SIZE_ID = "8.5x11";
 
+/** "8.5 × 11 in" — the label without its nickname, for tight spots. */
+export function trimShortLabel(id: string | undefined): string {
+  return getTrimSize(id).label.replace(/\s*\(.*\)\s*$/, "");
+}
+
 export function getTrimSize(id: string | undefined): TrimSize {
   return TRIM_SIZES.find((t) => t.id === id) ?? TRIM_SIZES.find((t) => t.id === DEFAULT_TRIM_SIZE_ID) ?? TRIM_SIZES[0];
 }

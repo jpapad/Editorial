@@ -12,7 +12,7 @@
 //
 // Shape transcribed directly from the README's "State" section.
 
-export type EditorMode = "draw" | "color" | "assemble";
+export type EditorMode = "draw" | "color" | "assemble" | "cover";
 
 export type ToolId = "select" | "shape" | "pen" | "mask" | "fill" | "eraser" | "reorder" | "insert" | "ai";
 

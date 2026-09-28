@@ -1,10 +1,12 @@
-import { PAGE_HEIGHT, PAGE_WIDTH, SAFE_MARGIN } from "@/components/editor/CanvasEditor";
 import type { BookPage, LineData, PageObject } from "@/types/editor";
 import { fitInside, objectBounds } from "@/utils/objectGeometry";
+import { geometryFromSpace, LEGACY_SPACE, type Rect } from "@/utils/pageGeometry";
 
-// The same safe area the canvas's print-guides overlay draws, so the check
-// and the visual guide always agree.
-const PRINT_MARGIN = SAFE_MARGIN;
+// The same safe area the canvas's print-guides overlay draws (0.5in inside
+// each page's own trim), so the check and the visual guide always agree.
+function safeArea(page: BookPage): Rect {
+  return geometryFromSpace(page.space ?? LEGACY_SPACE).safe;
+}
 
 // A heuristic, not a sourced print-industry spec: half the editor's own
 // default pen width (6pt). Below this, a stroke is visibly thinner than
@@ -77,14 +79,17 @@ function checkThinStrokes(pages: BookPage[]): EditorPreflightIssue[] {
   ];
 }
 
-function exceedsMargin(b: { left: number; top: number; right: number; bottom: number }): boolean {
-  return b.left < PRINT_MARGIN || b.top < PRINT_MARGIN || b.right > PAGE_WIDTH - PRINT_MARGIN || b.bottom > PAGE_HEIGHT - PRINT_MARGIN;
+function exceedsMargin(b: Rect, safe: Rect): boolean {
+  return b.left < safe.left || b.top < safe.top || b.right > safe.right || b.bottom > safe.bottom;
 }
 
 /** Placed objects (stamps/shapes/text) or pen strokes extending past the print-margin safe area. */
 function checkMarginSafety(pages: BookPage[]): EditorPreflightIssue[] {
   const flaggedPageIds = pages
-    .filter((p) => p.objects.some((obj) => !obj.hidden && !isFrame(obj) && exceedsMargin(objectBounds(obj))) || p.lines.some((l) => l.tool === "pen" && exceedsMargin(lineBounds(l))))
+    .filter((p) => {
+      const safe = safeArea(p);
+      return p.objects.some((obj) => !obj.hidden && !isFrame(obj) && exceedsMargin(objectBounds(obj), safe)) || p.lines.some((l) => l.tool === "pen" && exceedsMargin(lineBounds(l), safe));
+    })
     .map((p) => p.id);
   if (flaggedPageIds.length === 0) return [];
   return [
@@ -92,7 +97,7 @@ function checkMarginSafety(pages: BookPage[]): EditorPreflightIssue[] {
       id: "margin-safety",
       severity: "warning",
       code: "MARGIN_SAFETY",
-      message: `${flaggedPageIds.length} page${flaggedPageIds.length === 1 ? "" : "s"} — content extends past the ${PRINT_MARGIN}pt safe margin.`,
+      message: `${flaggedPageIds.length} page${flaggedPageIds.length === 1 ? "" : "s"} — content extends past the 0.5in safe margin.`,
       pageIds: flaggedPageIds,
     },
   ];
@@ -117,9 +122,8 @@ export function thickenThinStrokes(pages: BookPage[]): BookPage[] {
 
 /** Moves (and if needed, shrinks) every visible object back inside the print-margin safe area — the margin-safety issue's real autofix. Uses the transformed bounds, so rotated/flipped objects land correctly. */
 export function clampObjectsToMargin(pages: BookPage[]): BookPage[] {
-  const area = { left: PRINT_MARGIN, top: PRINT_MARGIN, right: PAGE_WIDTH - PRINT_MARGIN, bottom: PAGE_HEIGHT - PRINT_MARGIN };
-  return pages.map((p) => ({
-    ...p,
-    objects: p.objects.map((obj) => (obj.hidden || isFrame(obj) ? obj : (fitInside(obj, area) as PageObject))),
-  }));
+  return pages.map((p) => {
+    const area = safeArea(p);
+    return { ...p, objects: p.objects.map((obj) => (obj.hidden || isFrame(obj) ? obj : (fitInside(obj, area) as PageObject))) };
+  });
 }

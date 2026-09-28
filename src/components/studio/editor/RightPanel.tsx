@@ -90,6 +90,8 @@ export interface RightPanelProps {
   gapCount: number | null;
   onRunGapCheck: () => void;
   onClearGapCheck: () => void;
+  /** Extra cards at the bottom (book print settings, the cover card). */
+  extraCards?: React.ReactNode;
 }
 
 const ICON_BUTTON =
@@ -344,7 +346,9 @@ function GapCheckRow({ gapCount, onRunGapCheck, onClearGapCheck }: Pick<RightPan
  */
 export default function RightPanel(props: RightPanelProps) {
   const { mode, tool, activeColor, onSelectColor, page, selectedIds } = props;
-  const showAssetPicker = mode === "draw" && (tool === "stamp" || tool === "shape" || tool === "text");
+  // The cover is drawn with the same tools as a page; only its settings card differs.
+  const drawLike = mode === "draw" || mode === "cover";
+  const showAssetPicker = drawLike && (tool === "stamp" || tool === "shape" || tool === "text");
   const selected = page.objects.filter((o) => selectedIds.includes(o.id));
   const currentFrame = page.objects.find((o) => o.kind === "stamp" && o.isFrame);
 
@@ -366,7 +370,7 @@ export default function RightPanel(props: RightPanelProps) {
         </div>
       )}
 
-      {mode === "draw" && !showAssetPicker && (
+      {drawLike && !showAssetPicker && (
         <div className="flex shrink-0 flex-col gap-3.5">
           <SelectionCard {...props} selected={selected} />
           <LayersCard {...props} />
@@ -493,6 +497,7 @@ export default function RightPanel(props: RightPanelProps) {
           </div>
         </Card>
       )}
+      {props.extraCards}
     </aside>
   );
 }

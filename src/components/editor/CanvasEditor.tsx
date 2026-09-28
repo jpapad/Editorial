@@ -18,7 +18,7 @@ import useImage from "use-image";
 // A value import (not `import type`) — Konva.Filters.Grayscale/Threshold are
 // runtime functions we apply to cached stamp nodes for the line-art filter.
 import Konva from "konva";
-import type { BookPage, DrawingTool, LineData, ObjectChanges, ObjectUpdate, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
+import type { BookPage, DrawingTool, LineData, ObjectChanges, ObjectUpdate, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 import { isOpenStroke, isPolygonShape, polygonPoints } from "@/components/editor/shapeGeometry";
 import { smoothStroke, stabilize, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
@@ -26,18 +26,42 @@ import type { EditorMode } from "@/components/studio/types";
 import { floodFill, samplePixelColor, type PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
 import { objectBounds } from "@/utils/objectGeometry";
+import { geometryFromSpace, type PageGeometry, type Rect as PageRect } from "@/utils/pageGeometry";
 import { ensureKidFonts } from "@/components/editor/kidFonts";
 
-// A4 at 72pt/in — matches the point units jsPDF uses for an "a4" page,
-// so the on-screen canvas maps 1:1 onto the exported PDF page.
-export const PAGE_WIDTH = 595;
-export const PAGE_HEIGHT = 842;
-/** ~0.5in safe area, in page units — shared with editorPreflight's margin check so the guide and the check always agree. */
-export const SAFE_MARGIN = 36;
+/**
+ * What the print-guides overlay draws, in page units: the trim (cut) line,
+ * one or more safe areas, and optional fold lines (a cover's spine). Built
+ * by interiorGuides() for book pages and by the cover designer for covers.
+ */
+export interface GuideSpec {
+  trim: PageRect;
+  safe: PageRect[];
+  folds?: number[][];
+  /** Areas that must stay clear (e.g. the cover's barcode box) — drawn hatched. */
+  blocked?: PageRect[];
+  labels?: { x: number; y: number; text: string; color?: string }[];
+  /** Faint center crosshair — useful on single pages, noise on a cover spread. */
+  center?: boolean;
+}
+
+export function interiorGuides(geo: PageGeometry): GuideSpec {
+  return {
+    trim: geo.trim,
+    safe: [geo.safe],
+    center: true,
+    labels: [
+      { x: geo.safe.left + 4, y: geo.safe.top + 4, text: "SAFE AREA · 0.5 IN", color: GUIDE_COLOR },
+      { x: geo.trim.left + 6, y: geo.trim.bottom - 14, text: geo.bleed ? "TRIM · BLEED BEYOND" : "TRIM EDGE", color: TRIM_COLOR },
+    ],
+  };
+}
 
 const PEN_COLOR = "#111827";
 const GRID_SIZE = 25;
 const GUIDE_COLOR = "#3357d4";
+const TRIM_COLOR = "#c4453f";
+const FOLD_COLOR = "#e0a13c";
 const LONG_PRESS_MS = 500;
 const MOVE_CANCEL_PX = 6;
 const MAX_FILL_HISTORY = 20;
@@ -73,7 +97,8 @@ export function captureInk(stage: Konva.Stage): PixelBuffer | null {
     const canvas = layer.toCanvas({ pixelRatio: 1 / stage.scaleX() });
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    const imageData = ctx.getImageData(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+    // Native page size = rendered size ÷ zoom (rounded: toCanvas rounds too).
+    const imageData = ctx.getImageData(0, 0, Math.round(stage.width() / stage.scaleX()), Math.round(stage.height() / stage.scaleY()));
     return { width: imageData.width, height: imageData.height, data: imageData.data };
   } finally {
     overlays.forEach((n) => n.show());
@@ -97,12 +122,16 @@ function makeLineId() {
 
 interface CanvasEditorProps {
   page: BookPage;
+  /** The canvas size in points — the book's trim (+ bleed), or a cover spread. */
+  space: PageSpace;
+  /** What "print guides" draws; defaults to interior-page guides for `space`. */
+  guides?: GuideSpec;
   tool: DrawingTool;
   strokeWidth: number;
   pendingPlacement: PendingPlacement | null;
   selectedIds: string[];
   showGrid: boolean;
-  /** Print guides: the 0.5in safe area (SAFE_MARGIN) and the page's center lines. */
+  /** Print guides: trim, safe area(s), folds — see GuideSpec. */
   showGuides: boolean;
   /** Pen/eraser strokes are repeated across the page center — see strokeTools.ts. */
   symmetry?: SymmetryMode;
@@ -327,28 +356,60 @@ function TextNode({
   );
 }
 
-function BackgroundPatternLayer({ patternId }: { patternId: string }) {
+function BackgroundPatternLayer({ patternId, width, height }: { patternId: string; width: number; height: number }) {
   const pattern = getBackgroundPattern(patternId);
   const [tileImage] = useImage(pattern ? `data:image/svg+xml;utf8,${encodeURIComponent(pattern.svg)}` : "");
   if (!pattern || !tileImage) return null;
 
   return (
     <Layer listening={false}>
-      <Rect x={0} y={0} width={PAGE_WIDTH} height={PAGE_HEIGHT} fillPatternImage={tileImage} fillPatternRepeat="repeat" fillPatternScale={{ x: 1, y: 1 }} />
+      <Rect x={0} y={0} width={width} height={height} fillPatternImage={tileImage} fillPatternRepeat="repeat" fillPatternScale={{ x: 1, y: 1 }} />
     </Layer>
   );
 }
 
-function GuidesLayer() {
-  const dash = [6, 5];
+function GuidesLayer({ spec, width, height }: { spec: GuideSpec; width: number; height: number }) {
+  const { trim } = spec;
+  const hasBleed = trim.left > 0 || trim.top > 0 || trim.right < width || trim.bottom < height;
   return (
     <Layer listening={false} name={OVERLAY_NAME}>
-      <Line points={[PAGE_WIDTH / 2, 0, PAGE_WIDTH / 2, PAGE_HEIGHT]} stroke={GUIDE_COLOR} strokeWidth={0.75} opacity={0.35} dash={[3, 5]} />
-      <Line points={[0, PAGE_HEIGHT / 2, PAGE_WIDTH, PAGE_HEIGHT / 2]} stroke={GUIDE_COLOR} strokeWidth={0.75} opacity={0.35} dash={[3, 5]} />
-      <Rect x={SAFE_MARGIN} y={SAFE_MARGIN} width={PAGE_WIDTH - SAFE_MARGIN * 2} height={PAGE_HEIGHT - SAFE_MARGIN * 2} stroke={GUIDE_COLOR} strokeWidth={1.25} dash={dash} opacity={0.8} />
-      <Rect x={0.75} y={0.75} width={PAGE_WIDTH - 1.5} height={PAGE_HEIGHT - 1.5} stroke="#c4453f" strokeWidth={1.5} opacity={0.55} />
-      <KonvaText x={SAFE_MARGIN + 4} y={SAFE_MARGIN + 4} text="SAFE AREA · 0.5 IN" fontSize={8} fontFamily="ui-monospace, monospace" letterSpacing={1} fill={GUIDE_COLOR} opacity={0.8} />
-      <KonvaText x={6} y={PAGE_HEIGHT - 14} text="TRIM EDGE" fontSize={8} fontFamily="ui-monospace, monospace" letterSpacing={1} fill="#c4453f" opacity={0.7} />
+      {hasBleed && (
+        // Everything past the trim gets cut off: tint it so nobody puts a face there.
+        <Group opacity={0.09}>
+          <Rect x={0} y={0} width={width} height={trim.top} fill={TRIM_COLOR} />
+          <Rect x={0} y={trim.bottom} width={width} height={height - trim.bottom} fill={TRIM_COLOR} />
+          <Rect x={0} y={trim.top} width={trim.left} height={trim.bottom - trim.top} fill={TRIM_COLOR} />
+          <Rect x={trim.right} y={trim.top} width={width - trim.right} height={trim.bottom - trim.top} fill={TRIM_COLOR} />
+        </Group>
+      )}
+      {spec.center && (
+        <>
+          <Line points={[width / 2, 0, width / 2, height]} stroke={GUIDE_COLOR} strokeWidth={0.75} opacity={0.35} dash={[3, 5]} />
+          <Line points={[0, height / 2, width, height / 2]} stroke={GUIDE_COLOR} strokeWidth={0.75} opacity={0.35} dash={[3, 5]} />
+        </>
+      )}
+      {spec.safe.map((r, i) => (
+        <Rect key={`safe-${i}`} x={r.left} y={r.top} width={r.right - r.left} height={r.bottom - r.top} stroke={GUIDE_COLOR} strokeWidth={1.25} dash={[6, 5]} opacity={0.8} />
+      ))}
+      {spec.folds?.map((pts, i) => <Line key={`fold-${i}`} points={pts} stroke={FOLD_COLOR} strokeWidth={1.25} dash={[4, 4]} />)}
+      {spec.blocked?.map((r, i) => (
+        <Group key={`blocked-${i}`}>
+          <Rect x={r.left} y={r.top} width={r.right - r.left} height={r.bottom - r.top} fill="#6b7280" opacity={0.12} stroke="#6b7280" strokeWidth={1} dash={[3, 3]} />
+          <KonvaText x={r.left} y={(r.top + r.bottom) / 2 - 5} width={r.right - r.left} align="center" text="BARCODE AREA" fontSize={8} fontFamily="ui-monospace, monospace" letterSpacing={1} fill="#6b7280" />
+        </Group>
+      ))}
+      <Rect
+        x={trim.left + 0.75}
+        y={trim.top + 0.75}
+        width={trim.right - trim.left - 1.5}
+        height={trim.bottom - trim.top - 1.5}
+        stroke={TRIM_COLOR}
+        strokeWidth={1.5}
+        opacity={0.55}
+      />
+      {spec.labels?.map((l, i) => (
+        <KonvaText key={`label-${i}`} x={l.x} y={l.y} text={l.text} fontSize={8} fontFamily="ui-monospace, monospace" letterSpacing={1} fill={l.color ?? GUIDE_COLOR} opacity={0.8} />
+      ))}
     </Layer>
   );
 }
@@ -378,6 +439,8 @@ interface Marquee {
 
 export default function CanvasEditor({
   page,
+  space,
+  guides,
   tool,
   strokeWidth,
   pendingPlacement,
@@ -405,6 +468,9 @@ export default function CanvasEditor({
   onStageReady,
   scale = 1,
 }: CanvasEditorProps) {
+  const pageWidth = space.width;
+  const pageHeight = space.height;
+  const guideSpec = guides ?? interiorGuides(geometryFromSpace(space));
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const objectNodesRef = useRef<Map<string, Konva.Node>>(new Map());
   const isDrawing = useRef(false);
@@ -430,8 +496,8 @@ export default function CanvasEditor({
   // layer" made literal.
   function createFillCanvas(): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
-    canvas.width = PAGE_WIDTH;
-    canvas.height = PAGE_HEIGHT;
+    canvas.width = pageWidth;
+    canvas.height = pageHeight;
     return canvas;
   }
   const [fillCanvas, setFillCanvas] = useState<HTMLCanvasElement>(createFillCanvas);
@@ -467,7 +533,7 @@ export default function CanvasEditor({
     };
     img.src = page.fillDataUrl;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page.id]);
+  }, [page.id, pageWidth, pageHeight]);
 
   // Real per-fill undo — pops fillHistoryRef and redraws that snapshot.
   // See undoFillSignal's own doc for why this is a signal bump, not a
@@ -487,7 +553,7 @@ export default function CanvasEditor({
     img.onload = () => {
       const ctx = fillCanvas.getContext("2d");
       if (!ctx) return;
-      ctx.clearRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+      ctx.clearRect(0, 0, pageWidth, pageHeight);
       ctx.drawImage(img, 0, 0);
       fillImageRef.current?.getLayer()?.batchDraw();
       onFillChange?.(fillCanvas.toDataURL());
@@ -574,10 +640,10 @@ export default function CanvasEditor({
    * the module-level note on why stamps/shapes count as walls too, not
    * just pen lines). A layer's `toCanvas()` output is sized to the
    * Stage's CURRENT rendered size — now that the Stage can be scaled
-   * (fit-to-container and zoom), that's `PAGE_WIDTH * scale`, not the
-   * fixed 595x842 the flood-fill math and pointer coordinates both assume.
+   * (fit-to-container and zoom), that's `pageWidth * scale`, not the
+   * native page size the flood-fill math and pointer coordinates both assume.
    * `pixelRatio: 1 / scale` compensates, normalizing the snapshot back to
-   * native 595x842 regardless of how large the Stage is currently rendered.
+   * native page size regardless of how large the Stage is currently rendered.
    */
   function getBoundarySnapshot(): PixelBuffer | null {
     const stage = mainLayerRef.current?.getStage();
@@ -595,7 +661,7 @@ export default function CanvasEditor({
   function getFillTarget(): { ctx: CanvasRenderingContext2D; imageData: ImageData; buffer: PixelBuffer } | null {
     const ctx = fillCanvas.getContext("2d");
     if (!ctx) return null;
-    const imageData = ctx.getImageData(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+    const imageData = ctx.getImageData(0, 0, pageWidth, pageHeight);
     return { ctx, imageData, buffer: { width: imageData.width, height: imageData.height, data: imageData.data } };
   }
 
@@ -720,7 +786,7 @@ export default function CanvasEditor({
     if (raw.length > 2) {
       const points = smoothStroke(raw, smoothing);
       const main: LineData = { ...draftLine, points };
-      const copies = symmetricCopies(points, symmetry, PAGE_WIDTH / 2, PAGE_HEIGHT / 2).map((pts) => ({ ...draftLine, id: makeLineId(), points: pts }));
+      const copies = symmetricCopies(points, symmetry, pageWidth / 2, pageHeight / 2).map((pts) => ({ ...draftLine, id: makeLineId(), points: pts }));
       onAddLines([main, ...copies]);
     }
     setDraftLine(null);
@@ -747,17 +813,17 @@ export default function CanvasEditor({
     onSelectIds(ids, m.additive);
   }
 
-  const draftCopies = draftLine ? symmetricCopies(draftLine.points, symmetry, PAGE_WIDTH / 2, PAGE_HEIGHT / 2) : [];
-  const axes = isFreehand && mode === "draw" ? symmetryAxes(symmetry, PAGE_WIDTH, PAGE_HEIGHT) : [];
+  const draftCopies = draftLine ? symmetricCopies(draftLine.points, symmetry, pageWidth / 2, pageHeight / 2) : [];
+  const axes = isFreehand && mode === "draw" ? symmetryAxes(symmetry, pageWidth, pageHeight) : [];
 
   return (
-    <div className="relative overflow-hidden rounded-lg bg-white shadow-md" style={{ width: PAGE_WIDTH * scale, height: PAGE_HEIGHT * scale }}>
+    <div className="relative overflow-hidden rounded-lg bg-white shadow-md" style={{ width: pageWidth * scale, height: pageHeight * scale }}>
       <Stage
         ref={(node) => {
           if (node) onStageReady?.(node);
         }}
-        width={PAGE_WIDTH * scale}
-        height={PAGE_HEIGHT * scale}
+        width={pageWidth * scale}
+        height={pageHeight * scale}
         scaleX={scale}
         scaleY={scale}
         onPointerDown={handlePointerDown}
@@ -767,11 +833,11 @@ export default function CanvasEditor({
       >
         {isCover && (
           <Layer listening={false}>
-            <Rect x={0} y={0} width={PAGE_WIDTH} height={PAGE_HEIGHT} fill={coverBackgroundColor ?? "#ffffff"} />
+            <Rect x={0} y={0} width={pageWidth} height={pageHeight} fill={coverBackgroundColor ?? "#ffffff"} />
           </Layer>
         )}
 
-        {backgroundPatternId && <BackgroundPatternLayer patternId={backgroundPatternId} />}
+        {backgroundPatternId && <BackgroundPatternLayer patternId={backgroundPatternId} width={pageWidth} height={pageHeight} />}
 
         {/* Color mode's paint, beneath the ink/objects layer — "flood
             fill on the active layer beneath the locked line-art layer"
@@ -783,18 +849,18 @@ export default function CanvasEditor({
               fillImageRef.current = node;
             }}
             image={fillCanvas}
-            width={PAGE_WIDTH}
-            height={PAGE_HEIGHT}
+            width={pageWidth}
+            height={pageHeight}
           />
         </Layer>
 
         {showGrid && (
           <Layer listening={false} name={OVERLAY_NAME}>
-            {Array.from({ length: Math.floor(PAGE_WIDTH / GRID_SIZE) + 1 }, (_, i) => (
-              <Line key={`grid-v-${i}`} points={[i * GRID_SIZE, 0, i * GRID_SIZE, PAGE_HEIGHT]} stroke="#e2e8f0" strokeWidth={1} />
+            {Array.from({ length: Math.floor(pageWidth / GRID_SIZE) + 1 }, (_, i) => (
+              <Line key={`grid-v-${i}`} points={[i * GRID_SIZE, 0, i * GRID_SIZE, pageHeight]} stroke="#e2e8f0" strokeWidth={1} />
             ))}
-            {Array.from({ length: Math.floor(PAGE_HEIGHT / GRID_SIZE) + 1 }, (_, i) => (
-              <Line key={`grid-h-${i}`} points={[0, i * GRID_SIZE, PAGE_WIDTH, i * GRID_SIZE]} stroke="#e2e8f0" strokeWidth={1} />
+            {Array.from({ length: Math.floor(pageHeight / GRID_SIZE) + 1 }, (_, i) => (
+              <Line key={`grid-h-${i}`} points={[0, i * GRID_SIZE, pageWidth, i * GRID_SIZE]} stroke="#e2e8f0" strokeWidth={1} />
             ))}
           </Layer>
         )}
@@ -865,7 +931,7 @@ export default function CanvasEditor({
           <Transformer ref={transformerRef} name={OVERLAY_NAME} rotateEnabled flipEnabled={false} ignoreStroke />
         </Layer>
 
-        {showGuides && <GuidesLayer />}
+        {showGuides && <GuidesLayer spec={guideSpec} width={pageWidth} height={pageHeight} />}
 
         {(axes.length > 0 || marquee || (gapMarkers && gapMarkers.length > 0)) && (
           <Layer listening={false} name={OVERLAY_NAME}>

@@ -73,9 +73,18 @@ export interface TextData extends Placeable {
 // Everything a user can click-select, resize, rotate, and reorder on a page.
 export type PageObject = StampData | ShapeData | TextData;
 
+/** The canvas a page was drawn on, in points (see utils/pageGeometry.ts). Absent = the old fixed 595×842 canvas. */
+export interface PageSpace {
+  width: number;
+  height: number;
+  /** Canvas extending past the trim on every side (0 = no bleed). */
+  bleed: number;
+}
+
 export interface BookPage {
   id: string;
   pageNumber: number;
+  space?: PageSpace;
   lines: LineData[];
   objects: PageObject[]; // stamps/shapes/text, in z-order — index 0 is the back
   backgroundPatternId?: string | null; // preset tiled pattern behind everything else
@@ -86,7 +95,7 @@ export interface BookPage {
   thumbnailDataUrl?: string; // Low-res snapshot of the full rendered page (ink + fills + objects), captured on page-switch/export — real preview art for Library/Assemble instead of the striped placeholder
 }
 
-export type PageTemplate = "blank" | "storybook" | "border-frame" | "belongs-to" | "color-test";
+export type PageTemplate = "blank" | "storybook" | "border-frame" | "belongs-to" | "color-test" | "copyright";
 
 /** Mirror drawing for the pen/eraser: every stroke is repeated across the page's center axes or rotated around its center. */
 export type SymmetryMode = "off" | "mirror-x" | "mirror-y" | "quad" | "radial-6" | "radial-8";
@@ -103,4 +112,17 @@ export type ObjectChanges = Partial<Omit<StampData, "kind" | "id">> & Partial<Om
 export interface ObjectUpdate {
   id: string;
   changes: ObjectChanges;
+}
+
+/** KDP paper stock — sets the spine width (see utils/coverGeometry.ts). */
+export type PaperType = "white" | "cream" | "color";
+
+/**
+ * The wrap-around paperback cover: one canvas spanning back + spine + front
+ * (+ bleed). `spineWidth` records the spine it was laid out for, so content
+ * can follow when the page count (and so the spine) changes.
+ */
+export interface CoverDesign {
+  page: BookPage;
+  spineWidth: number;
 }
