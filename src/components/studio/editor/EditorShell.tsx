@@ -26,6 +26,7 @@ import ShareDialog from "@/components/studio/editor/ShareDialog";
 import { convertPages, geometryFromSpace, interiorSpace, needsConversion, type PageGeometry } from "@/utils/pageGeometry";
 import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
+import { checkAge, type AgeCheckResult, type AgeGroup } from "@/components/studio/editor/ageCheck";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
 import { useT, type TFunction } from "@/lib/i18n";
@@ -279,6 +280,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   // Tied to the exact page object it was computed for: any edit produces a
   // new page object, so stale markers disappear on their own.
   const [gapCheck, setGapCheck] = useState<{ page: BookPage; markers: GapMarker[] } | null>(null);
+  const [ageCheck, setAgeCheck] = useState<{ page: BookPage; result: AgeCheckResult } | null>(null);
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>("3-5");
 
   // Undo/redo cover page content, page-list changes and the cover alike:
   // each entry is a full snapshot.
@@ -300,6 +303,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const activeGeo = geometryFromSpace(activeSpace);
   const selectedObjects = activePage.objects.filter((o) => selectedIds.includes(o.id));
   const gapMarkers = gapCheck && gapCheck.page === activePage ? gapCheck.markers : null;
+  const ageResult = ageCheck && ageCheck.page === activePage ? ageCheck.result : null;
 
   // Reflects a freshly-generated id in the URL and persists the book for
   // the first time — the write half of the pure/impure split from the
@@ -738,12 +742,40 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     applyChanges(new Map(texts.map((o) => [o.id, changes])));
   }
 
+  /** Seals every gap the check found with a pen stroke (as thick as the page's usual line), then re-checks. */
+  function handleCloseGaps() {
+    if (!gapMarkers || gapMarkers.length === 0) return;
+    const pens = activePage.lines.filter((l) => l.tool === "pen").map((l) => l.strokeWidth).sort((a, b) => a - b);
+    const typical = pens.length ? pens[Math.floor(pens.length / 2)] : strokeWidth;
+    handleAddLines(gapMarkers.map((m) => ({ id: makeId("line"), tool: "pen" as const, strokeWidth: Math.max(m.bridge.width, typical), points: [...m.bridge.points] })));
+    recheckGapsRef.current = true;
+  }
+
+  function handleRunAgeCheck(group: AgeGroup = ageGroup) {
+    const stage = stageRef.current;
+    const ink = stage ? captureInk(stage) : null;
+    if (!ink) return;
+    setAgeGroup(group);
+    setAgeCheck({ page: activePage, result: checkAge(ink, group) });
+  }
+
   function handleRunGapCheck() {
     const stage = stageRef.current;
     const ink = stage ? captureInk(stage) : null;
     if (!ink) return;
     setGapCheck({ page: activePage, markers: findGaps(ink) });
   }
+
+  // After closing gaps, re-check once the page with the new strokes is on
+  // screen — this render's closure holds the updated page, so the result
+  // attaches to it (see gapCheck's page-identity rule).
+  const recheckGapsRef = useRef(false);
+  useEffect(() => {
+    if (!recheckGapsRef.current) return;
+    recheckGapsRef.current = false;
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => handleRunGapCheck()));
+    return () => cancelAnimationFrame(frame);
+  });
 
   // ---------- Print settings & cover ----------
 
@@ -1242,6 +1274,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               smoothing={smoothing}
               onSmoothingChange={setSmoothing}
               gapMarkers={gapMarkers}
+              detailMarkers={ageResult?.tooSmall}
               darkSurround={darkSurround}
             />
             {!editingCover && (
@@ -1321,6 +1354,11 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onSetCoverBackgroundColor={handleSetCoverBackgroundColor}
           gapCount={gapMarkers ? gapMarkers.length : null}
           onRunGapCheck={handleRunGapCheck}
+          onCloseGaps={handleCloseGaps}
+          ageGroup={ageGroup}
+          ageResult={ageResult}
+          onRunAgeCheck={handleRunAgeCheck}
+          onClearAgeCheck={() => setAgeCheck(null)}
           onClearGapCheck={() => setGapCheck(null)}
           extraCards={
             editingCover ? (

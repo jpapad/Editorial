@@ -37,6 +37,7 @@ const DYNAMIC = [
   "src/components/studio/editor/EditorTopBar.tsx",
   "src/components/studio/editor/WorksheetDialog.tsx",
   "src/components/studio/coloring/rewards.tsx",
+  "src/components/studio/editor/ageCheck.ts",
   "src/components/studio/coloring/ColoringView.tsx",
   "src/components/studio/screens/OnboardingScreen.tsx",
   "src/components/studio/modals/AiFailureModal.tsx",
@@ -55,6 +56,9 @@ const EXTRA = [
   // AiFailureModal's default cause/explanation/prompt (rendered via t(cause) etc.).
   "The prompt asks for a lot of detail for a “Bold” line", "Thick lines close up small shapes. Try less detail or a thinner line.",
   "a forest with hundreds of leaves, tiny fairies, thick outline",
+  // ageCheck advice strings (returned as keys, rendered via t(a)).
+  "Draw or place something first.", "Merge or remove the circled areas — they're too small to color at this age.",
+  "Use thicker lines (try the “Ages 3–5” or “Bold” brush).", "Simplify: there are more areas than this age will enjoy coloring on one page.",
   "Rectangle", "Circle", "Triangle", "Star", "Heart", "Hexagon", "Line", "Arrow", "Left", "Center", "Right",
 ];
 

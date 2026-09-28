@@ -67,6 +67,7 @@ export interface CanvasAreaProps {
   smoothing?: number;
   onSmoothingChange?: (amount: number) => void;
   gapMarkers?: GapMarker[] | null;
+  detailMarkers?: { x: number; y: number; r: number }[] | null;
   /** Hides the view toolbar (zoom/grid/guides) — for embedded, child-facing uses like ColoringView. */
   hideViewControls?: boolean;
   /** Space kept around the page inside the viewport (default 24px; 0 when the host already frames it). */
@@ -246,6 +247,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
               symmetry={symmetry}
               smoothing={props.smoothing ?? 0}
               gapMarkers={props.gapMarkers}
+              detailMarkers={props.detailMarkers}
               mode={props.mode === "cover" ? "draw" : props.mode}
               backgroundPatternId={props.page.backgroundPatternId}
               isCover={props.page.isCover}

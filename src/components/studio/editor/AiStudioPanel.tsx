@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
-import { CheckCircle2, Circle, Loader2, ScanLine, Sparkles, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Circle, Loader2, ScanLine, Sparkles, X, XCircle } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -146,6 +146,107 @@ function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPan
   );
 }
 
+/** Downscale a photo in the browser before upload: phone photos are many MB; the AI needs ~1500px at most. */
+async function downscaleForUpload(src: string, max = 1536): Promise<string> {
+  const img = new window.Image();
+  img.src = src;
+  await img.decode();
+  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.naturalWidth * k);
+  canvas.height = Math.round(img.naturalHeight * k);
+  canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.88);
+}
+
+/**
+ * Any photo (a pet, a child, a toy) redrawn as a coloring page by AI
+ * (/api/photo-to-line-art). The result goes through the same cleanup as a
+ * sketch photo so it lands as pure black lines on transparent.
+ */
+function PhotoToPageSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPanelProps, "onPickStamp" | "onPlaceFullPage">) {
+  const t = useT();
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [result, setResult] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setSource(await readFileAsDataUrl(file));
+    setResult(null);
+    setError(null);
+  }
+
+  async function run() {
+    if (!source || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const photo = await downscaleForUpload(source);
+      const response = await fetch("/api/photo-to-line-art", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ photo, note: note.trim() || undefined }) });
+      const body = (await response.json().catch(() => null)) as { dataUri?: string; error?: string } | null;
+      if (!response.ok || !body?.dataUri) throw new Error(body?.error ?? `HTTP ${response.status}`);
+      const cleaned = await cleanSketchImage(body.dataUri, { sensitivity: 0.1, bolder: false });
+      setResult(cleaned ?? { dataUrl: body.dataUri, ...(await imageSize(body.dataUri)) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Generation failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="flex flex-col gap-2.5 p-4">
+      <div className="flex items-center gap-2">
+        <Camera size={15} className="text-accent" />
+        <p className="text-card-title font-semibold text-ink">{t("Photo to coloring page (AI)")}</p>
+      </div>
+      <p className="text-helper text-ink-muted">{t("Turn any photo — a pet, a toy, a family picture — into a page to color. The photo is sent to OpenAI to redraw it.")}</p>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+        {source ? t("Choose another photo") : t("Choose photo")}
+      </Button>
+      {source && (
+        <>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="aspect-square rounded-row-sm border border-hairline bg-inset bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${source})` }} />
+            <div className="relative aspect-square rounded-row-sm border border-hairline bg-white bg-contain bg-center bg-no-repeat" style={result ? { backgroundImage: `url(${result.dataUrl})` } : undefined}>
+              {busy && <Loader2 size={18} className="absolute inset-0 m-auto animate-spin text-ink-muted" />}
+            </div>
+          </div>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={300}
+            placeholder={t("Optional note, e.g. “leave out the background”")}
+            className="rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          />
+          {error && <p className="text-helper text-error">{error}</p>}
+          {result ? (
+            <div className="flex gap-1.5">
+              <Button variant="primary" size="sm" className="flex-1" onClick={() => onPlaceFullPage(result.dataUrl, result)}>
+                {t("Fill page")}
+              </Button>
+              <Button variant="secondary" size="sm" className="flex-1" onClick={() => onPickStamp(result.dataUrl, { naturalSize: result })}>
+                {t("As stamp")}
+              </Button>
+            </div>
+          ) : (
+            <Button variant="dark" size="sm" icon={busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} disabled={busy} onClick={() => void run()}>
+              {busy ? t("Drawing… (up to a minute)") : t("Make coloring page")}
+            </Button>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
 /**
  * One AI page per subject, in a shared theme — e.g. theme "Ancient Greece",
  * subjects "Parthenon / Athena's owl / a trireme". Requests run one at a
@@ -284,6 +385,9 @@ export default function AiStudioPanel(props: AiStudioPanelProps) {
       </div>
       <div className="shrink-0">
         <SketchCleanupSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} />
+      </div>
+      <div className="shrink-0">
+        <PhotoToPageSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} />
       </div>
       <div className="shrink-0">
         <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} />

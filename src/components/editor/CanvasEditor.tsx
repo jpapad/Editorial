@@ -144,6 +144,8 @@ interface CanvasEditorProps {
   smoothing?: number;
   /** Results of the gap check, drawn as red rings until the page changes. */
   gapMarkers?: GapMarker[] | null;
+  /** Areas the age check found too small, drawn as orange rings. */
+  detailMarkers?: { x: number; y: number; r: number }[] | null;
   backgroundPatternId?: string | null;
   isCover?: boolean;
   coverBackgroundColor?: string;
@@ -458,6 +460,7 @@ export default function CanvasEditor({
   symmetry = "off",
   smoothing = 0,
   gapMarkers,
+  detailMarkers,
   backgroundPatternId,
   isCover,
   coverBackgroundColor,
@@ -1005,7 +1008,7 @@ export default function CanvasEditor({
 
         {showGuides && <GuidesLayer spec={guideSpec} width={pageWidth} height={pageHeight} />}
 
-        {(axes.length > 0 || marquee || (gapMarkers && gapMarkers.length > 0)) && (
+        {(axes.length > 0 || marquee || (gapMarkers && gapMarkers.length > 0) || (detailMarkers && detailMarkers.length > 0)) && (
           <Layer listening={false} name={OVERLAY_NAME}>
             {axes.map((pts, i) => (
               <Line key={`axis-${i}`} points={pts} stroke="#e0a13c" strokeWidth={1} dash={[8, 6]} opacity={0.9} />
@@ -1015,6 +1018,9 @@ export default function CanvasEditor({
                 <Circle x={m.x} y={m.y} radius={m.r} stroke="#c4453f" strokeWidth={2.5} dash={[5, 3]} />
                 <Circle x={m.x} y={m.y} radius={m.r} fill="#c4453f" opacity={0.12} />
               </Group>
+            ))}
+            {detailMarkers?.map((m, i) => (
+              <Circle key={`detail-${i}`} x={m.x} y={m.y} radius={m.r} stroke={FOLD_COLOR} strokeWidth={2} dash={[4, 3]} />
             ))}
             {marquee && (
               <Rect

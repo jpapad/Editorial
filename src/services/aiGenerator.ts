@@ -84,6 +84,24 @@ function aspectRatioToFalSize(aspectRatio: LineArtRequest["aspectRatio"]): strin
   }
 }
 
+/**
+ * A provider error safe to show a user: status + a plain hint. The raw
+ * body goes to the server log only — providers echo request details back
+ * (OpenAI's 401 even quotes part of the API key).
+ */
+async function providerError(provider: string, what: string, response: Response): Promise<Error> {
+  console.error(`[aiGenerator] ${provider} ${what} failed: HTTP ${response.status}`, await response.text().catch(() => ""));
+  const hint =
+    response.status === 401 || response.status === 403
+      ? "the API key was rejected — check it in .env.local"
+      : response.status === 429
+        ? "rate limit or quota reached — try again later"
+        : response.status >= 500
+          ? "the provider had a problem — try again"
+          : "the request was refused";
+  return new Error(`${provider} ${what} failed (HTTP ${response.status}): ${hint}.`);
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set — see .env.local.example`);
@@ -118,7 +136,7 @@ async function generateViaFal(prompt: string, aspectRatio: LineArtRequest["aspec
       body: JSON.stringify({ prompt, image_size: aspectRatioToFalSize(aspectRatio), num_images: 1 }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Fal.ai request failed (HTTP ${response.status}): ${await response.text()}`);
+    if (!response.ok) throw await providerError("Fal.ai", "request", response);
 
     const body = (await response.json()) as FalImageResponse;
     const image = body.images?.[0];
@@ -148,7 +166,7 @@ async function generateViaOpenAi(prompt: string, aspectRatio: LineArtRequest["as
       body: JSON.stringify({ model: "gpt-image-1", prompt, size, n: 1 }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`OpenAI image request failed (HTTP ${response.status}): ${await response.text()}`);
+    if (!response.ok) throw await providerError("OpenAI", "image request", response);
 
     const body = (await response.json()) as OpenAiImageResponse;
     const first = body.data?.[0];
@@ -157,6 +175,53 @@ async function generateViaOpenAi(prompt: string, aspectRatio: LineArtRequest["as
     const dataUri = first.b64_json ? `data:image/png;base64,${first.b64_json}` : await fetchAsDataUri(first.url ?? "", controller.signal);
     const [w, h] = size.split("x").map(Number);
     return { provider: "openai", svgMarkup: wrapRasterAsSvg(dataUri, w, h), promptUsed: prompt };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+const OPENAI_IMAGE_EDIT_ENDPOINT = "https://api.openai.com/v1/images/edits";
+const PHOTO_TIMEOUT_MS = 90_000; // edits of a real photo take noticeably longer than text-to-image
+
+/** Same line-art rules as buildLineArtPrompt, but for redrawing a given photo. */
+export function buildPhotoToLineArtPrompt(note?: string): string {
+  return [
+    "Redraw this photo as a simple black-and-white coloring book page.",
+    "Keep the main subject recognizable and its pose and proportions, but simplify details into clean, closed shapes a child can color.",
+    "Bold, thick, uniform black outlines only. Pure white background, no fill, no shading, no gradients, no color, no gray.",
+    "Drop busy background clutter; keep only what helps the picture.",
+    note ? `Note from the creator: ${note}` : "",
+    "No text, no watermark.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Photo → coloring page via OpenAI's image edit endpoint (gpt-image-1),
+ * which takes a source image plus instructions. Returns a PNG data URI.
+ * UNVERIFIED AGAINST THE LIVE API in this repo (no key configured) — same
+ * caveat as the rest of this module.
+ */
+export async function photoToLineArt(photo: { data: Buffer; mimeType: string }, note?: string): Promise<{ dataUri: string; promptUsed: string }> {
+  const apiKey = requireEnv("OPENAI_API_KEY");
+  const prompt = buildPhotoToLineArtPrompt(note);
+  const form = new FormData();
+  form.append("model", "gpt-image-1");
+  form.append("prompt", prompt);
+  form.append("size", "1024x1536");
+  form.append("image", new Blob([new Uint8Array(photo.data)], { type: photo.mimeType }), photo.mimeType === "image/png" ? "photo.png" : "photo.jpg");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PHOTO_TIMEOUT_MS);
+  try {
+    const response = await fetch(OPENAI_IMAGE_EDIT_ENDPOINT, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: controller.signal });
+    if (!response.ok) throw await providerError("OpenAI", "image edit", response);
+    const body = (await response.json()) as OpenAiImageResponse;
+    const first = body.data?.[0];
+    if (!first) throw new Error("OpenAI response contained no image data");
+    const dataUri = first.b64_json ? `data:image/png;base64,${first.b64_json}` : await fetchAsDataUri(first.url ?? "", controller.signal);
+    return { dataUri, promptUsed: prompt };
   } finally {
     clearTimeout(timeout);
   }
@@ -204,7 +269,7 @@ export async function generateRhymingCouplet(request: RhymeRequest): Promise<Rhy
       }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`OpenAI chat request failed (HTTP ${response.status}): ${await response.text()}`);
+    if (!response.ok) throw await providerError("OpenAI", "chat request", response);
 
     const body = (await response.json()) as OpenAiChatResponse;
     const content = body.choices?.[0]?.message?.content?.trim();

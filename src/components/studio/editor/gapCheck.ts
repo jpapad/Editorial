@@ -16,6 +16,52 @@ export interface GapMarker {
   y: number;
   /** Radius to draw the marker at, in page units. */
   r: number;
+  /** A pen stroke that closes the gap: [x1, y1, x2, y2] plus its width (see bridgeFor). */
+  bridge: { points: [number, number, number, number]; width: number };
+}
+
+/**
+ * The stroke that seals one gap. The gap's pixels (what the closing added)
+ * form a small blob stretched along the missing piece of line; its principal
+ * axis (PCA) is that line's direction. The stroke spans the blob's extent
+ * along it, plus a few pixels at each end to overlap the existing ink, at
+ * the blob's thickness across it.
+ */
+function bridgeFor(xs: number[], ys: number[]): GapMarker["bridge"] {
+  const n = xs.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = xs[i] - mx;
+    const dy = ys[i] - my;
+    sxx += dx * dx;
+    syy += dy * dy;
+    sxy += dx * dy;
+  }
+  const angle = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const ux = Math.cos(angle);
+  const uy = Math.sin(angle);
+  let lo = Infinity;
+  let hi = -Infinity;
+  let across = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = xs[i] - mx;
+    const dy = ys[i] - my;
+    const along = dx * ux + dy * uy;
+    lo = Math.min(lo, along);
+    hi = Math.max(hi, along);
+    across = Math.max(across, Math.abs(-dx * uy + dy * ux));
+  }
+  const overlap = 3;
+  lo -= overlap;
+  hi += overlap;
+  return {
+    points: [mx + ux * lo, my + uy * lo, mx + ux * hi, my + uy * hi],
+    width: Math.max(3, Math.min(12, across * 2 + 1)),
+  };
 }
 
 const DARKNESS_THRESHOLD = 128; // same default floodFill() uses
@@ -117,6 +163,8 @@ export function findGaps(boundary: PixelBuffer, radius = 6, minArea = 150): GapM
     stack.push(start);
     let sumX = 0;
     let sumY = 0;
+    const xs: number[] = [];
+    const ys: number[] = [];
     let count = 0;
     let minX = width;
     let maxX = 0;
@@ -129,6 +177,8 @@ export function findGaps(boundary: PixelBuffer, radius = 6, minArea = 150): GapM
       const y = (p - x) / width;
       sumX += x;
       sumY += y;
+      xs.push(x);
+      ys.push(y);
       count++;
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
@@ -152,7 +202,7 @@ export function findGaps(boundary: PixelBuffer, radius = 6, minArea = 150): GapM
     }
     // A real gap sits BETWEEN two areas; a sealed-off corner notch only touches one.
     if (touches.size >= 2) {
-      markers.push({ x: sumX / count, y: sumY / count, r: Math.max(10, Math.max(maxX - minX, maxY - minY) / 2 + 6) });
+      markers.push({ x: sumX / count, y: sumY / count, r: Math.max(10, Math.max(maxX - minX, maxY - minY) / 2 + 6), bridge: bridgeFor(xs, ys) });
     }
   }
   return markers;

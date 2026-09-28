@@ -43,6 +43,7 @@ import type { AlignEdge } from "@/utils/objectGeometry";
 import type { EditorMode } from "@/components/studio/types";
 import type { BookPage, DrawingTool, FillStyle, ObjectChanges, PageObject, ShapeKind, StampFilter, TextData } from "@/types/editor";
 import FillStylePicker from "@/components/studio/editor/FillStylePicker";
+import { AGE_GROUPS, type AgeCheckResult, type AgeGroup } from "@/components/studio/editor/ageCheck";
 
 const PALETTE = ["#111827", "#e4b7a0", "#cfa77e", "#8fae8b", "#5d7f6f", "#d9cf9e", "#b98a8a", "#7b8fa8", "#42505f", "#ffffff"];
 
@@ -94,6 +95,13 @@ export interface RightPanelProps {
   gapCount: number | null;
   onRunGapCheck: () => void;
   onClearGapCheck: () => void;
+  /** Adds pen strokes that seal the gaps found. */
+  onCloseGaps: () => void;
+  ageGroup: AgeGroup;
+  /** null = not checked for the current page state. */
+  ageResult: AgeCheckResult | null;
+  onRunAgeCheck: (group: AgeGroup) => void;
+  onClearAgeCheck: () => void;
   /** Extra cards at the bottom (book print settings, the cover card). */
   extraCards?: React.ReactNode;
 }
@@ -326,7 +334,7 @@ function LayersCard({ page, selectedIds, onSelectObject, onToggleObjectFlag, onM
   );
 }
 
-function GapCheckRow({ gapCount, onRunGapCheck, onClearGapCheck }: Pick<RightPanelProps, "gapCount" | "onRunGapCheck" | "onClearGapCheck">) {
+function GapCheckRow({ gapCount, onRunGapCheck, onClearGapCheck, onCloseGaps }: Pick<RightPanelProps, "gapCount" | "onRunGapCheck" | "onClearGapCheck" | "onCloseGaps">) {
   const t = useT();
   return (
     <div className="flex flex-col gap-1.5">
@@ -339,6 +347,62 @@ function GapCheckRow({ gapCount, onRunGapCheck, onClearGapCheck }: Pick<RightPan
           <button type="button" onClick={onClearGapCheck} className="shrink-0 font-medium underline-offset-2 outline-none hover:underline focus-visible:underline">
             {t("Hide")}
           </button>
+        </div>
+      )}
+      {gapCount !== null && gapCount > 0 && (
+        <Button variant="primary" size="sm" onClick={onCloseGaps}>
+          {t("Close the gaps for me")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** "Is this page right for this age?" — areas and line thickness measured against the chosen age. */
+function AgeCheckRow({ ageGroup, ageResult, onRunAgeCheck, onClearAgeCheck }: Pick<RightPanelProps, "ageGroup" | "ageResult" | "onRunAgeCheck" | "onClearAgeCheck">) {
+  const t = useT();
+  const tone = !ageResult ? "" : ageResult.verdict === "good" ? "bg-success/15 text-ink-secondary" : ageResult.verdict === "too-detailed" ? "bg-error/10 text-error" : "bg-warning/15 text-ink-secondary";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex gap-1.5">
+        <select
+          aria-label={t("Age group")}
+          value={ageGroup}
+          onChange={(e) => onRunAgeCheck(e.target.value as AgeGroup)}
+          className="h-8 min-w-0 flex-1 rounded-row-sm border border-hairline bg-panel px-2 text-helper text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          {AGE_GROUPS.map((g) => (
+            <option key={g.value} value={g.value}>
+              {t(g.label)}
+            </option>
+          ))}
+        </select>
+        <Button variant="secondary" size="sm" onClick={() => onRunAgeCheck(ageGroup)}>
+          {t("Check age fit")}
+        </Button>
+      </div>
+      {ageResult && (
+        <div className={cn("flex flex-col gap-1 rounded-row-sm px-2.5 py-2 text-helper", tone)}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-medium">
+              {ageResult.verdict === "good"
+                ? t("Good fit for this age.")
+                : ageResult.verdict === "too-detailed"
+                  ? t("Too detailed for this age.")
+                  : ageResult.verdict === "empty"
+                    ? t("Nothing to check yet.")
+                    : t("Mostly fine, with a few small areas.")}
+            </span>
+            <button type="button" onClick={onClearAgeCheck} className="shrink-0 font-medium underline-offset-2 outline-none hover:underline focus-visible:underline">
+              {t("Hide")}
+            </button>
+          </div>
+          {ageResult.verdict !== "empty" && (
+            <span>{t("{areas} areas to color · {small} too small · lines ~{line}pt", { areas: ageResult.areas, small: ageResult.tooSmall.length, line: ageResult.lineWidth })}</span>
+          )}
+          {ageResult.advice.map((a) => (
+            <span key={a}>• {t(a)}</span>
+          ))}
         </div>
       )}
     </div>
@@ -464,8 +528,9 @@ export default function RightPanel(props: RightPanelProps) {
             </div>
           </div>
 
-          <div className="border-t border-hairline pt-3">
+          <div className="flex flex-col gap-2.5 border-t border-hairline pt-3">
             <GapCheckRow {...props} />
+            <AgeCheckRow {...props} />
           </div>
 
           <div className="flex flex-col gap-2 border-t border-hairline pt-3">
