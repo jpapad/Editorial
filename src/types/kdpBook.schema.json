@@ -1,0 +1,330 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kids-coloring-app/schemas/kdpBook.schema.json",
+  "title": "BookState",
+  "description": "Mirrors src/types/kdpBook.ts. All geometric fields are inches from the page's top-left trim corner unless noted.",
+  "type": "object",
+  "required": ["id", "title", "printSpec", "spreads", "createdAt", "updatedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "author": { "type": "string" },
+    "printSpec": { "$ref": "#/definitions/KdpPrintSpec" },
+    "spreads": { "type": "array", "items": { "$ref": "#/definitions/PageSpread" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "definitions": {
+    "KdpPrintSpec": {
+      "type": "object",
+      "required": [
+        "trimWidthIn",
+        "trimHeightIn",
+        "bleedIn",
+        "gutterIn",
+        "outerMarginIn",
+        "dpi",
+        "globalStrokeWeightPx",
+        "colorMode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trimWidthIn": { "type": "number", "exclusiveMinimum": 0 },
+        "trimHeightIn": { "type": "number", "exclusiveMinimum": 0 },
+        "bleedIn": { "type": "number", "minimum": 0 },
+        "gutterIn": { "type": "number", "minimum": 0 },
+        "outerMarginIn": { "type": "number", "minimum": 0 },
+        "dpi": { "type": "integer", "minimum": 72 },
+        "globalStrokeWeightPx": { "type": "number", "exclusiveMinimum": 0 },
+        "colorMode": { "type": "string", "enum": ["RGB", "CMYK"] }
+      }
+    },
+    "PageSpread": {
+      "type": "object",
+      "required": ["id", "spreadNumber", "leftPage", "rightPage"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "spreadNumber": { "type": "integer", "minimum": 1 },
+        "leftPage": { "$ref": "#/definitions/PageContent" },
+        "rightPage": { "$ref": "#/definitions/PageContent" }
+      }
+    },
+    "PageContent": {
+      "type": "object",
+      "required": ["id", "elements"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "elements": { "type": "array", "items": { "$ref": "#/definitions/CanvasElement" } },
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{3,8}$" }
+      }
+    },
+    "CanvasElementBase": {
+      "type": "object",
+      "required": ["id", "type", "x", "y", "width", "height", "rotation"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "TITLE_TEXT",
+            "SVG_MAIN_ART",
+            "LETTER_GUIDE",
+            "TRACING_GRID",
+            "SVG_MINI_GROUP",
+            "DOT_TO_DOT",
+            "MAZE_GRID",
+            "WORD_SEARCH",
+            "COLOR_BY_NUMBER",
+            "COUNTING_ACTIVITY"
+          ]
+        },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "rotation": { "type": "number" }
+      }
+    },
+    "CanvasElement": {
+      "oneOf": [
+        { "$ref": "#/definitions/TitleTextElement" },
+        { "$ref": "#/definitions/SvgMainArtElement" },
+        { "$ref": "#/definitions/LetterGuideElement" },
+        { "$ref": "#/definitions/TracingGridElement" },
+        { "$ref": "#/definitions/SvgMiniGroupElement" },
+        { "$ref": "#/definitions/DotToDotElement" },
+        { "$ref": "#/definitions/MazeGridElement" },
+        { "$ref": "#/definitions/WordSearchElement" },
+        { "$ref": "#/definitions/ColorByNumberElement" },
+        { "$ref": "#/definitions/CountingActivityElement" }
+      ]
+    },
+    "TitleTextElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "text", "fontFamily", "fontSize", "align", "fill"],
+          "properties": {
+            "type": { "const": "TITLE_TEXT" },
+            "text": { "type": "string" },
+            "fontFamily": { "type": "string" },
+            "fontSize": { "type": "number", "exclusiveMinimum": 0 },
+            "align": { "type": "string", "enum": ["left", "center", "right"] },
+            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{3,8}$" }
+          }
+        }
+      ]
+    },
+    "SvgMainArtElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "svgMarkup", "strokeWeight"],
+          "properties": {
+            "type": { "const": "SVG_MAIN_ART" },
+            "svgMarkup": { "type": "string" },
+            "strokeWeight": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      ]
+    },
+    "StrokeOrderArrow": {
+      "type": "object",
+      "required": ["order", "x", "y", "rotation"],
+      "additionalProperties": false,
+      "properties": {
+        "order": { "type": "integer", "minimum": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "rotation": { "type": "number" }
+      }
+    },
+    "LetterGuideElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "letter", "fontFamily", "guideStyle", "strokeArrows"],
+          "properties": {
+            "type": { "const": "LETTER_GUIDE" },
+            "letter": { "type": "string", "minLength": 1, "maxLength": 1 },
+            "fontFamily": { "type": "string" },
+            "guideStyle": { "$ref": "#/definitions/TraceStyle" },
+            "strokeArrows": { "type": "array", "items": { "$ref": "#/definitions/StrokeOrderArrow" } }
+          }
+        }
+      ]
+    },
+    "TracingGridElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "letter", "fontFamily", "traceStyle", "rows", "repeatsPerRow", "firstInstanceSolid"],
+          "properties": {
+            "type": { "const": "TRACING_GRID" },
+            "letter": { "type": "string", "minLength": 1, "maxLength": 1 },
+            "fontFamily": { "type": "string" },
+            "traceStyle": { "$ref": "#/definitions/TraceStyle" },
+            "rows": { "type": "integer", "minimum": 1 },
+            "repeatsPerRow": { "type": "integer", "minimum": 1 },
+            "firstInstanceSolid": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "SvgMiniItem": {
+      "type": "object",
+      "required": ["id", "svgMarkup", "x", "y", "width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "svgMarkup": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "SvgMiniGroupElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "items", "strokeWeight"],
+          "properties": {
+            "type": { "const": "SVG_MINI_GROUP" },
+            "items": { "type": "array", "items": { "$ref": "#/definitions/SvgMiniItem" } },
+            "strokeWeight": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      ]
+    },
+    "DotToDotVertex": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    },
+    "DotToDotElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "vertices", "showPreviewPath", "dotRadius"],
+          "properties": {
+            "type": { "const": "DOT_TO_DOT" },
+            "vertices": { "type": "array", "items": { "$ref": "#/definitions/DotToDotVertex" } },
+            "showPreviewPath": { "type": "boolean" },
+            "dotRadius": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      ]
+    },
+    "MazeGridElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "cols", "rows"],
+          "properties": {
+            "type": { "const": "MAZE_GRID" },
+            "cols": { "type": "integer", "minimum": 1 },
+            "rows": { "type": "integer", "minimum": 1 },
+            "seed": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "TraceStyle": { "type": "string", "enum": ["solid", "hollow", "dashed", "dotted"] },
+    "WordSearchPlacement": {
+      "type": "object",
+      "required": ["word", "row", "col", "directionRow", "directionCol"],
+      "additionalProperties": false,
+      "properties": {
+        "word": { "type": "string" },
+        "row": { "type": "integer", "minimum": 0 },
+        "col": { "type": "integer", "minimum": 0 },
+        "directionRow": { "type": "integer", "enum": [-1, 0, 1] },
+        "directionCol": { "type": "integer", "enum": [-1, 0, 1] }
+      }
+    },
+    "WordSearchElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "words", "gridSize", "grid", "placements", "unplacedWords"],
+          "properties": {
+            "type": { "const": "WORD_SEARCH" },
+            "words": { "type": "array", "items": { "type": "string" } },
+            "gridSize": { "type": "integer", "minimum": 3 },
+            "grid": { "type": "array", "items": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 1 } } },
+            "placements": { "type": "array", "items": { "$ref": "#/definitions/WordSearchPlacement" } },
+            "unplacedWords": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
+    },
+    "ColorByNumberZone": {
+      "type": "object",
+      "required": ["id", "number", "colorHex", "labelX", "labelY"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "integer", "minimum": 1 },
+        "colorHex": { "type": "string", "pattern": "^#[0-9a-fA-F]{3,8}$" },
+        "labelX": { "type": "number" },
+        "labelY": { "type": "number" }
+      }
+    },
+    "ColorByNumberElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "outlineSvgMarkup", "zones", "showColorKey"],
+          "properties": {
+            "type": { "const": "COLOR_BY_NUMBER" },
+            "outlineSvgMarkup": { "type": "string" },
+            "zones": { "type": "array", "items": { "$ref": "#/definitions/ColorByNumberZone" } },
+            "showColorKey": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "CountingGroup": {
+      "type": "object",
+      "required": ["id", "iconSvgMarkup", "count", "x", "y", "width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "iconSvgMarkup": { "type": "string" },
+        "count": { "type": "integer", "minimum": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "CountingActivityElement": {
+      "allOf": [
+        { "$ref": "#/definitions/CanvasElementBase" },
+        {
+          "type": "object",
+          "required": ["type", "groups", "showAnswerBox"],
+          "properties": {
+            "type": { "const": "COUNTING_ACTIVITY" },
+            "groups": { "type": "array", "items": { "$ref": "#/definitions/CountingGroup" } },
+            "showAnswerBox": { "type": "boolean" }
+          }
+        }
+      ]
+    }
+  }
+}

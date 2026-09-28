@@ -9,13 +9,27 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.116.0",
+    "clsx": "^2.1.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "konva": "^10.5.0",
+    "linkedom": "^0.18.13",
+    "lucide-react": "^1.45.0",
     "next": "16.3.5",
+    "pdfkit": "^0.20.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-konva": "^19.2.7",
+    "svg-to-pdfkit": "^0.1.8",
+    "tailwind-merge": "^3.7.0",
+    "use-image": "^1.1.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
