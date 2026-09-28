@@ -22,6 +22,8 @@ export interface PageFilmstripProps {
   onToggleBlankBacks: () => void;
   /** Open comments per page id — shown as a small badge on the thumbnail. */
   commentCounts?: Record<string, number>;
+  /** Opens the worksheet generator (tracing, dots, mazes, spot the difference). */
+  onOpenWorksheets?: () => void;
 }
 
 const THUMB_RADIUS_PX = 5; // exact spec value ("44x58 thumbnails radius 5") — doesn't match any named radius token, so passed as a raw style override
@@ -39,7 +41,7 @@ const THUMB_RADIUS_PX = 5; // exact spec value ("44x58 thumbnails radius 5") —
  * PageManager's template-picker + delete-on-hover pattern onto the new
  * tokens/primitives.
  */
-export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAddPage, onDeletePage, onDuplicatePage, onReorderPages, onToggleBlankBacks, commentCounts = {} }: PageFilmstripProps) {
+export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAddPage, onDeletePage, onDuplicatePage, onReorderPages, onToggleBlankBacks, commentCounts = {}, onOpenWorksheets }: PageFilmstripProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const hasBlankBacks = pages.some((p) => p.isBlankBack);
@@ -221,6 +223,19 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
                 <span className="text-helper text-ink-muted">{option.description}</span>
               </button>
             ))}
+            {onOpenWorksheets && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenWorksheets();
+                  setShowTemplateMenu(false);
+                }}
+                className="mt-0.5 flex flex-col items-start rounded-row-sm border-t border-hairline px-2 py-1.5 text-left outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              >
+                <span className="text-body font-medium text-accent">Worksheets…</span>
+                <span className="text-helper text-ink-muted">Tracing, connect the dots, mazes, spot the difference</span>
+              </button>
+            )}
           </div>,
           document.body
         )}

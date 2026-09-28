@@ -21,6 +21,8 @@ import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometr
 import { captureInk, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
+import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
+import ShareDialog from "@/components/studio/editor/ShareDialog";
 import { convertPages, geometryFromSpace, interiorSpace, needsConversion, type PageGeometry } from "@/utils/pageGeometry";
 import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
@@ -266,6 +268,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [sidePanel, setSidePanel] = useState<"default" | "ai" | "comments">("default");
   const [isSupervisor, setIsSupervisor] = useState(false);
   const [showListing, setShowListing] = useState(false);
+  const [showWorksheets, setShowWorksheets] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [comments, setComments] = useState<PageComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentsError, setCommentsError] = useState<string | null>(null);
@@ -848,6 +852,16 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setSelectedIds([]);
   }
 
+  /** Appends generated pages (worksheets) after the last page and shows the first of them. */
+  function handleAppendPages(newPages: BookPage[]) {
+    if (newPages.length === 0) return;
+    captureActiveThumbnail();
+    pushHistory();
+    setPages((prev) => renumber([...prev, ...newPages]));
+    setActivePageId(newPages[0].id);
+    setSelectedIds([]);
+  }
+
   function handleDuplicatePage(id: string) {
     const index = pages.findIndex((p) => p.id === id);
     if (index === -1) return;
@@ -1165,6 +1179,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         commentCount={Object.values(openCommentCounts).reduce((a, b) => a + b, 0)}
         commentsActive={sidePanel === "comments"}
         onToggleComments={() => setSidePanel((v) => (v === "comments" ? "default" : "comments"))}
+        onShare={user && !reviewMode ? () => setShowShare(true) : undefined}
         onExport={handleExport}
         isExporting={isExporting}
         onPublish={handlePublish}
@@ -1237,6 +1252,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               onReorderPages={handleReorderPages}
               onToggleBlankBacks={handleToggleBlankBacks}
               commentCounts={openCommentCounts}
+              onOpenWorksheets={() => setShowWorksheets(true)}
             />
             )}
           </>
@@ -1326,6 +1342,10 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {previewImages && <BookPreviewModal images={previewImages} onClose={() => setPreviewImages(null)} />}
 
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
+      {showShare && <ShareDialog bookId={bookId} onClose={() => setShowShare(false)} />}
+
+      {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
 

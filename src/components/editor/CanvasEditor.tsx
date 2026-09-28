@@ -329,10 +329,11 @@ function TextNode({
       fontSize={obj.fontSize}
       align={obj.align}
       width={obj.width}
-      // Outline text = hollow letters a child can color in.
-      fill={obj.outline ? "#ffffff" : obj.fill}
-      stroke={obj.outline ? obj.fill : undefined}
-      strokeWidth={obj.outline ? Math.max(1.5, obj.fontSize * 0.045) : 0}
+      // Outline text = hollow letters a child can color in; dashed = letters to trace over.
+      fill={obj.dashed ? "transparent" : obj.outline ? "#ffffff" : obj.fill}
+      stroke={obj.outline || obj.dashed ? obj.fill : undefined}
+      strokeWidth={obj.dashed ? Math.max(1.5, obj.fontSize * 0.028) : obj.outline ? Math.max(1.5, obj.fontSize * 0.045) : 0}
+      dash={obj.dashed ? [obj.fontSize * 0.06, obj.fontSize * 0.045] : undefined}
       x={obj.x}
       y={obj.y}
       rotation={obj.rotation}

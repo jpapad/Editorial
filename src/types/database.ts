@@ -33,6 +33,23 @@ export type BookRow = {
   cover?: CoverDesign | null;
 };
 
+/** supabase/migrations/20260928150000_book_shares.sql */
+export type BookShareRow = {
+  token: string;
+  book_id: string;
+  created_by: string;
+  created_at: string;
+  revoked_at: string | null;
+};
+
+/** What get_shared_book() hands an anonymous visitor. */
+export type SharedBook = {
+  title: string;
+  trim_size: string | null;
+  bleed: boolean;
+  pages: BookPage[];
+};
+
 /** supabase/migrations/20260928130000_page_comments.sql */
 export type PageCommentRow = {
   id: string;
@@ -69,6 +86,12 @@ export type Database = {
         Update: Partial<Omit<BookRow, "id" | "user_id">>;
         Relationships: [];
       };
+      book_shares: {
+        Row: BookShareRow;
+        Insert: Pick<BookShareRow, "book_id">;
+        Update: Pick<BookShareRow, "revoked_at">;
+        Relationships: [];
+      };
       page_comments: {
         Row: PageCommentRow;
         // author_id/author_email/resolved/created_at are set by a trigger.
@@ -83,6 +106,7 @@ export type Database = {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       admin_list_users: { Args: Record<string, never>; Returns: AdminUserRow[] };
       admin_set_supervisor: { Args: { target_user: string; make_supervisor: boolean }; Returns: undefined };
+      get_shared_book: { Args: { share_token: string }; Returns: SharedBook | null };
     };
   };
 };

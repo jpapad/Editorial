@@ -12,7 +12,7 @@ import ColorSwatch from "@/components/studio/ui/ColorSwatch";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
 import { getBook, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
-import type { BookPage, FillStyle } from "@/types/editor";
+import type { BookPage, FillStyle, PageSpace } from "@/types/editor";
 import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeometry";
 
 // Bright first (what kids reach for), then the softer studio tones.
@@ -80,14 +80,47 @@ export default function ColoringView() {
 function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBook: StoredBook | null }) {
   const router = useRouter();
   const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
-  const [title] = useState(initialBook?.title ?? "Untitled Book");
   const statusRef = useRef<BookStatus>(initialBook?.status ?? "draft");
 
-  const [pages, setPages] = useState<BookPage[]>(initialBook?.pages ?? []);
+  if (!initialBook || initialBook.pages.length === 0) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface p-8 text-center">
+        <p className="text-body text-ink-secondary">We couldn&apos;t find that book.</p>
+        <button type="button" onClick={() => router.push("/studio")} className="text-body text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
+          Back to library
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <ColoringBoard
+      title={initialBook.title}
+      initialPages={initialBook.pages}
+      space={interiorSpace(initialBook.trimSize, initialBook.bleed ?? false)}
+      backHref="/studio"
+      save={(pages) => saveBook({ id: bookId, title: initialBook.title, pages, status: statusRef.current, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() })}
+    />
+  );
+}
+
+export interface ColoringBoardProps {
+  title: string;
+  initialPages: BookPage[];
+  space: PageSpace;
+  /** Where the page's progress goes — the book itself, or (for a share link) this device. Debounced by the board. */
+  save: (pages: BookPage[]) => Promise<void>;
+  /** The back button's destination; null hides it (share links have nowhere to go back to). */
+  backHref: string | null;
+}
+
+/** The child-facing coloring surface — used by /studio/color and by public share links. */
+export function ColoringBoard({ title, initialPages, space, save, backHref }: ColoringBoardProps) {
+  const router = useRouter();
+  const [pages, setPages] = useState<BookPage[]>(initialPages);
   const [pageIndex, setPageIndex] = useState(() => {
-    if (!initialBook) return 0;
     const requestedPageId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("page") : null;
-    const found = requestedPageId ? initialBook.pages.findIndex((p) => p.id === requestedPageId) : -1;
+    const found = requestedPageId ? initialPages.findIndex((p) => p.id === requestedPageId) : -1;
     return found >= 0 ? found : 0;
   });
 
@@ -108,12 +141,11 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
 
   const activePage = pages[pageIndex] as BookPage | undefined;
   const finished = pages.filter((p) => p.completedAt);
-  const space = interiorSpace(initialBook?.trimSize, initialBook?.bleed ?? false);
 
   function persist(nextPages: BookPage[]) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      saveBook({ id: bookId, title, pages: nextPages, status: statusRef.current, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }).catch((err) =>
+      save(nextPages).catch((err) =>
         window.alert(err instanceof Error ? err.message : "Could not save this page.")
       );
     }, AUTOSAVE_DEBOUNCE_MS);
@@ -128,7 +160,7 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
   }
 
   function handleSaveNow() {
-    saveBook({ id: bookId, title, pages, status: statusRef.current, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() })
+    save(pages)
       .then(() => {
         setJustSaved(true);
         setTimeout(() => setJustSaved(false), 1500);
@@ -190,16 +222,7 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
     else goToPage(pageIndex - 1);
   }
 
-  if (!initialBook || !activePage) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface p-8 text-center">
-        <p className="text-body text-ink-secondary">We couldn&apos;t find that book.</p>
-        <button type="button" onClick={() => router.push("/studio")} className="text-body text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
-          Back to library
-        </button>
-      </div>
-    );
-  }
+  if (!activePage) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface p-8">
@@ -210,8 +233,11 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
           <div className={cn("flex h-[46px] items-center justify-between px-4 transition-opacity duration-200 motion-reduce:transition-none", quietMode && "pointer-events-none opacity-0")}>
             <button
               type="button"
-              onClick={() => router.push("/studio")}
+              onClick={() => backHref && router.push(backHref)}
               aria-label="Back"
+              aria-hidden={!backHref}
+              tabIndex={backHref ? undefined : -1}
+              style={{ visibility: backHref ? "visible" : "hidden" }}
               className="flex h-9 w-9 items-center justify-center rounded-pill bg-panel text-ink-secondary shadow-resting outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               <ChevronLeft size={18} />

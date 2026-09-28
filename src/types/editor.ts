@@ -73,6 +73,7 @@ export interface TextData extends Placeable {
   fill: string;
   isDragging: boolean;
   outline?: boolean; // hollow "colorable" letters: white fill with a `fill`-colored outline
+  dashed?: boolean; // tracing letters: a dashed outline only (worksheets)
 }
 
 // Everything a user can click-select, resize, rotate, and reorder on a page.
