@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { generateLineArtImage, type LineArtRequest } from "@/services/aiGenerator";
+import { reserveCredits } from "@/lib/aiCredits";
 
 interface GenerateRequestBody extends LineArtRequest {
   count?: number;
@@ -41,6 +42,11 @@ export async function POST(request: Request) {
   }
 
   const count = Math.min(Math.max(body.count ?? MAX_COUNT, 1), MAX_COUNT);
+
+  // One credit per image, reserved before any provider call; failures are refunded below.
+  const grant = await reserveCredits("ai_image", count);
+  if (!grant.ok) return NextResponse.json({ error: grant.error, used: grant.used, limit: grant.limit }, { status: grant.status });
+
   const requests = Array.from({ length: count }, () =>
     generateLineArtImage({ subject: body.subject, theme: body.theme, aspectRatio: body.aspectRatio }, body.provider ?? "fal")
   );
@@ -52,5 +58,7 @@ export async function POST(request: Request) {
       : { ok: false, error: r.reason instanceof Error ? r.reason.message : "Generation failed" }
   );
 
-  return NextResponse.json({ results });
+  const refunded = results.filter((r) => !r.ok).length;
+  await grant.refund(refunded);
+  return NextResponse.json({ results, refunded });
 }

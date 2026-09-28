@@ -71,6 +71,34 @@ export type AdminUserRow = {
   email_confirmed_at: string | null;
   is_admin: boolean;
   book_count: number;
+  // 20260928160000_usage_and_templates.sql — absent until it runs.
+  ai_used?: number;
+  ai_limit?: number;
+};
+
+/** supabase/migrations/20260928160000_usage_and_templates.sql */
+export type BookTemplateRow = {
+  id: string;
+  author_id: string;
+  title: string;
+  description: string;
+  trim_size: string | null;
+  bleed: boolean;
+  pages: BookPage[];
+  page_count: number;
+  thumbnail: string | null;
+  created_at: string;
+};
+
+export type AdminStats = {
+  users: number;
+  active_30d: number;
+  books: number;
+  published: number;
+  pages: number;
+  ai_month: number;
+  exports_month: number;
+  daily: { day: string; ai: number; exports: number }[];
 };
 
 export type Database = {
@@ -92,6 +120,12 @@ export type Database = {
         Update: Pick<BookShareRow, "revoked_at">;
         Relationships: [];
       };
+      book_templates: {
+        Row: BookTemplateRow;
+        Insert: Omit<BookTemplateRow, "id" | "author_id" | "created_at"> & { author_id?: string };
+        Update: never;
+        Relationships: [];
+      };
       page_comments: {
         Row: PageCommentRow;
         // author_id/author_email/resolved/created_at are set by a trigger.
@@ -107,6 +141,12 @@ export type Database = {
       admin_list_users: { Args: Record<string, never>; Returns: AdminUserRow[] };
       admin_set_supervisor: { Args: { target_user: string; make_supervisor: boolean }; Returns: undefined };
       get_shared_book: { Args: { share_token: string }; Returns: SharedBook | null };
+      my_ai_usage: { Args: Record<string, never>; Returns: { used: number; limit: number | null } };
+      consume_ai_credit: { Args: { credit_kind: string; credit_units: number }; Returns: { allowed: boolean; used: number; limit: number | null; event_id?: number } };
+      refund_ai_credit: { Args: { credit_event: number; refund_units: number | null }; Returns: undefined };
+      log_export: { Args: { export_kind: string }; Returns: undefined };
+      admin_set_ai_limit: { Args: { target_user: string; new_limit: number }; Returns: undefined };
+      admin_stats: { Args: Record<string, never>; Returns: AdminStats };
     };
   };
 };

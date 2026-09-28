@@ -40,7 +40,10 @@ create policy "Admins can delete any book" on public.books
 
 -- auth.users isn't exposed through the API, so the user list goes through
 -- this function, which refuses anyone who isn't an admin.
-create or replace function public.admin_list_users()
+-- (20260928160000_usage_and_templates.sql redefines it with AI-usage
+-- columns — run that one again after re-running this file.)
+drop function if exists public.admin_list_users();
+create function public.admin_list_users()
 returns table (
   id uuid,
   email text,

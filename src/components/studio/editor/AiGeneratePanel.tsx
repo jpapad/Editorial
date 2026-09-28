@@ -6,7 +6,7 @@ import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import AiGeneratingModal, { type AiTile } from "@/components/studio/modals/AiGeneratingModal";
 import AiFailureModal from "@/components/studio/modals/AiFailureModal";
-import { useT } from "@/lib/i18n";
+import { aiErrorText, useT } from "@/lib/i18n";
 
 interface GenerateResultItem {
   ok: boolean;
@@ -17,6 +17,8 @@ interface GenerateResultItem {
 
 export interface AiGeneratePanelProps {
   onPickStamp: (src: string) => void;
+  /** Called after each attempt, so a credits display can refresh. */
+  onUsed?: () => void;
 }
 
 function svgMarkupToDataUri(svg: string) {
@@ -39,13 +41,14 @@ const QUEUED_TILES: AiTile[] = [{ status: "queued" }, { status: "queued" }, { st
  * — that failure path IS AiFailureModal's real job, so it's at least a
  * true exercise of that screen, just not of a successful generation.
  */
-export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
+export default function AiGeneratePanel({ onPickStamp, onUsed }: AiGeneratePanelProps) {
   const t = useT();
   const [subject, setSubject] = useState("");
   const [theme, setTheme] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<GenerateResultItem[] | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [refunded, setRefunded] = useState(false); // the server gave the failed attempt's credits back
   const controllerRef = useRef<AbortController | null>(null);
 
   async function runGenerate() {
@@ -61,9 +64,10 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
         body: JSON.stringify({ subject: subject.trim(), theme: theme.trim() || undefined, count: 4 }),
         signal: controller.signal,
       });
-      const body = (await response.json().catch(() => null)) as { results?: GenerateResultItem[]; error?: string } | null;
+      const body = (await response.json().catch(() => null)) as { results?: GenerateResultItem[]; error?: string; refunded?: number } | null;
+      setRefunded(Boolean(body?.refunded && body.results && body.refunded === body.results.length));
       if (!response.ok || !body?.results) {
-        setFailure(body?.error ?? `Generation failed (HTTP ${response.status})`);
+        setFailure(aiErrorText(t, response.status, body?.error ?? `Generation failed (HTTP ${response.status})`));
         return;
       }
       const anySucceeded = body.results.some((r) => r.ok);
@@ -76,6 +80,7 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
       if (err instanceof DOMException && err.name === "AbortError") return; // user hit Stop — not a failure
       setFailure(err instanceof Error ? err.message : t("Generation failed."));
     } finally {
+      onUsed?.();
       setIsGenerating(false);
       controllerRef.current = null;
     }
@@ -133,7 +138,7 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
       {failure && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={() => setFailure(null)}>
           <div onClick={(e) => e.stopPropagation()}>
-            <AiFailureModal cause={t("Generation failed")} explanation={failure} prompt={theme ? `${subject} (${theme})` : subject} remedies={[]} onRetry={() => void runGenerate()} />
+            <AiFailureModal cause={t("Generation failed")} explanation={failure} prompt={theme ? `${subject} (${theme})` : subject} remedies={[]} onRetry={() => void runGenerate()} creditRefunded={refunded} />
           </div>
         </div>
       )}

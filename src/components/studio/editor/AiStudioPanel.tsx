@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { supabase } from "@/lib/supabase/client";
+import { cn } from "@/utils/cn";
 import { Camera, CheckCircle2, Circle, Loader2, ScanLine, Sparkles, X, XCircle } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
@@ -10,7 +12,7 @@ import Toggle from "@/components/studio/ui/Toggle";
 import AiGeneratePanel from "@/components/studio/editor/AiGeneratePanel";
 import { cleanSketchImage } from "@/components/studio/editor/sketchCleanup";
 import type { StampFilter } from "@/types/editor";
-import { useT } from "@/lib/i18n";
+import { aiErrorText, useT } from "@/lib/i18n";
 
 const MAX_SERIES = 12;
 
@@ -164,7 +166,7 @@ async function downscaleForUpload(src: string, max = 1536): Promise<string> {
  * (/api/photo-to-line-art). The result goes through the same cleanup as a
  * sketch photo so it lands as pure black lines on transparent.
  */
-function PhotoToPageSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPanelProps, "onPickStamp" | "onPlaceFullPage">) {
+function PhotoToPageSection({ onPickStamp, onPlaceFullPage, onUsed }: Pick<AiStudioPanelProps, "onPickStamp" | "onPlaceFullPage"> & { onUsed: () => void }) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [source, setSource] = useState<string | null>(null);
@@ -190,12 +192,13 @@ function PhotoToPageSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPanel
       const photo = await downscaleForUpload(source);
       const response = await fetch("/api/photo-to-line-art", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ photo, note: note.trim() || undefined }) });
       const body = (await response.json().catch(() => null)) as { dataUri?: string; error?: string } | null;
-      if (!response.ok || !body?.dataUri) throw new Error(body?.error ?? `HTTP ${response.status}`);
+      if (!response.ok || !body?.dataUri) throw new Error(aiErrorText(t, response.status, body?.error ?? `HTTP ${response.status}`));
       const cleaned = await cleanSketchImage(body.dataUri, { sensitivity: 0.1, bolder: false });
       setResult(cleaned ?? { dataUrl: body.dataUri, ...(await imageSize(body.dataUri)) });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Generation failed"));
     } finally {
+      onUsed();
       setBusy(false);
     }
   }
@@ -253,7 +256,7 @@ function PhotoToPageSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPanel
  * time so each page lands as soon as it's ready and one failure doesn't
  * sink the rest.
  */
-function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage">) {
+function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage"> & { onUsed: () => void }) {
   const t = useT();
   const [theme, setTheme] = useState("");
   const [subjects, setSubjects] = useState("");
@@ -288,13 +291,14 @@ function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelP
         });
         const body = (await response.json().catch(() => null)) as { results?: { ok: boolean; svgMarkup?: string; error?: string }[]; error?: string } | null;
         const first = body?.results?.[0];
-        if (!response.ok || !first?.ok || !first.svgMarkup) throw new Error(first?.error ?? body?.error ?? `HTTP ${response.status}`);
+        if (!response.ok || !first?.ok || !first.svgMarkup) throw new Error(aiErrorText(t, response.status, first?.error ?? body?.error ?? `HTTP ${response.status}`));
         const src = `data:image/svg+xml;utf8,${encodeURIComponent(first.svgMarkup)}`;
         onAppendImagePage(src, await imageSize(src), captions ? queue[i].subject : undefined);
         update(i, { status: "done" });
       } catch (err) {
         update(i, { status: "failed", error: err instanceof Error ? err.message : t("Generation failed") });
       }
+      onUsed();
     }
     setRunning(false);
   }
@@ -368,8 +372,19 @@ function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelP
 }
 
 /** The tool rail's AI panel: sketch cleanup, AI page series and single AI stamps, in the right-hand column. */
+/** "12 of 20 AI credits left this month" — hidden until the usage migration exists. */
+function useAiUsage() {
+  const [usage, setUsage] = useState<{ used: number; limit: number | null } | null>(null);
+  const refresh = useCallback(() => {
+    supabase.rpc("my_ai_usage").then(({ data, error }) => setUsage(error ? null : (data ?? null)));
+  }, []);
+  useEffect(() => refresh(), [refresh]);
+  return { usage, refresh };
+}
+
 export default function AiStudioPanel(props: AiStudioPanelProps) {
   const t = useT();
+  const { usage, refresh } = useAiUsage();
   return (
     <aside className="absolute bottom-[18px] right-[18px] top-[106px] flex w-[264px] flex-col gap-3.5 overflow-y-auto pb-1">
       <div className="flex shrink-0 items-center justify-between px-1">
@@ -383,17 +398,22 @@ export default function AiStudioPanel(props: AiStudioPanelProps) {
           <X size={14} />
         </button>
       </div>
+      {usage && (
+        <p className={cn("shrink-0 px-1 text-helper", usage.limit !== null && usage.used >= usage.limit ? "text-error" : "text-ink-muted")}>
+          {usage.limit === null ? t("AI: unlimited (supervisor)") : t("{left} of {limit} AI credits left this month", { left: Math.max(0, usage.limit - usage.used), limit: usage.limit })}
+        </p>
+      )}
       <div className="shrink-0">
         <SketchCleanupSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} />
       </div>
       <div className="shrink-0">
-        <PhotoToPageSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} />
+        <PhotoToPageSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} onUsed={refresh} />
       </div>
       <div className="shrink-0">
-        <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} />
+        <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} onUsed={refresh} />
       </div>
       <Card className="shrink-0 p-4">
-        <AiGeneratePanel onPickStamp={props.onPickStamp} />
+        <AiGeneratePanel onPickStamp={props.onPickStamp} onUsed={refresh} />
       </Card>
     </aside>
   );

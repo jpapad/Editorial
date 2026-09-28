@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Download, Loader2, ShoppingBag, Type } from "lucide-react";
+import { BookOpen, Download, LayoutTemplate, Loader2, ShoppingBag, Type } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -18,12 +18,14 @@ export function BookPrintCard({
   onToggleBleed,
   converting,
   onOpenListing,
+  onShareTemplate,
 }: {
   trimLabel: string;
   bleed: boolean;
   onToggleBleed: (on: boolean) => void;
   converting: boolean;
   onOpenListing: () => void;
+  onShareTemplate: () => void;
 }) {
   const t = useT();
   return (
@@ -45,6 +47,9 @@ export function BookPrintCard({
       )}
       <Button variant="secondary" size="sm" icon={<ShoppingBag size={13} />} onClick={onOpenListing}>
         {t("Amazon listing kit")}
+      </Button>
+      <Button variant="ghost" size="sm" icon={<LayoutTemplate size={13} />} onClick={onShareTemplate}>
+        {t("Share as a template")}
       </Button>
     </Card>
   );

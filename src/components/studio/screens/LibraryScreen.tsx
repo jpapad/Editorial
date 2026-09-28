@@ -8,6 +8,7 @@ import Button from "@/components/studio/ui/Button";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
+import TemplatesGallery from "@/components/studio/screens/TemplatesGallery";
 import { cn } from "@/utils/cn";
 import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase/client";
@@ -132,7 +133,7 @@ export default function LibraryScreen() {
   const filtered = (books ?? []).filter((book) => {
     if (activeNav === "Drafts" && book.status !== "draft") return false;
     if (activeNav === "Published" && book.status !== "published") return false;
-    if (activeNav === "Loose pages" || activeNav === "Templates") return false; // no such concept in the data model yet — honest empty, not fabricated
+    if (activeNav === "Loose pages") return false; // no such concept in the data model yet — honest empty, not fabricated
     if (activeCollection && book.collection !== activeCollection) return false;
     if (normalizedQuery && !book.title.toLowerCase().includes(normalizedQuery)) return false;
     return true;
@@ -208,7 +209,15 @@ export default function LibraryScreen() {
       </aside>
 
       <div className="flex-1 p-8">
-        {!isLoading && (books?.length ?? 0) === 0 ? (
+        {activeNav === "Templates" ? (
+          <div className="flex flex-col gap-6">
+            <div>
+              <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">{t("Templates")}</h1>
+              <MetaLabel>{t("Books other creators shared. Using one makes your own copy.")}</MetaLabel>
+            </div>
+            <TemplatesGallery onOpenBook={handleOpen} />
+          </div>
+        ) : !isLoading && (books?.length ?? 0) === 0 ? (
           <div className="flex min-h-[70vh] items-center justify-center">
             <EmptyLibraryScreen onNewBook={handleNewBook} onFromTemplate={handleNewBook} onImportSketch={() => fileInputRef.current?.click()} />
           </div>

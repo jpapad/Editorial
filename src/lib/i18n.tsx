@@ -67,6 +67,13 @@ export function useT(): TFunction {
   return useCallback((key, vars) => translate(lang, key, vars), [lang]);
 }
 
+/** User-facing text for an AI route's HTTP error (the server's own message is English). */
+export function aiErrorText(t: TFunction, status: number, fallback: string): string {
+  if (status === 429) return t("You've used all your AI credits for this month. They reset on the 1st.");
+  if (status === 401) return t("Sign in to use AI features.");
+  return fallback;
+}
+
 /** EL | EN switch. */
 export function LanguageToggle({ className }: { className?: string }) {
   const { lang, setLang } = useLanguage();

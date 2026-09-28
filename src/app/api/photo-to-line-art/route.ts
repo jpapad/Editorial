@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { photoToLineArt } from "@/services/aiGenerator";
+import { reserveCredits } from "@/lib/aiCredits";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPTED = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -22,10 +23,14 @@ export async function POST(request: Request) {
   if (data.length === 0 || data.length > MAX_BYTES) return NextResponse.json({ error: "photo must be under 8 MB" }, { status: 400 });
   const note = typeof body.note === "string" ? body.note.slice(0, 300) : undefined;
 
+  const grant = await reserveCredits("ai_photo", 1);
+  if (!grant.ok) return NextResponse.json({ error: grant.error, used: grant.used, limit: grant.limit }, { status: grant.status });
+
   try {
     const result = await photoToLineArt({ data, mimeType: match[1] }, note);
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Generation failed" }, { status: 502 });
+    await grant.refund();
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Generation failed", refunded: 1 }, { status: 502 });
   }
 }

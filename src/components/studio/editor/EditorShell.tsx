@@ -20,6 +20,7 @@ import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from 
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
 import { captureInk, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
+import PublishTemplateDialog from "@/components/studio/editor/PublishTemplateDialog";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
 import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
 import ShareDialog from "@/components/studio/editor/ShareDialog";
@@ -154,6 +155,11 @@ function coverGuides(layout: CoverLayout, t: TFunction): GuideSpec {
   };
 }
 
+/** Counts an export for the admin statistics. Fire-and-forget: never blocks or fails an export (e.g. before the usage migration exists). */
+function logExport(kind: "export_pdf" | "export_cover") {
+  void supabase.rpc("log_export", { export_kind: kind }).then(() => undefined);
+}
+
 /** Page numbers follow array order — re-stamp them after any structural change. */
 function renumber(pages: BookPage[]): BookPage[] {
   return pages.map((p, i) => (p.pageNumber === i + 1 ? p : { ...p, pageNumber: i + 1 }));
@@ -272,6 +278,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [sidePanel, setSidePanel] = useState<"default" | "ai" | "comments">("default");
   const [isSupervisor, setIsSupervisor] = useState(false);
   const [showListing, setShowListing] = useState(false);
+  const [showPublishTemplate, setShowPublishTemplate] = useState(false);
   const [showWorksheets, setShowWorksheets] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [comments, setComments] = useState<PageComment[]>([]);
@@ -845,6 +852,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       await waitForNextPaint();
       const src = captureStage(stage, EXPORT_PIXEL_RATIO);
       await exportPagesToPdf([coverExportPage(src, cover.space)], `${slugify(title)}-cover.pdf`);
+      logExport("export_cover");
     } catch (err) {
       window.alert(err instanceof Error ? err.message : t("Could not export the cover."));
     } finally {
@@ -1013,6 +1021,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         dataUrls.map((src, i) => interiorExportPage(src, space, i + 1)),
         `${slugify(title)}.pdf`
       );
+      logExport("export_pdf");
     } catch (err) {
       window.alert(err instanceof Error ? err.message : t("Could not export this book to PDF."));
     } finally {
@@ -1374,7 +1383,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                 exporting={isExportingCover}
               />
             ) : mode === "draw" ? (
-              <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} />
+              <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} />
             ) : null
           }
         />
@@ -1389,6 +1398,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
+      {showPublishTemplate && <PublishTemplateDialog title={title} pages={pages} trimSize={trimSizeId} bleed={bleed} onClose={() => setShowPublishTemplate(false)} />}
 
       {showPreflight && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={() => setShowPreflight(false)}>
