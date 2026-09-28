@@ -11,6 +11,7 @@ import { captureStage } from "@/components/editor/CanvasEditor";
 import ColorSwatch from "@/components/studio/ui/ColorSwatch";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
+import { useT } from "@/lib/i18n";
 import { getBook, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import type { BookPage, FillStyle, PageSpace } from "@/types/editor";
 import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeometry";
@@ -18,9 +19,9 @@ import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeomet
 // Bright first (what kids reach for), then the softer studio tones.
 const PALETTE = ["#e5484d", "#f08c2e", "#f5c518", "#3cb371", "#2f80ed", "#8e5ad6", "#e05a9b", "#8a5a3c", "#e4b7a0", "#8fae8b", "#7b8fa8", "#111827"];
 const BRUSH_SIZES = [
-  { label: "Λεπτό", width: 8 },
-  { label: "Μεσαίο", width: 16 },
-  { label: "Χοντρό", width: 28 },
+  { label: "Thin", width: 8 },
+  { label: "Medium", width: 16 },
+  { label: "Thick", width: 28 },
 ];
 const THUMB_RATIO = 0.3;
 const SWIPE_THRESHOLD_PX = 60;
@@ -52,6 +53,7 @@ function slugify(title: string) {
 export default function ColoringView() {
   const [bookId] = useState(readInitialBookId);
   const [loaded, setLoaded] = useState<{ book: StoredBook | null } | null>(null);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +73,7 @@ export default function ColoringView() {
   }, [bookId]);
 
   if (!loaded) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">Loading…</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
   }
 
   return <ColoringViewLoaded bookId={bookId} initialBook={loaded.book} />;
@@ -79,15 +81,16 @@ export default function ColoringView() {
 
 function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBook: StoredBook | null }) {
   const router = useRouter();
+  const t = useT();
   const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
   const statusRef = useRef<BookStatus>(initialBook?.status ?? "draft");
 
   if (!initialBook || initialBook.pages.length === 0) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface p-8 text-center">
-        <p className="text-body text-ink-secondary">We couldn&apos;t find that book.</p>
+        <p className="text-body text-ink-secondary">{t("We couldn't find that book.")}</p>
         <button type="button" onClick={() => router.push("/studio")} className="text-body text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
-          Back to library
+          {t("Back to library")}
         </button>
       </div>
     );
@@ -117,6 +120,7 @@ export interface ColoringBoardProps {
 /** The child-facing coloring surface — used by /studio/color and by public share links. */
 export function ColoringBoard({ title, initialPages, space, save, backHref }: ColoringBoardProps) {
   const router = useRouter();
+  const t = useT();
   const [pages, setPages] = useState<BookPage[]>(initialPages);
   const [pageIndex, setPageIndex] = useState(() => {
     const requestedPageId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("page") : null;
@@ -234,7 +238,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
             <button
               type="button"
               onClick={() => backHref && router.push(backHref)}
-              aria-label="Back"
+              aria-label={t("Back")}
               aria-hidden={!backHref}
               tabIndex={backHref ? undefined : -1}
               style={{ visibility: backHref ? "visible" : "hidden" }}
@@ -249,12 +253,12 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
                 onClick={() => setQuietMode(true)}
                 className="rounded-pill bg-[rgba(16,20,26,0.06)] px-3.5 py-1.5 text-helper font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
-                Quiet mode
+                {t("Quiet mode")}
               </button>
               <button
                 type="button"
                 onClick={() => setShowGallery(true)}
-                aria-label={`Η συλλογή μου (${finished.length})`}
+                aria-label={t("My collection ({n})", { n: finished.length })}
                 className="flex h-8 items-center gap-1.5 rounded-pill bg-[rgba(16,20,26,0.06)] px-2.5 text-helper font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 <Images size={14} /> {finished.length}
@@ -262,8 +266,8 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
               <button
                 type="button"
                 onClick={handlePrintPage}
-                aria-label="Εκτύπωση σελίδας"
-                title="Εκτύπωση σελίδας"
+                aria-label={t("Print this page")}
+                title={t("Print this page")}
                 className="flex h-8 w-8 items-center justify-center rounded-pill bg-[rgba(16,20,26,0.06)] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 <Printer size={14} />
@@ -271,7 +275,8 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
               <button
                 type="button"
                 onClick={handleDownloadPage}
-                aria-label="Download this page as PNG"
+                aria-label={t("Download this page as PNG")}
+                title={t("Download this page as PNG")}
                 className="flex h-8 w-8 items-center justify-center rounded-pill bg-[rgba(16,20,26,0.06)] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 <Download size={14} />
@@ -281,7 +286,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
                 onClick={handleSaveNow}
                 className="rounded-pill bg-accent px-3.5 py-1.5 text-helper font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
-                {justSaved ? "Saved" : "Save"}
+                {justSaved ? t("Saved") : t("Save")}
               </button>
             </div>
           </div>
@@ -343,8 +348,8 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
 
               {(
                 [
-                  { id: "fill", label: "Κουβάς", Icon: PaintBucket },
-                  { id: "brush", label: "Πινέλο", Icon: Paintbrush },
+                  { id: "fill", label: t("Bucket"), Icon: PaintBucket },
+                  { id: "brush", label: t("Brush"), Icon: Paintbrush },
                 ] as const
               ).map(({ id, label, Icon }) => (
                 <button
@@ -367,14 +372,14 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
                 {kidTool === "fill" ? (
                   <FillStylePicker value={fillStyle} color={activeColor} onChange={setFillStyle} size={26} />
                 ) : (
-                  <div className="flex gap-1" role="group" aria-label="Μέγεθος πινέλου">
+                  <div className="flex gap-1" role="group" aria-label={t("Brush size")}>
                     {BRUSH_SIZES.map((b, i) => (
                       <button
                         key={b.width}
                         type="button"
-                        aria-label={b.label}
+                        aria-label={t(b.label)}
                         aria-pressed={brushSize === b.width}
-                        title={b.label}
+                        title={t(b.label)}
                         onClick={() => setBrushSize(b.width)}
                         className={cn(
                           "flex h-9 w-9 items-center justify-center rounded-pill outline-none focus-visible:ring-2 focus-visible:ring-accent",
@@ -390,7 +395,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
 
               <button
                 type="button"
-                aria-label="Undo"
+                aria-label={t("Undo")}
                 disabled={!canUndoFill}
                 onClick={() => setUndoSignal((s) => s + 1)}
                 className="flex h-11 w-11 items-center justify-center rounded-pill bg-inset-alt text-ink-secondary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
@@ -403,28 +408,28 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
                 className="flex h-11 items-center gap-1.5 rounded-pill bg-success px-4 text-body font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 <PartyPopper size={16} />
-                {activePage.completedAt ? "Ξανά!" : "Τελείωσα!"}
+                {activePage.completedAt ? t("Again!") : t("I'm done!")}
               </button>
             </div>
             <MetaLabel>
-              Σελίδα {pageIndex + 1} από {pages.length} · {kidTool === "fill" ? "Σύρε για επόμενη" : "Ζωγράφισε με το πινέλο"}
+              {t("Page {n} of {total}", { n: pageIndex + 1, total: pages.length })} · {kidTool === "fill" ? t("Swipe for the next page") : t("Paint with the brush")}
             </MetaLabel>
           </div>
 
           {reward !== null && (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/40 p-6" onClick={() => setReward(null)}>
-              <div role="dialog" aria-modal="true" aria-label="Κέρδισες αυτοκόλλητο" onClick={(e) => e.stopPropagation()} className="flex w-[340px] flex-col items-center gap-4 rounded-panel bg-panel p-6 text-center shadow-panel">
+              <div role="dialog" aria-modal="true" aria-label={t("You earned a sticker")} onClick={(e) => e.stopPropagation()} className="flex w-[340px] flex-col items-center gap-4 rounded-panel bg-panel p-6 text-center shadow-panel">
                 <Sticker index={reward} size={96} />
-                <p className="text-modal-title font-semibold text-ink">Μπράβο!</p>
+                <p className="text-modal-title font-semibold text-ink">{t("Well done!")}</p>
                 <p className="text-body text-ink-secondary">
-                  Κέρδισες το αυτοκόλλητο «{STICKERS[reward % STICKERS.length].name}». Έχεις {reward + 1} {reward === 0 ? "αυτοκόλλητο" : "αυτοκόλλητα"}!
+                  {t(reward === 0 ? "You earned the “{name}” sticker. That's your first sticker!" : "You earned the “{name}” sticker. You have {n} stickers!", { name: t(STICKERS[reward % STICKERS.length].name), n: reward + 1 })}
                 </p>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => {
                       setReward(null);
                       setShowGallery(true);
                     }} className="rounded-pill bg-inset-alt px-4 py-2 text-body font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    Η συλλογή μου
+                    {t("My collection")}
                   </button>
                   <button
                     type="button"
@@ -435,7 +440,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
                     }}
                     className="rounded-pill bg-accent px-4 py-2 text-body font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
-                    {pageIndex < pages.length - 1 ? "Επόμενη σελίδα" : "Εντάξει"}
+                    {pageIndex < pages.length - 1 ? t("Next page") : t("OK")}
                   </button>
                 </div>
               </div>
@@ -443,16 +448,16 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
           )}
 
           {showGallery && (
-            <div className="absolute inset-0 z-30 flex flex-col gap-4 bg-tablet-ground p-6" role="dialog" aria-modal="true" aria-label="Η συλλογή μου">
+            <div className="absolute inset-0 z-30 flex flex-col gap-4 bg-tablet-ground p-6" role="dialog" aria-modal="true" aria-label={t("My collection")}>
               <div className="flex items-center justify-between">
-                <p className="text-modal-title font-semibold text-ink">Η συλλογή μου</p>
-                <button type="button" aria-label="Κλείσιμο" onClick={() => setShowGallery(false)} className="flex h-9 w-9 items-center justify-center rounded-pill bg-panel text-ink-secondary shadow-resting outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <p className="text-modal-title font-semibold text-ink">{t("My collection")}</p>
+                <button type="button" aria-label={t("Close")} onClick={() => setShowGallery(false)} className="flex h-9 w-9 items-center justify-center rounded-pill bg-panel text-ink-secondary shadow-resting outline-none focus-visible:ring-2 focus-visible:ring-accent">
                   <X size={16} />
                 </button>
               </div>
               <div className="flex min-h-[64px] flex-wrap items-center gap-2 rounded-panel bg-panel p-3 shadow-resting">
                 {finished.length === 0 ? (
-                  <p className="text-body text-ink-muted">Τελείωσε μια σελίδα για να κερδίσεις το πρώτο σου αυτοκόλλητο!</p>
+                  <p className="text-body text-ink-muted">{t("Finish a page to earn your first sticker!")}</p>
                 ) : (
                   finished.map((_, i) => <Sticker key={i} index={i} size={44} />)
                 )}
@@ -468,7 +473,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
                     }}
                     className="overflow-hidden rounded-paper bg-white shadow-resting outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     style={{ aspectRatio: `${space.width} / ${space.height}` }}
-                    aria-label={`Σελίδα ${pages.findIndex((x) => x.id === p.id) + 1}`}
+                    aria-label={t("Page {n}", { n: pages.findIndex((x) => x.id === p.id) + 1 })}
                   >
                     {p.thumbnailDataUrl && (
                       // eslint-disable-next-line @next/next/no-img-element -- stage snapshot data URL

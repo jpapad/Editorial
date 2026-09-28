@@ -8,6 +8,7 @@ import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { PAGE_TEMPLATE_OPTIONS } from "@/components/editor/pageTemplates";
 import type { BookPage, PageTemplate } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 export interface PageFilmstripProps {
   pages: BookPage[];
@@ -45,6 +46,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const hasBlankBacks = pages.some((p) => p.isBlankBack);
+  const t = useT();
 
   function handleDrop() {
     if (dragIndex === null || dropIndex === null) return;
@@ -79,18 +81,18 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
   return (
     <div className="flex h-[92px] shrink-0 items-center gap-3 rounded-panel bg-panel px-4 shadow-panel" style={{ flex: "none" }}>
       <div className="flex flex-col items-start gap-1.5">
-        <MetaLabel>Pages</MetaLabel>
+        <MetaLabel>{t("Pages")}</MetaLabel>
         <button
           type="button"
           aria-pressed={hasBlankBacks}
-          title="Single-sided printing: a blank reverse after every page, so markers don't bleed onto the next picture"
+          title={t("Single-sided printing: a blank reverse after every page, so markers don't bleed onto the next picture")}
           onClick={onToggleBlankBacks}
           className={cn(
             "whitespace-nowrap rounded-pill border px-2 py-0.5 text-[10px] font-medium outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
             hasBlankBacks ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt"
           )}
         >
-          {hasBlankBacks ? "✓ Blank backs" : "Blank backs"}
+          {hasBlankBacks ? `✓ ${t("Blank backs")}` : t("Blank backs")}
         </button>
       </div>
       <div
@@ -131,7 +133,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
               selected={page.id === activePageId}
               onClick={() => onSelectPage(page.id)}
               style={{ width: 44, height: 58, borderRadius: THUMB_RADIUS_PX }}
-              alt={page.isBlankBack ? `Page ${index + 1} (blank back)` : `Page ${index + 1}`}
+              alt={page.isBlankBack ? t("Page {n} (blank back)", { n: index + 1 }) : t("Page {n}", { n: index + 1 })}
               badge={
                 page.isCover ? (
                   <span className="flex h-4 w-4 items-center justify-center rounded-pill bg-warning text-white">
@@ -140,13 +142,13 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
                 ) : undefined
               }
             >
-              {page.isBlankBack && !page.thumbnailDataUrl && <span className="font-pw-mono text-[7px] uppercase tracking-[0.09em] text-ink-muted">back</span>}
+              {page.isBlankBack && !page.thumbnailDataUrl && <span className="font-pw-mono text-[7px] uppercase tracking-[0.09em] text-ink-muted">{t("back")}</span>}
             </Thumbnail>
             <span className="pointer-events-none absolute -bottom-3.5 left-0 right-0 text-center font-pw-mono text-[8px] text-ink-muted">{index + 1}</span>
             {commentCounts[page.id] > 0 && (
               <span
                 className="pointer-events-none absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-error px-1 text-[9px] font-semibold text-white"
-                title={`${commentCounts[page.id]} open comment${commentCounts[page.id] === 1 ? "" : "s"}`}
+                title={commentCounts[page.id] === 1 ? t("1 open comment") : t("{n} open comments", { n: commentCounts[page.id] })}
               >
                 {commentCounts[page.id]}
               </span>
@@ -154,8 +156,8 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
             <div className="absolute -right-1.5 -top-1.5 hidden gap-0.5 group-hover:flex group-focus-within:flex">
               <button
                 type="button"
-                aria-label={`Duplicate page ${index + 1}`}
-                title="Duplicate page"
+                aria-label={t("Duplicate page {n}", { n: index + 1 })}
+                title={t("Duplicate page")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDuplicatePage(page.id);
@@ -167,8 +169,8 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
               {pages.length > 1 && (
                 <button
                   type="button"
-                  aria-label={`Delete page ${index + 1}`}
-                  title="Delete page"
+                  aria-label={t("Delete page {n}", { n: index + 1 })}
+                  title={t("Delete page")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDeletePage(page.id);
@@ -183,7 +185,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
         ))}
 
         <div ref={addButtonRef} className="relative shrink-0">
-          <Thumbnail dashed onClick={openMenu} style={{ width: 44, height: 58, borderRadius: THUMB_RADIUS_PX }} alt="Add page">
+          <Thumbnail dashed onClick={openMenu} style={{ width: 44, height: 58, borderRadius: THUMB_RADIUS_PX }} alt={t("Add page")}>
             <Plus size={16} className="text-ink-muted" />
           </Thumbnail>
         </div>
@@ -208,7 +210,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
             className="fixed z-50 flex w-56 flex-col gap-0.5 rounded-panel bg-panel p-1.5 shadow-panel"
             style={{ left: menuPosition.left, bottom: menuPosition.bottom }}
           >
-            <p className="px-2 py-1 text-helper font-medium text-ink-muted">Layout templates</p>
+            <p className="px-2 py-1 text-helper font-medium text-ink-muted">{t("Layout templates")}</p>
             {PAGE_TEMPLATE_OPTIONS.map((option) => (
               <button
                 key={option.id}
@@ -219,8 +221,8 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
                 }}
                 className="flex flex-col items-start rounded-row-sm px-2 py-1.5 text-left outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
-                <span className="text-body font-medium text-ink">{option.label}</span>
-                <span className="text-helper text-ink-muted">{option.description}</span>
+                <span className="text-body font-medium text-ink">{t(option.label)}</span>
+                <span className="text-helper text-ink-muted">{t(option.description)}</span>
               </button>
             ))}
             {onOpenWorksheets && (
@@ -232,8 +234,8 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
                 }}
                 className="mt-0.5 flex flex-col items-start rounded-row-sm border-t border-hairline px-2 py-1.5 text-left outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
-                <span className="text-body font-medium text-accent">Worksheets…</span>
-                <span className="text-helper text-ink-muted">Tracing, connect the dots, mazes, spot the difference</span>
+                <span className="text-body font-medium text-accent">{t("Worksheets…")}</span>
+                <span className="text-helper text-ink-muted">{t("Tracing, connect the dots, mazes, spot the difference")}</span>
               </button>
             )}
           </div>,

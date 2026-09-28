@@ -25,6 +25,8 @@ export interface EditorPreflightIssue {
   severity: EditorPreflightSeverity;
   code: EditorPreflightCode;
   message: string;
+  /** The number the message is about (pages, lines…) — lets the UI re-word it in another language. */
+  count: number;
   pageIds: string[];
 }
 
@@ -58,6 +60,7 @@ function checkPageCount(pages: BookPage[]): EditorPreflightIssue[] {
       severity: "blocking",
       code: "PAGE_COUNT",
       message: `Total pages: ${pages.length}. Saddle stitch binding needs a multiple of 4.`,
+      count: pages.length,
       pageIds: [],
     },
   ];
@@ -74,6 +77,7 @@ function checkThinStrokes(pages: BookPage[]): EditorPreflightIssue[] {
       severity: "warning",
       code: "THIN_STROKE",
       message: `${lineCount} line${lineCount === 1 ? "" : "s"} below ${THIN_STROKE_THRESHOLD}pt — may print faint.`,
+      count: lineCount,
       pageIds: flaggedPageIds,
     },
   ];
@@ -98,6 +102,7 @@ function checkMarginSafety(pages: BookPage[]): EditorPreflightIssue[] {
       severity: "warning",
       code: "MARGIN_SAFETY",
       message: `${flaggedPageIds.length} page${flaggedPageIds.length === 1 ? "" : "s"} — content extends past the 0.5in safe margin.`,
+      count: flaggedPageIds.length,
       pageIds: flaggedPageIds,
     },
   ];

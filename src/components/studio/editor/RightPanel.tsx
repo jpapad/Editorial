@@ -38,6 +38,7 @@ import { BACKGROUND_PATTERNS, svgToDataUri } from "@/components/editor/backgroun
 import { FRAMES, frameDataUri } from "@/components/editor/frameLibrary";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
 import { cn } from "@/utils/cn";
+import { useT, type TFunction } from "@/lib/i18n";
 import type { AlignEdge } from "@/utils/objectGeometry";
 import type { EditorMode } from "@/components/studio/types";
 import type { BookPage, DrawingTool, FillStyle, ObjectChanges, PageObject, ShapeKind, StampFilter, TextData } from "@/types/editor";
@@ -108,10 +109,10 @@ function IconButton({ label, onClick, disabled, children }: { label: string; onC
   );
 }
 
-function objectLabel(obj: PageObject): string {
-  if (obj.kind === "text") return obj.text.replace(/\s+/g, " ").trim() || "Text";
-  if (obj.kind === "shape") return obj.shapeKind[0].toUpperCase() + obj.shapeKind.slice(1);
-  return obj.isFrame ? "Frame" : "Image";
+function objectLabel(obj: PageObject, t: TFunction): string {
+  if (obj.kind === "text") return obj.text.replace(/\s+/g, " ").trim() || t("Text");
+  if (obj.kind === "shape") return t(obj.shapeKind[0].toUpperCase() + obj.shapeKind.slice(1));
+  return obj.isFrame ? t("Frame") : t("Image");
 }
 
 function ObjectIcon({ obj }: { obj: PageObject }) {
@@ -121,6 +122,7 @@ function ObjectIcon({ obj }: { obj: PageObject }) {
 
 /** Selection actions: stacking, alignment, flipping, grouping, and text styling when text is selected. */
 function SelectionCard(props: RightPanelProps & { selected: PageObject[] }) {
+  const t = useT();
   const { selected } = props;
   const count = selected.length;
   const texts = selected.filter((o): o is TextData => o.kind === "text");
@@ -129,8 +131,8 @@ function SelectionCard(props: RightPanelProps & { selected: PageObject[] }) {
   if (count === 0) {
     return (
       <Card className="flex flex-col gap-1.5 p-4">
-        <p className="text-card-title font-semibold text-ink">Selection</p>
-        <p className="text-helper text-ink-muted">Click an object to select it. Shift-click or drag a box to select several.</p>
+        <p className="text-card-title font-semibold text-ink">{t("Selection")}</p>
+        <p className="text-helper text-ink-muted">{t("Click an object to select it. Shift-click or drag a box to select several.")}</p>
       </Card>
     );
   }
@@ -138,73 +140,73 @@ function SelectionCard(props: RightPanelProps & { selected: PageObject[] }) {
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <p className="text-card-title font-semibold text-ink">Selection</p>
-        <MetaLabel>{count === 1 ? objectLabel(selected[0]).slice(0, 18) : `${count} objects`}</MetaLabel>
+        <p className="text-card-title font-semibold text-ink">{t("Selection")}</p>
+        <MetaLabel>{count === 1 ? objectLabel(selected[0], t).slice(0, 18) : t("{n} objects", { n: count })}</MetaLabel>
       </div>
 
       <div className="flex flex-col gap-1">
-        <MetaLabel>{count === 1 ? "Align to page" : "Align"}</MetaLabel>
+        <MetaLabel>{count === 1 ? t("Align to page") : t("Align")}</MetaLabel>
         <div className="flex flex-wrap items-center">
           {ALIGN_BUTTONS.map(({ edge, label, Icon }) => (
-            <IconButton key={edge} label={label} onClick={() => props.onAlign(edge)}>
+            <IconButton key={edge} label={t(label)} onClick={() => props.onAlign(edge)}>
               <Icon size={14} />
             </IconButton>
           ))}
           <span className="mx-px h-5 w-px bg-hairline" />
-          <IconButton label="Distribute horizontally" onClick={() => props.onDistribute("x")} disabled={count < 3}>
+          <IconButton label={t("Distribute horizontally")} onClick={() => props.onDistribute("x")} disabled={count < 3}>
             <AlignHorizontalDistributeCenter size={15} />
           </IconButton>
-          <IconButton label="Distribute vertically" onClick={() => props.onDistribute("y")} disabled={count < 3}>
+          <IconButton label={t("Distribute vertically")} onClick={() => props.onDistribute("y")} disabled={count < 3}>
             <AlignVerticalDistributeCenter size={15} />
           </IconButton>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-0.5 border-t border-hairline pt-2">
-        <IconButton label="Bring forward" onClick={props.onBringForward}>
+        <IconButton label={t("Bring forward")} onClick={props.onBringForward}>
           <ArrowUp size={15} />
         </IconButton>
-        <IconButton label="Send backward" onClick={props.onSendBackward}>
+        <IconButton label={t("Send backward")} onClick={props.onSendBackward}>
           <ArrowDown size={15} />
         </IconButton>
-        <IconButton label="Flip horizontally" onClick={() => props.onFlip("horizontal")}>
+        <IconButton label={t("Flip horizontally")} onClick={() => props.onFlip("horizontal")}>
           <FlipHorizontal2 size={15} />
         </IconButton>
-        <IconButton label="Flip vertically" onClick={() => props.onFlip("vertical")}>
+        <IconButton label={t("Flip vertically")} onClick={() => props.onFlip("vertical")}>
           <FlipVertical2 size={15} />
         </IconButton>
-        <IconButton label="Group (⌘/Ctrl G)" onClick={props.onGroup} disabled={count < 2}>
+        <IconButton label={`${t("Group")} (⌘/Ctrl G)`} onClick={props.onGroup} disabled={count < 2}>
           <Group size={15} />
         </IconButton>
-        <IconButton label="Ungroup (⌘/Ctrl Shift G)" onClick={props.onUngroup} disabled={!anyGrouped}>
+        <IconButton label={`${t("Ungroup")} (⌘/Ctrl Shift G)`} onClick={props.onUngroup} disabled={!anyGrouped}>
           <Ungroup size={15} />
         </IconButton>
-        <IconButton label="Duplicate (⌘/Ctrl D)" onClick={props.onDuplicate}>
+        <IconButton label={`${t("Duplicate")} (⌘/Ctrl D)`} onClick={props.onDuplicate}>
           <Copy size={15} />
         </IconButton>
-        <IconButton label="Delete" onClick={props.onDelete}>
+        <IconButton label={t("Delete")} onClick={props.onDelete}>
           <Trash2 size={15} className="text-error" />
         </IconButton>
       </div>
 
       {texts.length > 0 && (
         <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-          <MetaLabel>Text</MetaLabel>
+          <MetaLabel>{t("Text")}</MetaLabel>
           <select
-            aria-label="Font"
+            aria-label={t("Font")}
             value={FONT_OPTIONS.some((f) => f.value === texts[0].fontFamily) ? texts[0].fontFamily : ""}
             onChange={(e) => props.onUpdateSelectedText({ fontFamily: e.target.value })}
             className="h-8 rounded-row-sm border border-hairline bg-panel px-2 text-body text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             style={{ fontFamily: texts[0].fontFamily }}
           >
-            {!FONT_OPTIONS.some((f) => f.value === texts[0].fontFamily) && <option value="">Custom font</option>}
+            {!FONT_OPTIONS.some((f) => f.value === texts[0].fontFamily) && <option value="">{t("Custom font")}</option>}
             {FONT_OPTIONS.map((f) => (
               <option key={f.label} value={f.value}>
                 {f.label}
               </option>
             ))}
           </select>
-          <Toggle checked={texts.every((t) => t.outline)} onChange={(outline) => props.onUpdateSelectedText({ outline })} label="Outline letters (colorable)" />
+          <Toggle checked={texts.every((x) => x.outline)} onChange={(outline) => props.onUpdateSelectedText({ outline })} label={t("Outline letters (colorable)")} />
           <div className="flex gap-1">
             {(["left", "center", "right"] as const).map((align) => (
               <button
@@ -216,7 +218,7 @@ function SelectionCard(props: RightPanelProps & { selected: PageObject[] }) {
                   texts[0].align === align ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt"
                 )}
               >
-                {align}
+                {t(align[0].toUpperCase() + align.slice(1))}
               </button>
             ))}
           </div>
@@ -228,6 +230,7 @@ function SelectionCard(props: RightPanelProps & { selected: PageObject[] }) {
 
 /** Every object on the page, front-most first: click to select, eye to hide, padlock to lock, drag to restack. */
 function LayersCard({ page, selectedIds, onSelectObject, onToggleObjectFlag, onMoveObject }: RightPanelProps) {
+  const t = useT();
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropSlot, setDropSlot] = useState<number | null>(null); // display index the dragged row would land before
   const rows = [...page.objects].reverse();
@@ -245,8 +248,8 @@ function LayersCard({ page, selectedIds, onSelectObject, onToggleObjectFlag, onM
   return (
     <Card className="flex flex-col gap-1 p-4">
       <div className="mb-1 flex items-center justify-between">
-        <p className="text-card-title font-semibold text-ink">Layers</p>
-        <MetaLabel>{n} objects</MetaLabel>
+        <p className="text-card-title font-semibold text-ink">{t("Layers")}</p>
+        <MetaLabel>{t("{n} objects", { n })}</MetaLabel>
       </div>
       <ul
         className="flex max-h-56 flex-col overflow-y-auto"
@@ -288,19 +291,19 @@ function LayersCard({ page, selectedIds, onSelectObject, onToggleObjectFlag, onM
             >
               {dragId && dropSlot === displayIndex && <span className="absolute inset-x-1 -top-px h-0.5 rounded-pill bg-accent" aria-hidden />}
               {dragId && dropSlot === displayIndex + 1 && displayIndex === rows.length - 1 && <span className="absolute inset-x-1 -bottom-px h-0.5 rounded-pill bg-accent" aria-hidden />}
-              {obj.groupId && <span className="h-4 w-0.5 shrink-0 rounded-pill bg-accent/60" title="Grouped" aria-hidden />}
+              {obj.groupId && <span className="h-4 w-0.5 shrink-0 rounded-pill bg-accent/60" title={t("Grouped")} aria-hidden />}
               <button
                 type="button"
                 onClick={(e) => !obj.hidden && !obj.locked && onSelectObject(obj.id, e.shiftKey)}
                 className="flex min-w-0 flex-1 cursor-grab items-center gap-2 py-1.5 text-left text-body text-ink outline-none focus-visible:underline"
               >
                 <ObjectIcon obj={obj} />
-                <span className="truncate">{objectLabel(obj)}</span>
+                <span className="truncate">{objectLabel(obj, t)}</span>
               </button>
               <button
                 type="button"
-                aria-label={obj.hidden ? `Show ${objectLabel(obj)}` : `Hide ${objectLabel(obj)}`}
-                title={obj.hidden ? "Show (it's left out of the export while hidden)" : "Hide"}
+                aria-label={obj.hidden ? t("Show {name}", { name: objectLabel(obj, t) }) : t("Hide {name}", { name: objectLabel(obj, t) })}
+                title={obj.hidden ? t("Show (it's left out of the export while hidden)") : t("Hide")}
                 onClick={() => onToggleObjectFlag(obj.id, "hidden")}
                 className={cn(ICON_BUTTON, "h-7 w-7", obj.hidden && "text-ink")}
               >
@@ -308,8 +311,8 @@ function LayersCard({ page, selectedIds, onSelectObject, onToggleObjectFlag, onM
               </button>
               <button
                 type="button"
-                aria-label={obj.locked ? `Unlock ${objectLabel(obj)}` : `Lock ${objectLabel(obj)}`}
-                title={obj.locked ? "Unlock" : "Lock (can't be moved or selected on the page)"}
+                aria-label={obj.locked ? t("Unlock {name}", { name: objectLabel(obj, t) }) : t("Lock {name}", { name: objectLabel(obj, t) })}
+                title={obj.locked ? t("Unlock") : t("Lock (can't be moved or selected on the page)")}
                 onClick={() => onToggleObjectFlag(obj.id, "locked")}
                 className={cn(ICON_BUTTON, "h-7 w-7", obj.locked && "text-ink")}
               >
@@ -324,16 +327,17 @@ function LayersCard({ page, selectedIds, onSelectObject, onToggleObjectFlag, onM
 }
 
 function GapCheckRow({ gapCount, onRunGapCheck, onClearGapCheck }: Pick<RightPanelProps, "gapCount" | "onRunGapCheck" | "onClearGapCheck">) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-1.5">
       <Button variant="secondary" size="sm" icon={<ScanSearch size={13} />} onClick={onRunGapCheck}>
-        Check lines for gaps
+        {t("Check lines for gaps")}
       </Button>
       {gapCount !== null && (
         <div className={cn("flex items-start justify-between gap-2 rounded-row-sm px-2.5 py-2 text-helper", gapCount > 0 ? "bg-error/10 text-error" : "bg-success/15 text-ink-secondary")}>
-          <span>{gapCount > 0 ? `${gapCount} possible gap${gapCount === 1 ? "" : "s"} circled in red — the paint bucket would leak through. Close them with the pen.` : "No gaps found — every area fills on its own."}</span>
+          <span>{gapCount > 0 ? t(gapCount === 1 ? "1 possible gap circled in red — the paint bucket would leak through. Close it with the pen." : "{n} possible gaps circled in red — the paint bucket would leak through. Close them with the pen.", { n: gapCount }) : t("No gaps found — every area fills on its own.")}</span>
           <button type="button" onClick={onClearGapCheck} className="shrink-0 font-medium underline-offset-2 outline-none hover:underline focus-visible:underline">
-            Hide
+            {t("Hide")}
           </button>
         </div>
       )}
@@ -354,11 +358,12 @@ export default function RightPanel(props: RightPanelProps) {
   const showAssetPicker = drawLike && (tool === "stamp" || tool === "shape" || tool === "text");
   const selected = page.objects.filter((o) => selectedIds.includes(o.id));
   const currentFrame = page.objects.find((o) => o.kind === "stamp" && o.isFrame);
+  const t = useT();
 
   return (
     <aside className="absolute bottom-[18px] right-[18px] top-[106px] flex w-[264px] flex-col gap-3.5 overflow-y-auto pb-1">
       <Card className="flex shrink-0 flex-col gap-3 p-4">
-        <p className="text-card-title font-semibold text-ink">Palette</p>
+        <p className="text-card-title font-semibold text-ink">{t("Palette")}</p>
         <div className="grid grid-cols-6 gap-[7px]">
           {PALETTE.map((hex) => (
             <ColorSwatch key={hex} hex={hex} selected={hex === activeColor} onClick={() => onSelectColor(hex)} sizePx={28} context="panel" className={hex === "#ffffff" ? "border border-hairline" : undefined} />
@@ -366,7 +371,7 @@ export default function RightPanel(props: RightPanelProps) {
         </div>
         {mode === "color" && (
           <>
-            <p className="text-helper text-ink-muted">Color for the bucket and the brush.</p>
+            <p className="text-helper text-ink-muted">{t("Color for the bucket and the brush.")}</p>
             <FillStylePicker value={props.fillStyle} color={activeColor} onChange={props.onFillStyleChange} />
           </>
         )}
@@ -387,19 +392,19 @@ export default function RightPanel(props: RightPanelProps) {
 
       {mode === "color" && (
         <Card tone="accent" className="flex shrink-0 flex-col gap-2 p-4">
-          <p className="text-card-title font-semibold text-ink">Tip</p>
-          <p className="text-helper text-ink-secondary">Tap a closed shape to fill it. Hold to sample the color already there.</p>
-          <MetaLabel tone="accent">Long-press to sample</MetaLabel>
+          <p className="text-card-title font-semibold text-ink">{t("Tip")}</p>
+          <p className="text-helper text-ink-secondary">{t("Tap a closed shape to fill it. Hold to sample the color already there.")}</p>
+          <MetaLabel tone="accent">{t("Long-press to sample")}</MetaLabel>
           <GapCheckRow {...props} />
         </Card>
       )}
 
       {mode === "draw" && (
         <Card className="flex shrink-0 flex-col gap-3 p-4">
-          <p className="text-card-title font-semibold text-ink">Page</p>
+          <p className="text-card-title font-semibold text-ink">{t("Page")}</p>
 
           <div>
-            <MetaLabel>Frame</MetaLabel>
+            <MetaLabel>{t("Frame")}</MetaLabel>
             <div className="mt-1.5 grid grid-cols-4 gap-1.5">
               <button
                 type="button"
@@ -409,14 +414,14 @@ export default function RightPanel(props: RightPanelProps) {
                   !currentFrame ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-muted hover:bg-inset-alt"
                 )}
               >
-                None
+                {t("None")}
               </button>
               {FRAMES.map((frame) => (
                 <button
                   key={frame.id}
                   type="button"
-                  title={frame.label}
-                  aria-label={`${frame.label} frame`}
+                  title={t(frame.label)}
+                  aria-label={t("{name} frame", { name: t(frame.label) })}
                   aria-pressed={currentFrame?.kind === "stamp" && currentFrame.frameId === frame.id}
                   onClick={() => props.onSetFrame(frame.id)}
                   className={cn(
@@ -430,7 +435,7 @@ export default function RightPanel(props: RightPanelProps) {
           </div>
 
           <div>
-            <MetaLabel>Background pattern</MetaLabel>
+            <MetaLabel>{t("Background pattern")}</MetaLabel>
             <div className="mt-1.5 grid grid-cols-3 gap-1.5">
               <button
                 type="button"
@@ -440,15 +445,15 @@ export default function RightPanel(props: RightPanelProps) {
                   !page.backgroundPatternId ? "border-accent bg-accent-tint text-accent" : "border-hairline hover:bg-inset-alt"
                 )}
               >
-                None
+                {t("None")}
               </button>
               {BACKGROUND_PATTERNS.map((pattern) => (
                 <button
                   key={pattern.id}
                   type="button"
                   onClick={() => props.onSetBackgroundPattern(pattern.id)}
-                  title={pattern.label}
-                  aria-label={pattern.label}
+                  title={t(pattern.label)}
+                  aria-label={t(pattern.label)}
                   style={{ backgroundImage: `url(${svgToDataUri(pattern.svg)})`, backgroundSize: `${pattern.tileSize / 2}px ${pattern.tileSize / 2}px` }}
                   className={cn(
                     "h-12 rounded-row-sm border outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
@@ -472,13 +477,13 @@ export default function RightPanel(props: RightPanelProps) {
                 page.isCover ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt"
               )}
             >
-              {page.isCover ? "✓ This page is the Book Cover" : "Mark as Book Cover"}
+              {page.isCover ? `✓ ${t("This page is the Book Cover")}` : t("Mark as Book Cover")}
             </button>
 
             {page.isCover && (
               <>
                 <label className="flex items-center justify-between text-helper text-ink-secondary">
-                  Background color
+                  {t("Background color")}
                   <input
                     type="color"
                     value={page.coverBackgroundColor ?? "#ffffff"}
@@ -496,7 +501,7 @@ export default function RightPanel(props: RightPanelProps) {
                       style={{ fontFamily: preset.fontFamily, color: preset.fill }}
                       className="rounded-row-sm border border-hairline px-2 py-2 text-left text-body font-semibold outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                     >
-                      {preset.label} Title
+                      {t("{style} Title", { style: t(preset.label) })}
                     </button>
                   ))}
                 </div>

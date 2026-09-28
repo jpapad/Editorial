@@ -1,5 +1,6 @@
 import { MousePointer2, PenTool, Eraser, Square, Type, Sticker, PaintBucket, Paintbrush, Sparkles } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { LanguageToggle, useT } from "@/lib/i18n";
 import type { EditorMode } from "@/components/studio/types";
 import type { DrawingTool } from "@/types/editor";
 
@@ -50,11 +51,13 @@ const TOOLS_BY_MODE: Record<EditorMode, ToolDef[]> = {
 };
 
 function ToolButton({ tool, active, onClick }: { tool: ToolDef; active: boolean; onClick: () => void }) {
+  const t = useT();
   const Icon = tool.icon;
   return (
     <button
       type="button"
-      aria-label={tool.label}
+      aria-label={t(tool.label)}
+      title={t(tool.label)}
       aria-pressed={active}
       onClick={onClick}
       className={cn(
@@ -70,9 +73,10 @@ function ToolButton({ tool, active, onClick }: { tool: ToolDef; active: boolean;
 
 export default function ToolRail({ mode, activeTool, onToolChange, onAiClick, aiActive = false }: ToolRailProps) {
   const tools = TOOLS_BY_MODE[mode];
+  const t = useT();
 
   return (
-    <nav aria-label="Tools" className="absolute left-[18px] top-[106px] flex w-16 flex-col items-center gap-1.5 rounded-rail bg-panel py-3 shadow-panel">
+    <nav aria-label={t("Tools")} className="absolute left-[18px] top-[106px] flex w-16 flex-col items-center gap-1.5 rounded-rail bg-panel py-3 shadow-panel">
       {tools.map((tool) => (
         <ToolButton key={tool.id} tool={tool} active={activeTool === tool.id} onClick={() => onToolChange(tool.id)} />
       ))}
@@ -81,9 +85,9 @@ export default function ToolRail({ mode, activeTool, onToolChange, onAiClick, ai
 
       <button
         type="button"
-        aria-label="AI and import"
+        aria-label={t("AI and import")}
         aria-pressed={aiActive}
-        title="AI & import: sketch cleanup, page series, AI stamps"
+        title={t("AI & import: sketch cleanup, page series, AI stamps")}
         onClick={onAiClick}
         className={cn(
           "flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-row-sm outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
@@ -93,6 +97,9 @@ export default function ToolRail({ mode, activeTool, onToolChange, onAiClick, ai
         <Sparkles size={16} strokeWidth={2} />
         <span className="text-[7px] font-medium uppercase tracking-[0.09em]">AI</span>
       </button>
+
+      <div className="mx-auto my-1 h-px w-[26px] bg-hairline" />
+      <LanguageToggle className="flex-col" />
     </nav>
   );
 }

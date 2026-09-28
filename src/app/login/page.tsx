@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { supabase } from "@/lib/supabase/client";
 import { useSession } from "@/lib/auth";
 import s from "./login.module.css";
+import { LanguageToggle, useT } from "@/lib/i18n";
 
 type Mode = "sign-in" | "sign-up";
 type Status = "idle" | "loading" | "signed-in" | "check-email";
@@ -42,6 +43,7 @@ function LoginForm() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [resent, setResent] = useState(false);
+  const t = useT();
   // /auth/callback bounces here with ?error=auth_callback_failed when the
   // confirmation or OAuth link couldn't be turned into a session.
   const callbackFailed = useSearchParams().get("error") === "auth_callback_failed";
@@ -69,7 +71,7 @@ function LoginForm() {
     if (!trimmed) eErr = "Enter your email address.";
     else if (!EMAIL_RE.test(trimmed)) eErr = "That doesn't look like an email address.";
     if (!password) pErr = mode === "sign-up" ? "Choose a password." : "Enter your password.";
-    else if (mode === "sign-up" && password.length < MIN_SIGNUP_PASSWORD) pErr = `Use at least ${MIN_SIGNUP_PASSWORD} characters.`;
+    else if (mode === "sign-up" && password.length < MIN_SIGNUP_PASSWORD) pErr = "Use at least {n} characters.";
 
     setEmailError(eErr);
     setPasswordError(pErr);
@@ -127,14 +129,15 @@ function LoginForm() {
 
   return (
     <main className={s.page}>
+      <LanguageToggle className="fixed right-4 top-4 z-10" />
       <IllustrationPanel />
 
       <div className={s.mobileTop}>
         <Brand />
       </div>
       <div className={s.mobilePanel} aria-hidden="true">
-        <span className={clsx(s.mono, s.mobilePanelKicker)}>Coloring book editor</span>
-        <p className={s.mobilePanelTitle}>Your line art, ready for print.</p>
+        <span className={clsx(s.mono, s.mobilePanelKicker)}>{t("Coloring book editor")}</span>
+        <p className={s.mobilePanelTitle}>{t("Your line art, ready for print.")}</p>
         <div className={s.miniPage}>
           <FlowerArt width={68} height={82} strokeWidth={6} simple />
         </div>
@@ -151,10 +154,10 @@ function LoginForm() {
                 </svg>
               </div>
               <div className={s.successCopy}>
-                <span className={clsx(s.mono, s.eyebrow)}>One more step</span>
-                <h1 className={s.title}>Check your email</h1>
+                <span className={clsx(s.mono, s.eyebrow)}>{t("One more step")}</span>
+                <h1 className={s.title}>{t("Check your email")}</h1>
                 <p role="status">
-                  We sent a confirmation link to <strong>{email.trim() || "your inbox"}</strong>. Open it to activate your account.
+                  {t("We sent a confirmation link to")} <strong>{email.trim() || t("your inbox")}</strong>. {t("Open it to activate your account.")}
                 </p>
               </div>
               {formError && <FormAlert message={formError} />}
@@ -162,21 +165,21 @@ function LoginForm() {
                 {resent ? (
                   <>
                     <CheckIcon stroke="#1A6340" />
-                    <span>Sent again</span>
+                    <span>{t("Sent again")}</span>
                   </>
                 ) : (
-                  <span>Resend email</span>
+                  <span>{t("Resend email")}</span>
                 )}
               </button>
               <p className={s.switch}>
-                Wrong address?{" "}
+                {t("Wrong address?")}{" "}
                 <button type="button" className={s.link} onClick={() => switchMode("sign-up")}>
-                  Use another email
+                  {t("Use another email")}
                 </button>
               </p>
               <p className={s.switch}>
                 <button type="button" className={s.link} onClick={() => switchMode("sign-in")}>
-                  Back to sign in
+                  {t("Back to sign in")}
                 </button>
               </p>
             </div>
@@ -185,16 +188,16 @@ function LoginForm() {
               <div className={s.seg}>
                 <div className={clsx(s.segThumb, isSignup && s.segThumbRight)} />
                 <button type="button" className={s.segBtn} aria-pressed={!isSignup} onClick={() => switchMode("sign-in")}>
-                  Sign in
+                  {t("Sign in")}
                 </button>
                 <button type="button" className={s.segBtn} aria-pressed={isSignup} onClick={() => switchMode("sign-up")}>
-                  Create account
+                  {t("Create account")}
                 </button>
               </div>
 
               <div className={s.heading}>
-                <h1 className={s.title}>{isSignup ? "Create your account" : "Welcome back"}</h1>
-                <p className={s.sub}>{isSignup ? "Set up your studio and start your first book." : "Sign in to pick up where you left off."}</p>
+                <h1 className={s.title}>{isSignup ? t("Create your account") : t("Welcome back")}</h1>
+                <p className={s.sub}>{isSignup ? t("Set up your studio and start your first book.") : t("Sign in to pick up where you left off.")}</p>
               </div>
 
               <form onSubmit={handleSubmit} className={s.form} noValidate>
@@ -206,13 +209,13 @@ function LoginForm() {
                 {status === "signed-in" && (
                   <div className={s.notice} role="status">
                     <CheckIcon />
-                    <span>You&apos;re signed in. Opening your studio…</span>
+                    <span>{t("You're signed in. Opening your studio…")}</span>
                   </div>
                 )}
 
                 <div className={s.fieldGroup}>
                   <label htmlFor="pw-email" className={s.label}>
-                    Email
+                    {t("Email")}
                   </label>
                   <div className={clsx(s.field, emailError && s.fieldError)}>
                     <input
@@ -237,7 +240,7 @@ function LoginForm() {
 
                 <div className={s.fieldGroup}>
                   <label htmlFor="pw-password" className={s.label}>
-                    Password
+                    {t("Password")}
                   </label>
                   <div className={clsx(s.field, passwordInvalid && s.fieldError)}>
                     <input
@@ -258,7 +261,7 @@ function LoginForm() {
                     <button
                       type="button"
                       className={s.iconBtn}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? t("Hide password") : t("Show password")}
                       onClick={() => setShowPassword((v) => !v)}
                     >
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
@@ -269,7 +272,7 @@ function LoginForm() {
                   ) : (
                     isSignup && (
                       <span id="pw-password-hint" className={s.hint}>
-                        Use {MIN_SIGNUP_PASSWORD} or more characters.
+                        {t("Use {n} or more characters.", { n: MIN_SIGNUP_PASSWORD })}
                       </span>
                     )
                   )}
@@ -279,16 +282,16 @@ function LoginForm() {
                   {isLoading ? (
                     <>
                       <span className={s.spinner} />
-                      <span>One moment…</span>
+                      <span>{t("One moment…")}</span>
                     </>
                   ) : status === "signed-in" ? (
                     <>
                       <CheckIcon />
-                      <span>Signed in</span>
+                      <span>{t("Signed in")}</span>
                     </>
                   ) : (
                     <>
-                      <span>{isSignup ? "Create account" : "Sign in"}</span>
+                      <span>{isSignup ? t("Create account") : t("Sign in")}</span>
                       <svg className={s.arrow} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M5 12h14M13 6l6 6-6 6" />
                       </svg>
@@ -297,19 +300,19 @@ function LoginForm() {
                 </button>
               </form>
 
-              <div className={clsx(s.mono, s.divider)}>or</div>
+              <div className={clsx(s.mono, s.divider)}>{t("or")}</div>
 
               <div className={s.bottom}>
                 <button type="button" className={s.ghost} onClick={handleGoogle}>
                   <span className={s.googleMark} aria-hidden="true">
                     G
                   </span>
-                  <span>Continue with Google</span>
+                  <span>{t("Continue with Google")}</span>
                 </button>
                 <p className={s.switch}>
-                  {isSignup ? "Already have an account? " : "Don't have an account? "}
+                  {isSignup ? t("Already have an account?") : t("Don't have an account?")}{" "}
                   <button type="button" className={s.link} onClick={() => switchMode(isSignup ? "sign-in" : "sign-up")}>
-                    {isSignup ? "Sign in" : "Create one"}
+                    {isSignup ? t("Sign in") : t("Create one")}
                   </button>
                 </p>
               </div>
@@ -339,11 +342,12 @@ function Brand() {
 }
 
 function IllustrationPanel() {
+  const t = useT();
   return (
     <aside className={s.panel}>
       <div className={s.panelTop}>
         <Brand />
-        <span className={clsx(s.mono, s.badge)}>For KDP creators</span>
+        <span className={clsx(s.mono, s.badge)}>{t("For KDP creators")}</span>
       </div>
 
       <div className={s.stage} aria-hidden="true">
@@ -351,7 +355,7 @@ function IllustrationPanel() {
         <div className={s.pageFront}>
           <FlowerArt width={286} height={343} strokeWidth={2.5} />
           <div className={clsx(s.mono, s.pageMeta)}>
-            <span>Page 07</span>
+            <span>{t("Page")} 07</span>
             <span>8.5 × 11 in</span>
           </div>
         </div>
@@ -361,18 +365,18 @@ function IllustrationPanel() {
               <path d="M5 12.5l4.5 4.5L19 7.5" />
             </svg>
           </span>
-          <span>Print-ready PDF</span>
+          <span>{t("Print-ready PDF")}</span>
         </div>
         <div className={clsx(s.chip, s.mono, s.chipBleed)}>
-          <span>Bleed</span>
+          <span>{t("Bleed")}</span>
           <span className={s.chipRule} />
           <span style={{ fontWeight: 500, color: "#141416" }}>0.125 in</span>
         </div>
       </div>
 
       <div className={s.panelCopy}>
-        <h2 className={s.panelTitle}>Your line art, ready for print.</h2>
-        <p className={s.panelLede}>Design pages, arrange your book and export print-ready interiors for Amazon KDP.</p>
+        <h2 className={s.panelTitle}>{t("Your line art, ready for print.")}</h2>
+        <p className={s.panelLede}>{t("Design pages, arrange your book and export print-ready interiors for Amazon KDP.")}</p>
       </div>
     </aside>
   );
@@ -419,26 +423,29 @@ function FlowerArt({ width, height, strokeWidth, simple = false }: { width: numb
   );
 }
 
+/** `message` is an English i18n key (or a raw server message, which passes through unchanged). */
 function FormAlert({ message }: { message: string }) {
+  const t = useT();
   return (
     <div className={s.alert} role="alert">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7.5v5.5M12 16.5v.01" />
       </svg>
-      <span>{message}</span>
+      <span>{t(message)}</span>
     </div>
   );
 }
 
 function FieldError({ id, message }: { id: string; message: string }) {
+  const t = useT();
   return (
     <span id={id} className={s.fieldMsg}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7.5v5.5M12 16.5v.01" />
       </svg>
-      {message}
+      {t(message, { n: MIN_SIGNUP_PASSWORD })}
     </span>
   );
 }

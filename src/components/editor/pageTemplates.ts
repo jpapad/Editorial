@@ -1,6 +1,7 @@
 import type { BookPage, PageSpace, PageTemplate, ShapeData, StampData, TextData } from "@/types/editor";
 import { frameDataUri, getFrame } from "@/components/editor/frameLibrary";
 import { geometryFromSpace, type PageGeometry } from "@/utils/pageGeometry";
+import { identityT, type TFunction } from "@/lib/i18n-core";
 
 export function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -40,7 +41,7 @@ export function rule(x: number, y: number, width: number, strokeWidth = 2.5): Sh
 
 // Image viewport across the top 70% of the safe area, a labeled ruled text
 // area across the bottom — a classic picture-book page layout.
-function createStorybookPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry): BookPage {
+function createStorybookPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry, tx: TFunction): BookPage {
   const { safe } = geo;
   const width = safe.right - safe.left;
   const viewportHeight = Math.round((safe.bottom - safe.top) * 0.68);
@@ -48,7 +49,7 @@ function createStorybookPage(id: string, pageNumber: number, space: PageSpace, g
   const lineGap = Math.min(35, (safe.bottom - textTop - 10) / 5);
   return page(id, pageNumber, space, [
     shape({ shapeKind: "rectangle", x: safe.left, y: safe.top, width, height: viewportHeight, fill: "#f8fafc", stroke: "#94a3b8" }),
-    text({ text: "Drop your illustration here", x: safe.left, y: safe.top + viewportHeight / 2 - 12, width, height: 24, fontSize: 18, fontFamily: "Arial, Helvetica, sans-serif", fill: "#94a3b8" }),
+    text({ text: tx("Drop your illustration here"), x: safe.left, y: safe.top + viewportHeight / 2 - 12, width, height: 24, fontSize: 18, fontFamily: "Arial, Helvetica, sans-serif", fill: "#94a3b8" }),
     ...Array.from({ length: 5 }, (_, i) => shape({ shapeKind: "rectangle", x: safe.left, y: textTop + 20 + i * lineGap, width, height: 1.5, fill: "#cbd5e1", stroke: "#cbd5e1", strokeWidth: 0 })),
   ]);
 }
@@ -75,23 +76,23 @@ export function createFrameStamp(frameId: string, geo: PageGeometry): StampData 
 
 // "This book belongs to ____" — the classic first inside page, framed, with
 // hollow letters so the title itself can be colored in.
-function createBelongsToPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry): BookPage {
+function createBelongsToPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry, tx: TFunction): BookPage {
   const frame = createFrameStamp("stars", geo);
   const left = geo.safe.left + 30;
   const width = geo.safe.right - geo.safe.left - 60;
   const top = geo.trim.top + (geo.trim.bottom - geo.trim.top) * 0.27;
   return page(id, pageNumber, space, [
     ...(frame ? [frame] : []),
-    text({ text: "This book\nbelongs to", x: left, y: top, width, fontSize: 54, outline: true }),
+    text({ text: tx("This book\nbelongs to"), x: left, y: top, width, fontSize: 54, outline: true }),
     rule(left + 20, top + 240, width - 40),
-    text({ text: "Age", x: left, y: top + 310, width: width / 2 - 10, fontSize: 22, align: "left", fontFamily: "Arial, Helvetica, sans-serif" }),
+    text({ text: tx("Age"), x: left, y: top + 310, width: width / 2 - 10, fontSize: 22, align: "left", fontFamily: "Arial, Helvetica, sans-serif" }),
     rule(left + 60, top + 338, width / 2 - 70),
   ]);
 }
 
 // A test page for markers/crayons: a grid of empty swatches to try colors
 // on before committing to a picture.
-function createColorTestPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry): BookPage {
+function createColorTestPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry, tx: TFunction): BookPage {
   const { safe } = geo;
   const cols = 4;
   const rows = 6;
@@ -106,24 +107,24 @@ function createColorTestPage(id: string, pageNumber: number, space: PageSpace, g
       swatches.push(shape({ shapeKind: (r + c) % 2 === 0 ? "circle" : "rectangle", x: safe.left + c * (cell + gap), y: safe.top + titleHeight + r * (cellH + gap), width: cell, height: cellH }));
     }
   }
-  return page(id, pageNumber, space, [text({ text: "Color Test Page", x: safe.left, y: safe.top + 10, width, fontSize: 44, outline: true }), ...swatches]);
+  return page(id, pageNumber, space, [text({ text: tx("Color Test Page"), x: safe.left, y: safe.top + 10, width, fontSize: 44, outline: true }), ...swatches]);
 }
 
 // The front-matter page KDP books carry: copyright line, rights reserved,
 // ISBN and publisher — bracketed placeholders to fill in.
-function createCopyrightPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry): BookPage {
+function createCopyrightPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry, tx: TFunction): BookPage {
   const { safe } = geo;
   const width = safe.right - safe.left;
   const year = new Date().getFullYear();
   const body = [
-    `Copyright © ${year} [Author name]`,
-    "All rights reserved.",
+    tx("Copyright © {year} [Author name]", { year }),
+    tx("All rights reserved."),
     "",
-    "No part of this book may be reproduced, stored or shared in any form or by any means without written permission from the publisher, except for coloring pages copied for personal, non-commercial use.",
+    tx("No part of this book may be reproduced, stored or shared in any form or by any means without written permission from the publisher, except for coloring pages copied for personal, non-commercial use."),
     "",
     "ISBN: [ISBN]",
-    "Published by [Publisher]",
-    "First edition",
+    tx("Published by [Publisher]"),
+    tx("First edition"),
   ].join("\n");
   return page(id, pageNumber, space, [
     text({ text: body, x: safe.left, y: safe.bottom - 230, width, height: 220, fontSize: 11, align: "left", fontFamily: "Georgia, 'Times New Roman', serif" }),
@@ -139,22 +140,23 @@ export const PAGE_TEMPLATE_OPTIONS: { id: PageTemplate; label: string; descripti
   { id: "copyright", label: "Copyright & ISBN", description: "Front-matter page with rights and ISBN" },
 ];
 
-export function createPageFromTemplate(pageNumber: number, space: PageSpace, template: PageTemplate = "blank"): BookPage {
+/** `tx` translates the words printed on the page (default: English). */
+export function createPageFromTemplate(pageNumber: number, space: PageSpace, template: PageTemplate = "blank", tx: TFunction = identityT): BookPage {
   const id = makeId("page");
   const geo = geometryFromSpace(space);
   switch (template) {
     case "storybook":
-      return createStorybookPage(id, pageNumber, space, geo);
+      return createStorybookPage(id, pageNumber, space, geo, tx);
     case "border-frame": {
       const frame = createFrameStamp("classic", geo);
       return page(id, pageNumber, space, frame ? [frame] : []);
     }
     case "belongs-to":
-      return createBelongsToPage(id, pageNumber, space, geo);
+      return createBelongsToPage(id, pageNumber, space, geo, tx);
     case "color-test":
-      return createColorTestPage(id, pageNumber, space, geo);
+      return createColorTestPage(id, pageNumber, space, geo, tx);
     case "copyright":
-      return createCopyrightPage(id, pageNumber, space, geo);
+      return createCopyrightPage(id, pageNumber, space, geo, tx);
     default:
       return page(id, pageNumber, space);
   }

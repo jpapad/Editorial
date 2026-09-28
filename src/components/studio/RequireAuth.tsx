@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 /**
  * Client-side route gate for the whole /studio tree — this app has no
@@ -15,6 +16,7 @@ import { useSession } from "@/lib/auth";
  * stops one user from reading another's data.
  */
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const { user, loading } = useSession();
   const router = useRouter();
 
@@ -23,7 +25,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">Loading…</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
   }
 
   return <>{children}</>;

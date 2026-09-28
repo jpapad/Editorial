@@ -1,4 +1,5 @@
 import { Archivo, JetBrains_Mono } from "next/font/google";
+import { LanguageProvider } from "@/lib/i18n";
 
 // Scoped to /studio only (nested layout) — the root layout keeps loading
 // Geist for the three existing editors. Weights match the README's
@@ -18,7 +19,7 @@ const jetBrainsMono = JetBrains_Mono({
 export default function StudioLayout(props: LayoutProps<"/studio">) {
   return (
     <div className={`${archivo.variable} ${jetBrainsMono.variable} font-pw-sans min-h-screen bg-surface text-ink`}>
-      {props.children}
+      <LanguageProvider>{props.children}</LanguageProvider>
     </div>
   );
 }

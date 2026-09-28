@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
+import { useT } from "@/lib/i18n";
 
 interface Intent {
   id: string;
@@ -26,13 +27,14 @@ export interface OnboardingScreenProps {
 /** 1j: onboarding, restyled to the light shell. Each intent row presets trim/line-weight/export defaults elsewhere (per the README) — this screen's job is just the selection UI, real defaults application happens where a book actually gets created. */
 export default function OnboardingScreen({ onContinue, onSkip }: OnboardingScreenProps) {
   const [selected, setSelected] = useState(INTENTS[0].id);
+  const t = useT();
 
   return (
     <div className="flex flex-col gap-5 rounded-panel bg-panel p-6 shadow-panel" style={{ width: 460 }}>
       <div>
-        <MetaLabel>Step 1 of 3</MetaLabel>
-        <p className="mt-2 text-page-title font-semibold tracking-[-0.02em] text-ink">What are you making today?</p>
-        <p className="mt-1.5 text-body text-ink-secondary">We&apos;ll preset your page size, line weights and export defaults. You can change all of it later.</p>
+        <MetaLabel>{t("Step 1 of 3")}</MetaLabel>
+        <p className="mt-2 text-page-title font-semibold tracking-[-0.02em] text-ink">{t("What are you making today?")}</p>
+        <p className="mt-1.5 text-body text-ink-secondary">{t("We'll preset your page size, line weights and export defaults. You can change all of it later.")}</p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -51,8 +53,8 @@ export default function OnboardingScreen({ onContinue, onSkip }: OnboardingScree
             >
               <span className={cn("h-8 w-8 shrink-0 rounded-row-sm", active ? "bg-accent" : "bg-inset")} aria-hidden />
               <span>
-                <span className="block text-body font-medium text-ink">{intent.title}</span>
-                <span className="block text-helper text-ink-muted">{intent.description}</span>
+                <span className="block text-body font-medium text-ink">{t(intent.title)}</span>
+                <span className="block text-helper text-ink-muted">{t(intent.description)}</span>
               </span>
             </button>
           );
@@ -61,10 +63,10 @@ export default function OnboardingScreen({ onContinue, onSkip }: OnboardingScree
 
       <div className="flex items-center gap-3">
         <Button variant="dark" onClick={() => onContinue?.(selected)}>
-          Continue
+          {t("Continue")}
         </Button>
         <button type="button" onClick={onSkip} className="text-body text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
-          Skip setup
+          {t("Skip setup")}
         </button>
       </div>
     </div>

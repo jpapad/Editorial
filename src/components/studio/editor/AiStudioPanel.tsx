@@ -10,6 +10,7 @@ import Toggle from "@/components/studio/ui/Toggle";
 import AiGeneratePanel from "@/components/studio/editor/AiGeneratePanel";
 import { cleanSketchImage } from "@/components/studio/editor/sketchCleanup";
 import type { StampFilter } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 const MAX_SERIES = 12;
 
@@ -51,6 +52,7 @@ function imageSize(src: string): Promise<ImageSize> {
 
 /** Photo of a drawing → clean black line art (sketchCleanup.ts). Runs entirely in the browser. */
 function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPanelProps, "onPickStamp" | "onPlaceFullPage">) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [source, setSource] = useState<string | null>(null);
   const [sensitivity, setSensitivity] = useState(0.12);
@@ -65,9 +67,9 @@ function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPan
     try {
       const cleaned = await cleanSketchImage(src, opts);
       setResult(cleaned);
-      if (!cleaned) setError("No lines found — try a lower sensitivity, or a photo with more contrast.");
+      if (!cleaned) setError(t("No lines found — try a lower sensitivity, or a photo with more contrast."));
     } catch {
-      setError("That image couldn't be read. Try a JPG or PNG photo.");
+      setError(t("That image couldn't be read. Try a JPG or PNG photo."));
     } finally {
       setBusy(false);
     }
@@ -86,23 +88,23 @@ function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPan
     <Card className="flex flex-col gap-2.5 p-4">
       <div className="flex items-center gap-2">
         <ScanLine size={15} className="text-accent" />
-        <p className="text-card-title font-semibold text-ink">Clean up a sketch photo</p>
+        <p className="text-card-title font-semibold text-ink">{t("Clean up a sketch photo")}</p>
       </div>
-      <p className="text-helper text-ink-muted">Snap a photo of a drawing on paper. Shadows and paper texture are removed, leaving black lines ready to color.</p>
+      <p className="text-helper text-ink-muted">{t("Snap a photo of a drawing on paper. Shadows and paper texture are removed, leaving black lines ready to color.")}</p>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-        {source ? "Choose another photo" : "Choose photo"}
+        {source ? t("Choose another photo") : t("Choose photo")}
       </Button>
 
       {source && (
         <>
           <div className="grid grid-cols-2 gap-1.5">
             <div className="flex flex-col gap-1">
-              <MetaLabel>Photo</MetaLabel>
+              <MetaLabel>{t("Photo")}</MetaLabel>
               <div className="aspect-square rounded-row-sm border border-hairline bg-inset bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${source})` }} />
             </div>
             <div className="flex flex-col gap-1">
-              <MetaLabel>Line art</MetaLabel>
+              <MetaLabel>{t("Line art")}</MetaLabel>
               <div className="relative aspect-square rounded-row-sm border border-hairline bg-white bg-contain bg-center bg-no-repeat" style={result ? { backgroundImage: `url(${result.dataUrl})` } : undefined}>
                 {busy && <Loader2 size={18} className="absolute inset-0 m-auto animate-spin text-ink-muted" />}
               </div>
@@ -110,8 +112,8 @@ function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPan
           </div>
           <Slider
             layout="stacked"
-            label="Sensitivity"
-            valueLabel={sensitivity < 0.08 ? "More lines" : sensitivity > 0.18 ? "Dark only" : "Balanced"}
+            label={t("Sensitivity")}
+            valueLabel={t(sensitivity < 0.08 ? "More lines" : sensitivity > 0.18 ? "Dark only" : "Balanced")}
             min={0.03}
             max={0.3}
             step={0.01}
@@ -127,15 +129,15 @@ function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPan
               setBolder(v);
               void process(source, { sensitivity, bolder: v });
             }}
-            label="Bolder lines"
+            label={t("Bolder lines")}
           />
           {error && <p className="text-helper text-error">{error}</p>}
           <div className="flex gap-1.5">
             <Button variant="primary" size="sm" className="flex-1" disabled={!result || busy} onClick={() => result && onPlaceFullPage(result.dataUrl, result)}>
-              Fill page
+              {t("Fill page")}
             </Button>
             <Button variant="secondary" size="sm" className="flex-1" disabled={!result || busy} onClick={() => result && onPickStamp(result.dataUrl, { naturalSize: result })}>
-              As stamp
+              {t("As stamp")}
             </Button>
           </div>
         </>
@@ -151,6 +153,7 @@ function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPan
  * sink the rest.
  */
 function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage">) {
+  const t = useT();
   const [theme, setTheme] = useState("");
   const [subjects, setSubjects] = useState("");
   const [captions, setCaptions] = useState(false);
@@ -189,7 +192,7 @@ function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelP
         onAppendImagePage(src, await imageSize(src), captions ? queue[i].subject : undefined);
         update(i, { status: "done" });
       } catch (err) {
-        update(i, { status: "failed", error: err instanceof Error ? err.message : "Generation failed" });
+        update(i, { status: "failed", error: err instanceof Error ? err.message : t("Generation failed") });
       }
     }
     setRunning(false);
@@ -201,42 +204,42 @@ function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelP
     <Card className="flex flex-col gap-2.5 p-4">
       <div className="flex items-center gap-2">
         <Sparkles size={15} className="text-accent" />
-        <p className="text-card-title font-semibold text-ink">Generate a page series</p>
+        <p className="text-card-title font-semibold text-ink">{t("Generate a page series")}</p>
       </div>
-      <p className="text-helper text-ink-muted">One new page per subject, all in the same theme and style.</p>
+      <p className="text-helper text-ink-muted">{t("One new page per subject, all in the same theme and style.")}</p>
       <input
         value={theme}
         onChange={(e) => setTheme(e.target.value)}
-        placeholder="Theme, e.g. Ancient Greece"
+        placeholder={t("Theme, e.g. Ancient Greece")}
         className="rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       />
       <textarea
         value={subjects}
         onChange={(e) => setSubjects(e.target.value)}
         rows={5}
-        placeholder={"One subject per line, e.g.\nthe Parthenon\nAthena's owl\na trireme at sea"}
+        placeholder={t("One subject per line, e.g.\nthe Parthenon\nAthena's owl\na trireme at sea")}
         className="resize-y rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       />
       <div className="flex items-center justify-between">
-        <Toggle checked={captions} onChange={setCaptions} label="Caption each page" />
+        <Toggle checked={captions} onChange={setCaptions} label={t("Caption each page")} />
         <MetaLabel>
           {list.length}/{MAX_SERIES}
         </MetaLabel>
       </div>
       {running ? (
         <Button variant="secondary" size="sm" onClick={() => (stopRef.current = true)}>
-          Stop after this page
+          {t("Stop after this page")}
         </Button>
       ) : (
         <Button variant="dark" size="sm" icon={<Sparkles size={13} />} disabled={list.length === 0} onClick={() => void run()}>
-          Generate {list.length || ""} page{list.length === 1 ? "" : "s"}
+          {list.length === 1 ? t("Generate 1 page") : list.length ? t("Generate {n} pages", { n: list.length }) : t("Generate pages")}
         </Button>
       )}
 
       {items && (
         <div className="flex flex-col gap-1">
           <MetaLabel>
-            {done} of {items.length} added
+            {t("{done} of {total} added", { done, total: items.length })}
           </MetaLabel>
           <ul className="flex flex-col gap-1">
             {items.map((it, i) => (
@@ -265,13 +268,14 @@ function SeriesSection({ onSeriesStart, onAppendImagePage }: Pick<AiStudioPanelP
 
 /** The tool rail's AI panel: sketch cleanup, AI page series and single AI stamps, in the right-hand column. */
 export default function AiStudioPanel(props: AiStudioPanelProps) {
+  const t = useT();
   return (
     <aside className="absolute bottom-[18px] right-[18px] top-[106px] flex w-[264px] flex-col gap-3.5 overflow-y-auto pb-1">
       <div className="flex shrink-0 items-center justify-between px-1">
-        <MetaLabel>AI &amp; import</MetaLabel>
+        <MetaLabel>{t("AI & import")}</MetaLabel>
         <button
           type="button"
-          aria-label="Close AI panel"
+          aria-label={t("Close AI panel")}
           onClick={props.onClose}
           className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent"
         >

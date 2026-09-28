@@ -9,6 +9,7 @@ import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
 import { cn } from "@/utils/cn";
+import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase/client";
 import { createBook, deleteBook, duplicateBook, listBooks, readProjectFromFile, saveBook, type StoredBook } from "@/utils/storage";
 
@@ -19,21 +20,21 @@ function bookThumbnail(book: StoredBook): string | undefined {
   return book.pages.find((p) => p.isCover)?.thumbnailDataUrl ?? book.pages[0]?.thumbnailDataUrl;
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: TFunction): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("just now");
+  if (minutes < 60) return t("{n}m ago", { n: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("{n}h ago", { n: hours });
   const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return `${Math.round(days / 7)}w ago`;
+  if (days < 7) return t("{n}d ago", { n: days });
+  return t("{n}w ago", { n: Math.round(days / 7) });
 }
 
-function bookMeta(book: StoredBook): string {
-  const pageCount = `${book.pages.length} page${book.pages.length === 1 ? "" : "s"}`;
-  return book.status === "published" ? `${pageCount} · published` : `${pageCount} · ${relativeTime(book.updatedAt)}`;
+function bookMeta(book: StoredBook, t: TFunction): string {
+  const pageCount = book.pages.length === 1 ? t("1 page") : t("{n} pages", { n: book.pages.length });
+  return book.status === "published" ? `${pageCount} · ${t("published")}` : `${pageCount} · ${relativeTime(book.updatedAt, t)}`;
 }
 
 /**
@@ -45,6 +46,7 @@ function bookMeta(book: StoredBook): string {
  */
 export default function LibraryScreen() {
   const router = useRouter();
+  const t = useT();
   const [activeNav, setActiveNav] = useState<NavItem>(NAV_ITEMS[0]);
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -55,7 +57,7 @@ export default function LibraryScreen() {
   function refresh() {
     listBooks()
       .then(setBooks)
-      .catch((err) => window.alert(err instanceof Error ? err.message : "Could not load your books."));
+      .catch((err) => window.alert(err instanceof Error ? err.message : t("Could not load your books.")));
   }
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function LibraryScreen() {
     // enforce access on their own. An error (e.g. the admin_role migration
     // not run yet) just means no link.
     supabase.rpc("is_admin").then(({ data }) => setIsSupervisor(data === true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
   }, []);
 
   function handleOpen(id: string) {
@@ -91,12 +94,12 @@ export default function LibraryScreen() {
 
   async function handleDelete(e: React.MouseEvent, book: StoredBook) {
     e.stopPropagation();
-    if (!window.confirm(`Delete "${book.title}"? This can't be undone.`)) return;
+    if (!window.confirm(t("Delete “{title}”? This can't be undone.", { title: book.title }))) return;
     try {
       await deleteBook(book.id);
       refresh();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not delete this book.");
+      window.alert(err instanceof Error ? err.message : t("Could not delete this book."));
     }
   }
 
@@ -106,19 +109,19 @@ export default function LibraryScreen() {
       await duplicateBook(book);
       refresh();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not duplicate this book.");
+      window.alert(err instanceof Error ? err.message : t("Could not duplicate this book."));
     }
   }
 
   async function handleAssignCollection(e: React.MouseEvent, book: StoredBook) {
     e.stopPropagation();
-    const next = window.prompt("Collection name (leave blank to remove)", book.collection ?? "");
+    const next = window.prompt(t("Collection name (leave blank to remove)"), book.collection ?? "");
     if (next === null) return;
     try {
       await saveBook({ ...book, collection: next.trim() || null, updatedAt: new Date().toISOString() });
       refresh();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not update this book's collection.");
+      window.alert(err instanceof Error ? err.message : t("Could not update this book's collection."));
     }
   }
 
@@ -168,14 +171,14 @@ export default function LibraryScreen() {
                 activeNav === item ? "bg-panel text-ink shadow-resting" : "text-ink-secondary hover:bg-inset-alt"
               )}
             >
-              {item}
+              {t(item)}
             </button>
           ))}
         </nav>
 
         {collections.length > 0 && (
           <div className="flex flex-col gap-0.5">
-            <MetaLabel className="px-3">Collections</MetaLabel>
+            <MetaLabel className="px-3">{t("Collections")}</MetaLabel>
             {collections.map((c) => (
               <button
                 key={c}
@@ -198,9 +201,10 @@ export default function LibraryScreen() {
             className="mt-auto flex items-center gap-2 rounded-row-sm px-3 py-2 text-body text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none"
           >
             <ShieldCheck size={14} aria-hidden />
-            Admin
+            {t("Admin")}
           </Link>
         )}
+        <LanguageToggle className={cn("self-start", !isSupervisor && "mt-auto")} />
       </aside>
 
       <div className="flex-1 p-8">
@@ -212,9 +216,9 @@ export default function LibraryScreen() {
           <>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">{activeCollection ?? activeNav}</h1>
+                <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">{activeCollection ?? t(activeNav)}</h1>
                 <MetaLabel>
-                  {filtered.length} books · {totalPages} pages
+                  {t("{books} books · {pages} pages", { books: filtered.length, pages: totalPages })}
                 </MetaLabel>
               </div>
               <div className="flex flex-1 items-center justify-end gap-2">
@@ -223,16 +227,16 @@ export default function LibraryScreen() {
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search books…"
-                    aria-label="Search books"
+                    placeholder={t("Search books…")}
+                    aria-label={t("Search books")}
                     className="w-full rounded-pill border border-hairline bg-panel py-1.5 pl-8 pr-3 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   />
                 </div>
                 <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-                  Import art
+                  {t("Import art")}
                 </Button>
                 <Button variant="primary" onClick={handleNewBook}>
-                  New book
+                  {t("New book")}
                 </Button>
               </div>
             </div>
@@ -244,7 +248,7 @@ export default function LibraryScreen() {
                     <button
                       type="button"
                       onClick={(e) => handleColor(e, book.id)}
-                      aria-label={`Color ${book.title}`}
+                      aria-label={t("Color {title}", { title: book.title })}
                       className="flex h-6 w-6 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                     >
                       <Palette size={12} />
@@ -252,7 +256,7 @@ export default function LibraryScreen() {
                     <button
                       type="button"
                       onClick={(e) => handleDuplicate(e, book)}
-                      aria-label={`Duplicate ${book.title}`}
+                      aria-label={t("Duplicate {title}", { title: book.title })}
                       className="flex h-6 w-6 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                     >
                       <Copy size={12} />
@@ -260,7 +264,7 @@ export default function LibraryScreen() {
                     <button
                       type="button"
                       onClick={(e) => handleDelete(e, book)}
-                      aria-label={`Delete ${book.title}`}
+                      aria-label={t("Delete {title}", { title: book.title })}
                       className="flex h-6 w-6 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                     >
                       <X size={12} />
@@ -271,18 +275,18 @@ export default function LibraryScreen() {
                     style={{ width: "100%", aspectRatio: "3 / 4" }}
                     onClick={() => handleOpen(book.id)}
                     alt={book.title}
-                    badge={book.status === "draft" ? <span className="rounded-pill bg-accent px-2 py-0.5 text-mono font-medium uppercase tracking-[0.09em] text-white">Draft</span> : undefined}
+                    badge={book.status === "draft" ? <span className="rounded-pill bg-accent px-2 py-0.5 text-mono font-medium uppercase tracking-[0.09em] text-white">{t("Draft")}</span> : undefined}
                   />
                   <button type="button" onClick={() => handleOpen(book.id)} className="px-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
                     <p className="text-body font-medium text-ink">{book.title}</p>
-                    <MetaLabel>{bookMeta(book)}</MetaLabel>
+                    <MetaLabel>{bookMeta(book, t)}</MetaLabel>
                   </button>
                   <button
                     type="button"
                     onClick={(e) => handleAssignCollection(e, book)}
                     className="px-0.5 pb-1 text-left text-helper text-ink-muted outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
-                    {book.collection ?? "+ Add to collection"}
+                    {book.collection ?? `+ ${t("Add to collection")}`}
                   </button>
                 </div>
               ))}
@@ -294,7 +298,7 @@ export default function LibraryScreen() {
                 style={{ aspectRatio: "3 / 4" }}
               >
                 <Plus size={20} />
-                <MetaLabel>New book</MetaLabel>
+                <MetaLabel>{t("New book")}</MetaLabel>
               </button>
             </div>
           </>

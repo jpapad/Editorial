@@ -6,6 +6,7 @@ import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import AiGeneratingModal, { type AiTile } from "@/components/studio/modals/AiGeneratingModal";
 import AiFailureModal from "@/components/studio/modals/AiFailureModal";
+import { useT } from "@/lib/i18n";
 
 interface GenerateResultItem {
   ok: boolean;
@@ -39,6 +40,7 @@ const QUEUED_TILES: AiTile[] = [{ status: "queued" }, { status: "queued" }, { st
  * true exercise of that screen, just not of a successful generation.
  */
 export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
+  const t = useT();
   const [subject, setSubject] = useState("");
   const [theme, setTheme] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,13 +68,13 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
       }
       const anySucceeded = body.results.some((r) => r.ok);
       if (!anySucceeded) {
-        setFailure(body.results.find((r) => !r.ok)?.error ?? "All 4 options failed to generate.");
+        setFailure(body.results.find((r) => !r.ok)?.error ?? t("All 4 options failed to generate."));
         return;
       }
       setResults(body.results);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return; // user hit Stop — not a failure
-      setFailure(err instanceof Error ? err.message : "Generation failed.");
+      setFailure(err instanceof Error ? err.message : t("Generation failed."));
     } finally {
       setIsGenerating(false);
       controllerRef.current = null;
@@ -85,26 +87,26 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
 
   return (
     <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-      <p className="text-card-title font-semibold text-ink">Generate with AI</p>
+      <p className="text-card-title font-semibold text-ink">{t("Generate with AI")}</p>
       <input
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
-        placeholder="Subject, e.g. a friendly jellyfish"
+        placeholder={t("Subject, e.g. a friendly jellyfish")}
         className="rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       />
       <input
         value={theme}
         onChange={(e) => setTheme(e.target.value)}
-        placeholder="Theme (optional), e.g. ocean"
+        placeholder={t("Theme (optional), e.g. ocean")}
         className="rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       />
       <Button variant="dark" size="sm" icon={<Sparkles size={13} />} disabled={!subject.trim() || isGenerating} onClick={() => void runGenerate()}>
-        Generate 4 options
+        {t("Generate 4 options")}
       </Button>
 
       {results && (
         <div className="flex flex-col gap-1.5">
-          <MetaLabel>Pick one to place</MetaLabel>
+          <MetaLabel>{t("Pick one to place")}</MetaLabel>
           <div className="grid grid-cols-2 gap-2">
             {results
               .filter((r) => r.ok && r.svgMarkup)
@@ -115,7 +117,7 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
                   onClick={() => onPickStamp(svgMarkupToDataUri(r.svgMarkup as string))}
                   className="aspect-square rounded-row-sm border border-hairline bg-inset bg-cover bg-center outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   style={{ backgroundImage: `url(${svgMarkupToDataUri(r.svgMarkup as string)})` }}
-                  aria-label={`Use generated option ${i + 1}`}
+                  aria-label={t("Use generated option {n}", { n: i + 1 })}
                 />
               ))}
           </div>
@@ -124,14 +126,14 @@ export default function AiGeneratePanel({ onPickStamp }: AiGeneratePanelProps) {
 
       {isGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6">
-          <AiGeneratingModal tiles={QUEUED_TILES} etaLabel="Generating…" onStop={handleStop} />
+          <AiGeneratingModal tiles={QUEUED_TILES} etaLabel={t("Generating…")} onStop={handleStop} />
         </div>
       )}
 
       {failure && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={() => setFailure(null)}>
           <div onClick={(e) => e.stopPropagation()}>
-            <AiFailureModal cause="Generation failed" explanation={failure} prompt={theme ? `${subject} (${theme})` : subject} remedies={[]} onRetry={() => void runGenerate()} />
+            <AiFailureModal cause={t("Generation failed")} explanation={failure} prompt={theme ? `${subject} (${theme})` : subject} remedies={[]} onRetry={() => void runGenerate()} />
           </div>
         </div>
       )}

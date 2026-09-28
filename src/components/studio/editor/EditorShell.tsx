@@ -28,6 +28,7 @@ import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout }
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
+import { useT, type TFunction } from "@/lib/i18n";
 import type { EditorMode } from "@/components/studio/types";
 import type {
   BookPage,
@@ -137,7 +138,7 @@ function slugify(title: string) {
   return slug || "coloring-book-project";
 }
 
-function coverGuides(layout: CoverLayout): GuideSpec {
+function coverGuides(layout: CoverLayout, t: TFunction): GuideSpec {
   const { back, spineRect, front } = layout;
   const label = (x: number, text: string) => ({ x: x + 6, y: back.top + 6, text, color: "#3357d4" });
   return {
@@ -148,7 +149,7 @@ function coverGuides(layout: CoverLayout): GuideSpec {
       [spineRect.right, 0, spineRect.right, layout.space.height],
     ],
     blocked: [layout.barcode],
-    labels: [label(back.left, "BACK COVER"), label(front.left, "FRONT COVER")],
+    labels: [label(back.left, t("BACK COVER")), label(front.left, t("FRONT COVER"))],
   };
 }
 
@@ -191,6 +192,7 @@ export default function EditorShell({ darkSurround = false }: EditorShellProps) 
     return requested && UUID_RE.test(requested) ? requested : crypto.randomUUID();
   });
   const [loaded, setLoaded] = useState<{ book: StoredBook | null } | null>(null);
+  const t = useT();
 
   useEffect(() => {
     if (!bookId) return;
@@ -212,7 +214,7 @@ export default function EditorShell({ darkSurround = false }: EditorShellProps) 
   }, [bookId]);
 
   if (!loaded) {
-    return <div className="flex h-screen items-center justify-center bg-surface text-body text-ink-secondary">Loading…</div>;
+    return <div className="flex h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
   }
 
   return <EditorShellLoaded darkSurround={darkSurround} bookId={bookId} initialBook={loaded.book} />;
@@ -224,9 +226,10 @@ interface EditorShellLoadedProps extends EditorShellProps {
 }
 
 function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: EditorShellLoadedProps) {
+  const t = useT();
   const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
 
-  const [title, setTitle] = useState(initialBook?.title || DEFAULT_TITLE);
+  const [title, setTitle] = useState(initialBook?.title || t(DEFAULT_TITLE));
   // Fixed at creation (Onboarding's trim-size row), not editable here — see
   // utils/trimSizes.ts's own note on why re-flowing existing pages to a new
   // trim size mid-book isn't attempted in this pass.
@@ -309,7 +312,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     url.searchParams.set("book", bookId);
     window.history.replaceState(null, "", url.toString());
     saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, createdAt: createdAtRef.current, updatedAt: createdAtRef.current }).catch((err) =>
-      window.alert(err instanceof Error ? err.message : "Could not save this book.")
+      window.alert(err instanceof Error ? err.message : t("Could not save this book."))
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -318,11 +321,11 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     if (!bookId || sessionLoading || reviewMode) return;
     const timer = setTimeout(() => {
       saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: coverDesign, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }).catch((err) =>
-        window.alert(err instanceof Error ? err.message : "Could not save this book.")
+        window.alert(err instanceof Error ? err.message : t("Could not save this book."))
       );
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, reviewMode]);
+  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, reviewMode, t]);
 
   // Comments + supervisor flag. Both degrade quietly: no migration yet
   // means no comments table (a friendly note in the panel), not an error.
@@ -363,7 +366,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       const created = await addComment(bookId, activePageId, body);
       setComments((prev) => [...prev, created]);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not post the comment.");
+      window.alert(err instanceof Error ? err.message : t("Could not post the comment."));
       throw err;
     }
   }
@@ -560,7 +563,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       newObject = {
         kind: "text",
         id,
-        text: "Double-click to edit",
+        text: t("Double-click to edit"),
         fontFamily: placement.fontFamily,
         fontSize: placement.fontSize,
         align: "left",
@@ -811,7 +814,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       const src = captureStage(stage, EXPORT_PIXEL_RATIO);
       await exportPagesToPdf([coverExportPage(src, cover.space)], `${slugify(title)}-cover.pdf`);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not export the cover.");
+      window.alert(err instanceof Error ? err.message : t("Could not export the cover."));
     } finally {
       setIsExportingCover(false);
     }
@@ -846,7 +849,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   function handleAddPage(template: PageTemplate) {
     captureActiveThumbnail();
     pushHistory();
-    const page = createPageFromTemplate(pages.length + 1, space, template);
+    const page = createPageFromTemplate(pages.length + 1, space, template, t);
     setPages((prev) => [...prev, page]);
     setActivePageId(page.id);
     setSelectedIds([]);
@@ -925,11 +928,11 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   async function handleLoadProjectFile(file: File) {
     try {
       const project = await readProjectFromFile(file);
-      if (!window.confirm("Loading a project will replace your current work. Continue?")) return;
+      if (!window.confirm(t("Loading a project will replace your current work. Continue?"))) return;
       const nextPages = project.pages.length > 0 ? await convertPages(project.pages, space) : [createPageFromTemplate(1, space)];
       setPages(nextPages);
       setActivePageId(nextPages[0].id);
-      setTitle(project.title || DEFAULT_TITLE);
+      setTitle(project.title || t(DEFAULT_TITLE));
       setSelectedIds([]);
       setPendingPlacement(null);
       historyRef.current = [];
@@ -937,7 +940,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       setCanUndo(false);
       setCanRedo(false);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not load that project file.");
+      window.alert(err instanceof Error ? err.message : t("Could not load that project file."));
     }
   }
 
@@ -979,7 +982,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         `${slugify(title)}.pdf`
       );
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not export this book to PDF.");
+      window.alert(err instanceof Error ? err.message : t("Could not export this book to PDF."));
     } finally {
       setIsExporting(false);
     }
@@ -1006,9 +1009,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       const toAdd = pagesNeededForMultipleOf4(pages.length);
       return {
         severity: issue.severity,
-        cause: issue.message,
-        explanation: "Saddle-stitch binding requires the total page count to be a multiple of 4.",
-        autoFixLabel: `Add ${toAdd} blank page${toAdd === 1 ? "" : "s"}`,
+        cause: t("Total pages: {n}. Saddle stitch binding needs a multiple of 4.", { n: issue.count }),
+        explanation: t("Saddle-stitch binding requires the total page count to be a multiple of 4."),
+        autoFixLabel: toAdd === 1 ? t("Add 1 blank page") : t("Add {n} blank pages", { n: toAdd }),
         onAutoFix: () => {
           pushHistory();
           setPages((prev) => renumber([...prev, ...Array.from({ length: toAdd }, () => createPageFromTemplate(0, space))]));
@@ -1018,9 +1021,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     if (issue.code === "THIN_STROKE") {
       return {
         severity: issue.severity,
-        cause: issue.message,
-        explanation: "Very thin lines can print faint or drop out entirely.",
-        autoFixLabel: "Thicken all",
+        cause: t("{n} lines below 3pt — may print faint.", { n: issue.count }),
+        explanation: t("Very thin lines can print faint or drop out entirely."),
+        autoFixLabel: t("Thicken all"),
         onAutoFix: () => {
           pushHistory();
           setPages((prev) => thickenThinStrokes(prev));
@@ -1029,9 +1032,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     }
     return {
       severity: issue.severity,
-      cause: issue.message,
-      explanation: `Content should stay clear of the page edges to survive trimming.`,
-      autoFixLabel: "Nudge shapes inside margin",
+      cause: t("{n} pages — content extends past the 0.5in safe margin.", { n: issue.count }),
+      explanation: t("Content should stay clear of the page edges to survive trimming."),
+      autoFixLabel: t("Nudge shapes inside margin"),
       onAutoFix: () => {
         pushHistory();
         setPages((prev) => clampObjectsToMargin(prev));
@@ -1165,7 +1168,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         onTitleChange={setTitle}
         pages={pages}
         activePageId={activePageId}
-        trimSizeLabel={`${trimShortLabel(trimSizeId)}${bleed ? " + bleed" : ""}`}
+        trimSizeLabel={`${trimShortLabel(trimSizeId)}${bleed ? ` + ${t("bleed")}` : ""}`}
         mode={mode}
         onModeChange={handleModeChange}
         onSave={handleSaveProject}
@@ -1188,7 +1191,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
       {reviewMode && (
         <div role="status" className="absolute left-1/2 top-[80px] z-20 -translate-x-1/2 rounded-pill bg-warning px-4 py-1.5 text-helper font-medium text-ink shadow-toolbar">
-          Reviewing someone else&apos;s book — changes here aren&apos;t saved. Leave feedback in Comments.
+          {t("Reviewing someone else's book — changes here aren't saved. Leave feedback in Comments.")}
         </div>
       )}
 
@@ -1210,7 +1213,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
             <CanvasArea
               page={activePage}
               space={activeSpace}
-              guides={editingCover ? coverGuides(cover) : undefined}
+              guides={editingCover ? coverGuides(cover, t) : undefined}
               mode={mode}
               tool={tool}
               strokeWidth={strokeWidth}
@@ -1263,7 +1266,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         <CommentsPanel
           comments={comments}
           loading={commentsLoading && Boolean(user)}
-          loadError={!sessionLoading && !user ? "Sign in to read and write comments." : commentsError}
+          loadError={!sessionLoading && !user ? t("Sign in to read and write comments.") : commentsError && t(commentsError)}
           activePageId={activePageId}
           pageLabel={pageLabel}
           currentUserId={user?.id ?? null}

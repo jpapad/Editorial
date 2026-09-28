@@ -1,4 +1,5 @@
 import { Archivo, JetBrains_Mono } from "next/font/google";
+import { LanguageProvider } from "@/lib/i18n";
 
 // Same fonts as /studio: share links render the same coloring board.
 // (Scoped per route like /studio — the root layout keeps loading
@@ -19,7 +20,7 @@ const jetBrainsMono = JetBrains_Mono({
 export default function ShareLayout(props: { children: React.ReactNode }) {
   return (
     <div className={`${archivo.variable} ${jetBrainsMono.variable} font-pw-sans min-h-screen bg-surface text-ink`}>
-      {props.children}
+      <LanguageProvider>{props.children}</LanguageProvider>
     </div>
   );
 }

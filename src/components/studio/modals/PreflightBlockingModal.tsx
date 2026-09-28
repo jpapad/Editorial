@@ -3,6 +3,7 @@ import Card from "@/components/studio/ui/Card";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import StatusDot from "@/components/studio/ui/StatusDot";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
+import { useT } from "@/lib/i18n";
 
 export interface PreflightIssue {
   severity: "blocking" | "warning";
@@ -46,18 +47,19 @@ const DEFAULT_FLAGGED: FlaggedPage[] = [
 export default function PreflightBlockingModal({ issues = DEFAULT_ISSUES, flaggedPages = DEFAULT_FLAGGED, onExport }: PreflightBlockingModalProps) {
   const blockingCount = issues.filter((i) => i.severity === "blocking").length;
   const exportEnabled = blockingCount === 0;
+  const t = useT();
 
   return (
     <div className="flex flex-col gap-4 rounded-panel bg-panel p-5 shadow-panel" style={{ width: 620, height: 480 }}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-modal-title font-semibold tracking-[-0.02em] text-ink">Έλεγχος πριν το export</p>
+          <p className="text-modal-title font-semibold tracking-[-0.02em] text-ink">{t("Pre-export check")}</p>
           <MetaLabel tone="error">
-            {issues.length} θέματα · {blockingCount} μπλοκάρουν το export
+            {t("{issues} issues · {blocking} blocking export", { issues: issues.length, blocking: blockingCount })}
           </MetaLabel>
         </div>
         <Button variant="primary" disabled={!exportEnabled} onClick={onExport}>
-          Export
+          {t("Export")}
         </Button>
       </div>
 
@@ -78,7 +80,7 @@ export default function PreflightBlockingModal({ issues = DEFAULT_ISSUES, flagge
         </div>
 
         <div className="flex w-[150px] shrink-0 flex-col gap-2.5">
-          <MetaLabel>Σελίδες με θέμα</MetaLabel>
+          <MetaLabel>{t("Pages with issues")}</MetaLabel>
           <div className="flex gap-2">
             {flaggedPages.map((page) => (
               <div key={page.label} className="flex flex-col items-center gap-1">
@@ -88,7 +90,9 @@ export default function PreflightBlockingModal({ issues = DEFAULT_ISSUES, flagge
             ))}
           </div>
           <Card tone="accent" className="p-3">
-            <p className="text-helper text-ink-secondary">Διόρθωσε και τα δύο μπλοκαριστικά για να ενεργοποιηθεί το export.</p>
+            <p className="text-helper text-ink-secondary">
+              {blockingCount === 0 ? t("Nothing blocking — you can export, or fix the warnings first.") : blockingCount === 1 ? t("Fix the blocking issue to enable export.") : t("Fix the {n} blocking issues to enable export.", { n: blockingCount })}
+            </p>
           </Card>
         </div>
       </div>

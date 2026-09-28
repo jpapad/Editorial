@@ -1,6 +1,7 @@
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { PLACEHOLDER_ART_PATTERN } from "@/components/studio/ui/Thumbnail";
+import { useT } from "@/lib/i18n";
 
 export type AiTileStatus = "done" | "rendering" | "queued";
 
@@ -19,10 +20,11 @@ export interface AiGeneratingModalProps {
 const DEFAULT_TILES: AiTile[] = [{ status: "done" }, { status: "done" }, { status: "rendering", progressPct: 58 }, { status: "queued" }];
 
 function Tile({ tile }: { tile: AiTile }) {
+  const t = useT();
   if (tile.status === "queued") {
     return (
       <div className="flex items-center justify-center rounded-paper-sm bg-inset">
-        <MetaLabel>Σε αναμονή</MetaLabel>
+        <MetaLabel>{t("Queued")}</MetaLabel>
       </div>
     );
   }
@@ -33,7 +35,7 @@ function Tile({ tile }: { tile: AiTile }) {
         <div className="h-1 w-full rounded-pill bg-inset">
           <div className="h-1 rounded-pill bg-accent transition-[width] duration-200" style={{ width: `${tile.progressPct ?? 0}%` }} />
         </div>
-        <MetaLabel>Γραμμές {tile.progressPct ?? 0}%</MetaLabel>
+        <MetaLabel>{t("Lines {n}%", { n: tile.progressPct ?? 0 })}</MetaLabel>
       </div>
     );
   }
@@ -42,11 +44,12 @@ function Tile({ tile }: { tile: AiTile }) {
 }
 
 /** 3c: AI generating (460x440) — 4 tiles streaming in independently (queued -> rendering with % -> done). Must survive navigating away (README) — that's a real background-job requirement for whichever service backs this; not something a static screen build can demonstrate on its own. */
-export default function AiGeneratingModal({ tiles = DEFAULT_TILES, etaLabel = "~20 ΔΕΥΤ.", onBackground, onStop }: AiGeneratingModalProps) {
+export default function AiGeneratingModal({ tiles = DEFAULT_TILES, etaLabel = "~20 s", onBackground, onStop }: AiGeneratingModalProps) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-4 rounded-panel bg-panel p-5 shadow-panel" style={{ width: 460, height: 440 }}>
       <div className="flex items-center justify-between">
-        <p className="text-modal-title font-semibold tracking-[-0.02em] text-ink">Δημιουργία 4 επιλογών</p>
+        <p className="text-modal-title font-semibold tracking-[-0.02em] text-ink">{t("Making 4 options")}</p>
         <MetaLabel>{etaLabel}</MetaLabel>
       </div>
 
@@ -56,14 +59,17 @@ export default function AiGeneratingModal({ tiles = DEFAULT_TILES, etaLabel = "~
         ))}
       </div>
 
-      <p className="text-helper text-ink-secondary">Μπορείς να συνεχίσεις να σχεδιάζεις — θα σου πούμε μόλις είναι έτοιμο.</p>
+      {/* Only promised when a background job actually exists to hand off to. */}
+      {onBackground && <p className="text-helper text-ink-secondary">{t("You can keep drawing — we'll let you know when it's ready.")}</p>}
 
-      <div className="flex items-center gap-2">
-        <Button variant="secondary" onClick={onBackground} className="flex-1">
-          Στο παρασκήνιο
-        </Button>
+      <div className="flex items-center justify-end gap-2">
+        {onBackground && (
+          <Button variant="secondary" onClick={onBackground} className="flex-1">
+            {t("Run in background")}
+          </Button>
+        )}
         <Button variant="ghost" onClick={onStop}>
-          Διακοπή
+          {t("Stop")}
         </Button>
       </div>
     </div>

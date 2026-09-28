@@ -8,6 +8,7 @@ import MetaLabel from "@/components/studio/ui/MetaLabel";
 import StatusDot from "@/components/studio/ui/StatusDot";
 import { cn } from "@/utils/cn";
 import type { BookPage } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 export interface BookAssemblyScreenProps {
   bookTitle?: string;
@@ -33,6 +34,7 @@ export interface BookAssemblyScreenProps {
  */
 export default function BookAssemblyScreen({ bookTitle = "Untitled Book", binding = "Saddle stitch", pages, activePageId, onSelectPage, onReorder, onAddPage, onDeletePage }: BookAssemblyScreenProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const t = useT();
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   const needsPages = pages.length % 4 !== 0;
@@ -64,12 +66,12 @@ export default function BookAssemblyScreen({ bookTitle = "Untitled Book", bindin
         <div>
           <p className="text-modal-title font-semibold tracking-[-0.02em] text-ink">{bookTitle}</p>
           <MetaLabel>
-            {pages.length} pages · {Math.ceil(pages.length / 2)} spreads · {binding}
+            {t("{pages} pages · {spreads} spreads · {binding}", { pages: pages.length, spreads: Math.ceil(pages.length / 2), binding: t(binding) })}
           </MetaLabel>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={onAddPage}>
-            Insert blank
+            {t("Insert blank")}
           </Button>
         </div>
       </div>
@@ -96,7 +98,7 @@ export default function BookAssemblyScreen({ bookTitle = "Untitled Book", bindin
                 <button
                   type="button"
                   onClick={() => onDeletePage(page.id)}
-                  aria-label={`Delete page ${i + 1}`}
+                  aria-label={t("Delete page {n}", { n: i + 1 })}
                   className="absolute right-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-pill bg-panel text-ink-muted opacity-0 shadow-toolbar outline-none transition-opacity duration-150 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                 >
                   <X size={11} />
@@ -111,7 +113,7 @@ export default function BookAssemblyScreen({ bookTitle = "Untitled Book", bindin
                 style={{ width: 118, height: 152 }}
               />
             </div>
-            <MetaLabel>{draggingId === page.id ? "Dragging" : dropTargetId === page.id && draggingId ? "Drop here" : i === 0 ? "Cover" : String(i + 1).padStart(2, "0")}</MetaLabel>
+            <MetaLabel>{draggingId === page.id ? t("Dragging") : dropTargetId === page.id && draggingId ? t("Drop here") : i === 0 ? t("Cover") : String(i + 1).padStart(2, "0")}</MetaLabel>
           </div>
         ))}
       </div>
@@ -119,9 +121,9 @@ export default function BookAssemblyScreen({ bookTitle = "Untitled Book", bindin
       {needsPages && (
         <div className="flex items-center gap-2 border-t border-hairline pt-3">
           <StatusDot tone="warning" />
-          <p className="text-helper text-ink-secondary">Page count must be a multiple of 4 — add {pagesToAdd} pages</p>
+          <p className="text-helper text-ink-secondary">{t("Page count must be a multiple of 4 — add {n} pages", { n: pagesToAdd })}</p>
           <button type="button" onClick={handleFixAutomatically} className="text-helper font-medium text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
-            Fix automatically
+            {t("Fix automatically")}
           </button>
         </div>
       )}

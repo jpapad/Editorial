@@ -5,16 +5,17 @@ import type { PageSpace } from "@/types/editor";
 
 /** Earned in order — the Nth finished page earns STICKERS[N % length]. */
 export const STICKERS: { Icon: LucideIcon; color: string; name: string }[] = [
-  { Icon: Star, color: "#e0a13c", name: "Αστεράκι" },
-  { Icon: Heart, color: "#e05a7a", name: "Καρδούλα" },
-  { Icon: Rainbow, color: "#3357d4", name: "Ουράνιο τόξο" },
-  { Icon: Sun, color: "#f08c2e", name: "Ήλιος" },
-  { Icon: Rocket, color: "#7a5cd6", name: "Πύραυλος" },
-  { Icon: Flower2, color: "#d4569b", name: "Λουλούδι" },
-  { Icon: Cat, color: "#8a6a4f", name: "Γατούλα" },
-  { Icon: Moon, color: "#42505f", name: "Φεγγάρι" },
-  { Icon: Sparkles, color: "#2ea37a", name: "Μαγεία" },
-  { Icon: Trophy, color: "#c9a227", name: "Κύπελλο" },
+  // Names are translation keys (shown via t()).
+  { Icon: Star, color: "#e0a13c", name: "Little star" },
+  { Icon: Heart, color: "#e05a7a", name: "Little heart" },
+  { Icon: Rainbow, color: "#3357d4", name: "Rainbow" },
+  { Icon: Sun, color: "#f08c2e", name: "Sunshine" },
+  { Icon: Rocket, color: "#7a5cd6", name: "Rocket" },
+  { Icon: Flower2, color: "#d4569b", name: "Flower" },
+  { Icon: Cat, color: "#8a6a4f", name: "Kitty" },
+  { Icon: Moon, color: "#42505f", name: "Moon" },
+  { Icon: Sparkles, color: "#2ea37a", name: "Magic" },
+  { Icon: Trophy, color: "#c9a227", name: "Trophy" },
 ];
 
 export function Sticker({ index, size = 56 }: { index: number; size?: number }) {

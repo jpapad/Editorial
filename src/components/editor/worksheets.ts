@@ -8,6 +8,7 @@ import { makeId, rule, shape, text } from "@/components/editor/pageTemplates";
 import { polygonPoints } from "@/components/editor/shapeGeometry";
 import { flippedHorizontally, objectBounds } from "@/utils/objectGeometry";
 import { geometryFromSpace, type Rect } from "@/utils/pageGeometry";
+import { identityT, type TFunction } from "@/lib/i18n-core";
 
 const INK = "#111827";
 const GUIDE_GRAY = "#9aa1ab";
@@ -165,7 +166,7 @@ function sampleOutline(pts: number[], target: number): [number, number][] {
   return out;
 }
 
-export function connectDotsPage(space: PageSpace, design: DotsDesign, dotCount: number): BookPage {
+export function connectDotsPage(space: PageSpace, design: DotsDesign, dotCount: number, tx: TFunction = identityT): BookPage {
   const geo = geometryFromSpace(space);
   const { safe } = geo;
   const width = safe.right - safe.left;
@@ -174,7 +175,7 @@ export function connectDotsPage(space: PageSpace, design: DotsDesign, dotCount: 
   const left = safe.left + (width - size) / 2;
   const top = safe.top + titleH + 10;
   const dots = sampleOutline(designOutline(design), dotCount);
-  const objects: PageObject[] = [text({ text: "Connect the dots!", x: safe.left, y: safe.top, width, fontSize: 40, outline: true, fontFamily: KID_FONT })];
+  const objects: PageObject[] = [text({ text: tx("Connect the dots!"), x: safe.left, y: safe.top, width, fontSize: 40, outline: true, fontFamily: KID_FONT })];
   dots.forEach(([u, v], i) => {
     const x = left + u * size;
     const y = top + v * size;
@@ -230,7 +231,7 @@ export function generateMaze(cols: number, rows: number, rand: () => number): { 
   return { right, bottom };
 }
 
-export function mazePage(space: PageSpace, level: MazeLevel, seed: number): BookPage {
+export function mazePage(space: PageSpace, level: MazeLevel, seed: number, tx: TFunction = identityT): BookPage {
   const geo = geometryFromSpace(space);
   const { safe } = geo;
   const width = safe.right - safe.left;
@@ -258,9 +259,9 @@ export function mazePage(space: PageSpace, level: MazeLevel, seed: number): Book
   return blank(
     space,
     [
-      text({ text: "Find the way out!", x: safe.left, y: safe.top, width, fontSize: 40, outline: true, fontFamily: KID_FONT }),
-      text({ text: "START ↓", x: left, y: top - 20, width: 80, height: 16, fontSize: 12, align: "left", fontFamily: "Arial, Helvetica, sans-serif" }),
-      text({ text: "↓ FINISH", x: left + cols * cell - 90, y: top + rows * cell + 4, width: 90, height: 16, fontSize: 12, align: "right", fontFamily: "Arial, Helvetica, sans-serif" }),
+      text({ text: tx("Find the way out!"), x: safe.left, y: safe.top, width, fontSize: 40, outline: true, fontFamily: KID_FONT }),
+      text({ text: `${tx("START")} ↓`, x: left, y: top - 20, width: 80, height: 16, fontSize: 12, align: "left", fontFamily: "Arial, Helvetica, sans-serif" }),
+      text({ text: `↓ ${tx("FINISH")}`, x: left + cols * cell - 90, y: top + rows * cell + 4, width: 90, height: 16, fontSize: 12, align: "right", fontFamily: "Arial, Helvetica, sans-serif" }),
     ],
     lines
   );
@@ -280,7 +281,7 @@ export interface SpotResult {
  * answer page circling each change. Changes are whole objects or strokes:
  * removed, mirrored, enlarged or tilted — each clearly visible at print size.
  */
-export function spotTheDifference(source: BookPage, space: PageSpace, wanted: number, seed: number): SpotResult | null {
+export function spotTheDifference(source: BookPage, space: PageSpace, wanted: number, seed: number, tx: TFunction = identityT): SpotResult | null {
   const rand = seededRandom(seed);
   const geo = geometryFromSpace(space);
   const { safe } = geo;
@@ -351,7 +352,7 @@ export function spotTheDifference(source: BookPage, space: PageSpace, wanted: nu
   const changedObjects = bottomObjects.filter((x): x is PageObject => x !== null);
   bottomLines = bottomLines.filter((l) => l.points.length > 0);
 
-  const title = text({ text: `Find ${picked.length} differences!`, x: safe.left, y: safe.top, width, fontSize: 36, outline: true, fontFamily: KID_FONT });
+  const title = text({ text: tx("Find {n} differences!", { n: picked.length }), x: safe.left, y: safe.top, width, fontSize: 36, outline: true, fontFamily: KID_FONT });
   const divider = rule(safe.left, topY + src.top * k + half + 12, width, 2);
   const puzzle = blank(space, [title, divider, ...topObjects, ...changedObjects], [...topLines, ...bottomLines]);
   const answerCircles = circles.map((r) => {
@@ -360,7 +361,7 @@ export function spotTheDifference(source: BookPage, space: PageSpace, wanted: nu
   });
   const answers = blank(
     space,
-    [text({ text: "Answers", x: safe.left, y: safe.top, width, fontSize: 36, fontFamily: KID_FONT }), divider, ...topObjects.map((o) => ({ ...o, id: makeId(o.kind) })), ...changedObjects.map((o) => ({ ...o, id: makeId(o.kind) })), ...answerCircles],
+    [text({ text: tx("Answers"), x: safe.left, y: safe.top, width, fontSize: 36, fontFamily: KID_FONT }), divider, ...topObjects.map((o) => ({ ...o, id: makeId(o.kind) })), ...changedObjects.map((o) => ({ ...o, id: makeId(o.kind) })), ...answerCircles],
     [...topLines, ...bottomLines].map((l) => ({ ...l, id: makeId("line") }))
   );
   return { puzzle, answers, made: picked.length };

@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { cn } from "@/utils/cn";
 import { FILL_STYLES, patternPreviewUrl } from "@/components/studio/editor/fillPatterns";
 import type { FillStyle } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 /** Solid / stars / stripes / dots / hearts — previewed in the current color. */
 export default function FillStylePicker({ value, color, onChange, size = 32 }: { value: FillStyle; color: string; onChange: (style: FillStyle) => void; size?: number }) {
+  const t = useT();
   // Previews are drawn on a canvas, which only exists in the browser.
   const [previews, setPreviews] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -15,15 +17,15 @@ export default function FillStylePicker({ value, color, onChange, size = 32 }: {
   }, [color]);
 
   return (
-    <div role="radiogroup" aria-label="Fill style" className="flex flex-wrap gap-1.5">
+    <div role="radiogroup" aria-label={t("Fill style")} className="flex flex-wrap gap-1.5">
       {FILL_STYLES.map((s) => (
         <button
           key={s.value}
           type="button"
           role="radio"
           aria-checked={value === s.value}
-          aria-label={s.label}
-          title={s.label}
+          aria-label={t(s.label)}
+          title={t(s.label)}
           onClick={() => onChange(s.value)}
           className={cn(
             "rounded-pill bg-cover bg-center outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none",

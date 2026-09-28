@@ -29,6 +29,8 @@ import type { GapMarker } from "@/components/studio/editor/gapCheck";
 import { objectBounds } from "@/utils/objectGeometry";
 import { geometryFromSpace, type PageGeometry, type Rect as PageRect } from "@/utils/pageGeometry";
 import { ensureKidFonts } from "@/components/editor/kidFonts";
+import { useT } from "@/lib/i18n";
+import { identityT, type TFunction } from "@/lib/i18n-core";
 
 /**
  * What the print-guides overlay draws, in page units: the trim (cut) line,
@@ -46,14 +48,14 @@ export interface GuideSpec {
   center?: boolean;
 }
 
-export function interiorGuides(geo: PageGeometry): GuideSpec {
+export function interiorGuides(geo: PageGeometry, t: TFunction = identityT): GuideSpec {
   return {
     trim: geo.trim,
     safe: [geo.safe],
     center: true,
     labels: [
-      { x: geo.safe.left + 4, y: geo.safe.top + 4, text: "SAFE AREA · 0.5 IN", color: GUIDE_COLOR },
-      { x: geo.trim.left + 6, y: geo.trim.bottom - 14, text: geo.bleed ? "TRIM · BLEED BEYOND" : "TRIM EDGE", color: TRIM_COLOR },
+      { x: geo.safe.left + 4, y: geo.safe.top + 4, text: t("SAFE AREA · 0.5 IN"), color: GUIDE_COLOR },
+      { x: geo.trim.left + 6, y: geo.trim.bottom - 14, text: geo.bleed ? t("TRIM · BLEED BEYOND") : t("TRIM EDGE"), color: TRIM_COLOR },
     ],
   };
 }
@@ -477,7 +479,8 @@ export default function CanvasEditor({
 }: CanvasEditorProps) {
   const pageWidth = space.width;
   const pageHeight = space.height;
-  const guideSpec = guides ?? interiorGuides(geometryFromSpace(space));
+  const t = useT();
+  const guideSpec = guides ?? interiorGuides(geometryFromSpace(space), t);
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const objectNodesRef = useRef<Map<string, Konva.Node>>(new Map());
   const isDrawing = useRef(false);

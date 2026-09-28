@@ -11,6 +11,7 @@ import { STAMP_LIBRARY, svgToDataUri } from "@/components/editor/stampLibrary";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
 import AiGeneratePanel from "@/components/studio/editor/AiGeneratePanel";
 import type { ShapeKind, StampFilter } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 const STAMP_ICONS = { star: Star, heart: Heart, animal: Cat, frame: RectangleHorizontal } as const;
 const SHAPE_OPTIONS: { kind: ShapeKind; label: string; Icon: typeof Square }[] = [
@@ -67,6 +68,7 @@ export interface AssetPickerProps {
  * silently dropped capability.
  */
 export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }: AssetPickerProps) {
+  const t = useT();
   const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value);
   const [fontSize, setFontSize] = useState(FONT_SIZE_OPTIONS[1].value);
   const [convertToLineArt, setConvertToLineArt] = useState(false);
@@ -82,7 +84,7 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
       const naturalSize = await getImageNaturalSize(dataUrl).catch(() => undefined);
       onPickStamp(dataUrl, { naturalSize, filter: convertToLineArt ? "lineArt" : "none", threshold: lineArtThreshold });
     } catch {
-      window.alert("Sorry, that file couldn't be loaded. Try a PNG or SVG.");
+      window.alert(t("Sorry, that file couldn't be loaded. Try a PNG or SVG."));
     }
   }
 
@@ -90,8 +92,8 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
     <Card className="flex flex-col gap-3 p-4">
       {tool === "stamp" && (
         <>
-          <p className="text-card-title font-semibold text-ink">Stamps</p>
-          <p className="text-helper text-ink-muted">Click a stamp, then click the page to place it.</p>
+          <p className="text-card-title font-semibold text-ink">{t("Stamps")}</p>
+          <p className="text-helper text-ink-muted">{t("Click a stamp, then click the page to place it.")}</p>
           <div className="grid grid-cols-2 gap-2">
             {STAMP_LIBRARY.map(({ id, label, svg }) => {
               const Icon = STAMP_ICONS[id as keyof typeof STAMP_ICONS] ?? Sparkles;
@@ -103,18 +105,18 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
                   className="flex flex-col items-center gap-1 rounded-row-sm border border-hairline p-2 text-helper text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                 >
                   <Icon size={20} />
-                  {label}
+                  {t(label)}
                 </button>
               );
             })}
           </div>
 
           <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-            <Toggle checked={convertToLineArt} onChange={setConvertToLineArt} label="Convert upload to line art" />
+            <Toggle checked={convertToLineArt} onChange={setConvertToLineArt} label={t("Convert upload to line art")} />
             {convertToLineArt && <Slider layout="stacked" min={0.1} max={0.9} step={0.05} value={lineArtThreshold} onChange={setLineArtThreshold} valueLabel={lineArtThreshold.toFixed(2)} />}
             <input ref={fileInputRef} type="file" accept="image/png,image/svg+xml,.png,.svg" onChange={handleFileChange} className="hidden" />
             <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => fileInputRef.current?.click()}>
-              Upload image / SVG
+              {t("Upload image / SVG")}
             </Button>
           </div>
 
@@ -124,15 +126,15 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
 
       {tool === "shape" && (
         <>
-          <p className="text-card-title font-semibold text-ink">Shapes</p>
-          <p className="text-helper text-ink-muted">Click a shape, then click the page to place it.</p>
+          <p className="text-card-title font-semibold text-ink">{t("Shapes")}</p>
+          <p className="text-helper text-ink-muted">{t("Click a shape, then click the page to place it.")}</p>
           <div className="grid grid-cols-4 gap-1.5">
             {SHAPE_OPTIONS.map(({ kind, label, Icon }) => (
               <button
                 key={kind}
                 type="button"
-                title={label}
-                aria-label={label}
+                title={t(label)}
+                aria-label={t(label)}
                 onClick={() => onAddShape(kind)}
                 className="flex aspect-square items-center justify-center rounded-row-sm border border-hairline text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
@@ -145,8 +147,8 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
 
       {tool === "text" && (
         <>
-          <p className="text-card-title font-semibold text-ink">Text</p>
-          <p className="text-helper text-ink-muted">Pick a style, then click the page to place your text.</p>
+          <p className="text-card-title font-semibold text-ink">{t("Text")}</p>
+          <p className="text-helper text-ink-muted">{t("Pick a style, then click the page to place your text.")}</p>
 
           <div className="grid grid-cols-2 gap-1.5">
             {FONT_OPTIONS.map(({ label, value }) => (
@@ -190,7 +192,7 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
           </div>
 
           <Button variant="dark" icon={<Type size={15} />} onClick={() => onAddText(fontFamily, fontSize)}>
-            Add text
+            {t("Add text")}
           </Button>
         </>
       )}

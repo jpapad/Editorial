@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { LanguageProvider } from "@/lib/i18n";
 
 // ssr:false, not a plain import: EditorShell reads the real ?book=/?mode=
 // URL and localStorage synchronously in its very first render (see its
@@ -17,5 +18,9 @@ const EditorShell = dynamic(() => import("@/components/studio/editor/EditorShell
 // for the full picture). Replaces the old components/editor/EditorShell,
 // which is left in place, unused from this route, rather than deleted.
 export default function Home() {
-  return <EditorShell />;
+  return (
+    <LanguageProvider>
+      <EditorShell />
+    </LanguageProvider>
+  );
 }

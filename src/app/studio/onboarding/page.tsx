@@ -10,6 +10,7 @@ import { createBook } from "@/utils/storage";
 import { DEFAULT_TRIM_SIZE_ID, TRIM_SIZES } from "@/utils/trimSizes";
 import { cn } from "@/utils/cn";
 import type { PageTemplate } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 // Each intent maps to a starting template — the only per-intent default
 // this codebase actually implements. Line-weight / other export presets
@@ -43,24 +44,25 @@ export default function OnboardingPage() {
 function OnboardingPageContent() {
   const router = useRouter();
   const [trimSize, setTrimSize] = useState(DEFAULT_TRIM_SIZE_ID);
+  const t = useT();
 
   async function handleContinue(intentId: string) {
     try {
       const template = INTENT_TEMPLATES[intentId] ?? "blank";
-      const book = await createBook("Untitled Book", [createPageFromTemplate(1, interiorSpace(trimSize, false), template)], trimSize);
+      const book = await createBook(t("Untitled Book"), [createPageFromTemplate(1, interiorSpace(trimSize, false), template, t)], trimSize);
       const modeParam = intentId === "color" ? "&mode=color" : "";
       router.push(`/studio/editor?book=${book.id}${modeParam}`);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not create this book.");
+      window.alert(err instanceof Error ? err.message : t("Could not create this book."));
     }
   }
 
   async function handleSkip() {
     try {
-      const book = await createBook("Untitled Book", [createPageFromTemplate(1, interiorSpace(trimSize, false))], trimSize);
+      const book = await createBook(t("Untitled Book"), [createPageFromTemplate(1, interiorSpace(trimSize, false))], trimSize);
       router.push(`/studio/editor?book=${book.id}`);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not create this book.");
+      window.alert(err instanceof Error ? err.message : t("Could not create this book."));
     }
   }
 
@@ -69,7 +71,7 @@ function OnboardingPageContent() {
       <OnboardingScreen onContinue={handleContinue} onSkip={handleSkip} />
 
       <div className="flex flex-col items-center gap-2" style={{ width: 460 }}>
-        <p className="text-helper text-ink-muted">Print trim size (applied when you export to PDF)</p>
+        <p className="text-helper text-ink-muted">{t("Print trim size")}</p>
         <div className="flex gap-2">
           {TRIM_SIZES.map((size) => (
             <button
@@ -81,7 +83,7 @@ function OnboardingPageContent() {
                 trimSize === size.id ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt"
               )}
             >
-              {size.label}
+              {t(size.label)}
             </button>
           ))}
         </div>

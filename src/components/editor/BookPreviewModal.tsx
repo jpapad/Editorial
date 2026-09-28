@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface BookPreviewModalProps {
   images: string[];
@@ -24,6 +25,7 @@ function toSpreads(count: number): [number | null, number | null][] {
 }
 
 export default function BookPreviewModal({ images, onClose }: BookPreviewModalProps) {
+  const t = useT();
   const [view, setView] = useState<View>("spread");
   const [page, setPage] = useState(0); // the page in view (single) or on either side of the current spread
 
@@ -57,7 +59,7 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
   if (images.length === 0) return null;
 
   const visible = view === "single" ? [page] : spreads[position].filter((i): i is number => i !== null);
-  const label = `${visible.length > 1 ? `Pages ${visible[0] + 1}–${visible[1] + 1}` : `Page ${visible[0] + 1}`} of ${images.length}`;
+  const label = visible.length > 1 ? t("Pages {a}–{b} of {n}", { a: visible[0] + 1, b: visible[1] + 1, n: images.length }) : t("Page {a} of {n}", { a: visible[0] + 1, n: images.length });
 
   const pageImage = (i: number | null, side: "left" | "right" | "single") =>
     i === null ? (
@@ -66,7 +68,7 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
       // eslint-disable-next-line @next/next/no-img-element -- pre-rendered Konva stage snapshots, not a static asset
       <img
         src={images[i]}
-        alt={`Book page ${i + 1}`}
+        alt={t("Book page {n}", { n: i + 1 })}
         className={`max-h-[72vh] bg-white ${side === "single" ? "rounded-lg shadow-2xl" : side === "left" ? "rounded-l-md shadow-[-12px_12px_40px_rgba(0,0,0,0.35)]" : "rounded-r-md shadow-[12px_12px_40px_rgba(0,0,0,0.35)]"}`}
         style={{ maxWidth: side === "single" ? undefined : "36vw" }}
       />
@@ -77,7 +79,7 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
       <div className="flex w-full max-w-5xl items-center justify-between text-white" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-medium">{label}</h2>
         <div className="flex items-center gap-3">
-          <div role="tablist" aria-label="Preview layout" className="flex rounded-full bg-white/10 p-0.5 text-xs">
+          <div role="tablist" aria-label={t("Preview layout")} className="flex rounded-full bg-white/10 p-0.5 text-xs">
             {(["single", "spread"] as const).map((v) => (
               <button
                 key={v}
@@ -87,11 +89,11 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
                 onClick={() => setView(v)}
                 className={`rounded-full px-3 py-1 ${view === v ? "bg-white text-slate-900" : "text-white/80 hover:text-white"}`}
               >
-                {v === "single" ? "Single page" : "Open book"}
+                {v === "single" ? t("Single page") : t("Open book")}
               </button>
             ))}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close preview" className="rounded-full p-2 hover:bg-white/10">
+          <button type="button" onClick={onClose} aria-label={t("Close preview")} className="rounded-full p-2 hover:bg-white/10">
             <X size={20} />
           </button>
         </div>
@@ -105,7 +107,7 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
             goTo(position - 1);
           }}
           disabled={position === 0}
-          aria-label="Previous"
+          aria-label={t("Previous")}
           className="rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeft size={24} />
@@ -133,7 +135,7 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
             goTo(position + 1);
           }}
           disabled={position >= steps - 1}
-          aria-label="Next"
+          aria-label={t("Next")}
           className="rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronRight size={24} />
@@ -146,7 +148,7 @@ export default function BookPreviewModal({ images, onClose }: BookPreviewModalPr
             key={i}
             type="button"
             onClick={() => goTo(i)}
-            aria-label={view === "single" ? `Go to page ${i + 1}` : `Go to spread ${i + 1}`}
+            aria-label={view === "single" ? t("Go to page {n}", { n: i + 1 }) : t("Go to spread {n}", { n: i + 1 })}
             className={`h-2 w-2 rounded-full ${i === position ? "bg-white" : "bg-white/30"}`}
           />
         ))}

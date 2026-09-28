@@ -7,6 +7,7 @@ import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Toggle from "@/components/studio/ui/Toggle";
 import { MIN_PAGES, PAPER_OPTIONS, SPINE_TEXT_MIN_PAGES, type CoverLayout } from "@/utils/coverGeometry";
 import type { PaperType } from "@/types/editor";
+import { useT } from "@/lib/i18n";
 
 const fmtIn = (pt: number) => `${(pt / 72).toFixed(3)} in`;
 
@@ -24,25 +25,26 @@ export function BookPrintCard({
   converting: boolean;
   onOpenListing: () => void;
 }) {
+  const t = useT();
   return (
     <Card className="flex shrink-0 flex-col gap-2.5 p-4">
       <div className="flex items-center justify-between">
-        <p className="text-card-title font-semibold text-ink">Book print</p>
+        <p className="text-card-title font-semibold text-ink">{t("Book print")}</p>
         <MetaLabel>{trimLabel}</MetaLabel>
       </div>
-      <Toggle checked={bleed} onChange={onToggleBleed} label="Print to the edge (bleed)" />
+      <Toggle checked={bleed} onChange={onToggleBleed} label={t("Print to the edge (bleed)")} />
       <p className="text-helper text-ink-muted">
         {bleed
-          ? "Pages extend 0.125 in past the trim (the tinted band). Art that should reach the paper's edge must fill it; it gets cut off."
-          : "White margin around every page. Turn on bleed for art that runs off the edge."}
+          ? t("Pages extend 0.125 in past the trim (the tinted band). Art that should reach the paper's edge must fill it; it gets cut off.")
+          : t("White margin around every page. Turn on bleed for art that runs off the edge.")}
       </p>
       {converting && (
         <p className="flex items-center gap-1.5 text-helper text-ink-secondary">
-          <Loader2 size={12} className="animate-spin" /> Resizing pages…
+          <Loader2 size={12} className="animate-spin" /> {t("Resizing pages…")}
         </p>
       )}
       <Button variant="secondary" size="sm" icon={<ShoppingBag size={13} />} onClick={onOpenListing}>
-        Amazon listing kit
+        {t("Amazon listing kit")}
       </Button>
     </Card>
   );
@@ -64,27 +66,28 @@ export interface CoverCardProps {
 export function CoverCard(props: CoverCardProps) {
   const { layout, pageCount } = props;
   const tooFew = pageCount < MIN_PAGES;
+  const t = useT();
   return (
     <Card className="flex shrink-0 flex-col gap-3 p-4">
       <div className="flex items-center gap-2">
         <BookOpen size={15} className="text-accent" />
-        <p className="text-card-title font-semibold text-ink">Paperback cover</p>
+        <p className="text-card-title font-semibold text-ink">{t("Paperback cover")}</p>
       </div>
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-helper">
-        <dt className="text-ink-muted">Interior pages</dt>
+        <dt className="text-ink-muted">{t("Interior pages")}</dt>
         <dd className="text-right font-medium text-ink">{pageCount}</dd>
-        <dt className="text-ink-muted">Spine width</dt>
+        <dt className="text-ink-muted">{t("Spine width")}</dt>
         <dd className="text-right font-medium text-ink">{fmtIn(layout.spine)}</dd>
-        <dt className="text-ink-muted">Full cover</dt>
+        <dt className="text-ink-muted">{t("Full cover")}</dt>
         <dd className="text-right font-medium text-ink">
           {(layout.space.width / 72).toFixed(3)} × {(layout.space.height / 72).toFixed(3)} in
         </dd>
       </dl>
-      {tooFew && <p className="rounded-row-sm bg-warning/15 px-2.5 py-2 text-helper text-ink-secondary">KDP paperbacks need at least {MIN_PAGES} pages — the spine is sized for {MIN_PAGES} until you add more.</p>}
+      {tooFew && <p className="rounded-row-sm bg-warning/15 px-2.5 py-2 text-helper text-ink-secondary">{t("KDP paperbacks need at least {n} pages — the spine is sized for {n} until you add more.", { n: MIN_PAGES })}</p>}
 
       <label className="flex flex-col gap-1">
-        <MetaLabel>Paper</MetaLabel>
+        <MetaLabel>{t("Paper")}</MetaLabel>
         <select
           value={props.paper}
           onChange={(e) => props.onPaperChange(e.target.value as PaperType)}
@@ -92,28 +95,28 @@ export function CoverCard(props: CoverCardProps) {
         >
           {PAPER_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {t(o.label)}
             </option>
           ))}
         </select>
       </label>
 
       <label className="flex items-center justify-between text-helper text-ink-secondary">
-        Background color
+        {t("Background color")}
         <input type="color" value={props.backgroundColor} onChange={(e) => props.onBackgroundColorChange(e.target.value)} className="h-8 w-12 cursor-pointer rounded-row-sm border border-hairline" />
       </label>
 
       <div className="flex flex-col gap-1">
         <Button variant="secondary" size="sm" icon={<Type size={13} />} onClick={props.onAddSpineText} disabled={!layout.spineTextAllowed}>
-          Add spine title
+          {t("Add spine title")}
         </Button>
-        {!layout.spineTextAllowed && <p className="text-helper text-ink-muted">KDP allows spine text from {SPINE_TEXT_MIN_PAGES} pages up.</p>}
+        {!layout.spineTextAllowed && <p className="text-helper text-ink-muted">{t("KDP allows spine text from {n} pages up.", { n: SPINE_TEXT_MIN_PAGES })}</p>}
       </div>
 
       <Button variant="primary" size="sm" icon={props.exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} onClick={props.onExportCover} disabled={props.exporting}>
-        Export cover PDF
+        {t("Export cover PDF")}
       </Button>
-      <p className="text-helper text-ink-muted">Upload this PDF as the paperback cover in KDP. The dashed orange lines are the spine folds; keep text inside the blue areas.</p>
+      <p className="text-helper text-ink-muted">{t("Upload this PDF as the paperback cover in KDP. The dashed orange lines are the spine folds; keep text inside the blue areas.")}</p>
     </Card>
   );
 }

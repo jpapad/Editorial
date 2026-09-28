@@ -11,6 +11,7 @@ import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/ke
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
 import type { BookPage, DrawingTool, FillStyle, LineData, ObjectUpdate, PageSpace, PendingPlacement, SymmetryMode } from "@/types/editor";
 import type { EditorMode } from "@/components/studio/types";
+import { useT } from "@/lib/i18n";
 
 const CANVAS_PADDING_PX = 24; // breathing room so the paper never touches the container edge exactly
 const MIN_SCALE = 0.2;
@@ -108,6 +109,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
   const showStrokeToolbar = (mode === "draw" || mode === "cover") && (tool === "pen" || tool === "eraser");
   // The coloring brush gets sizes only — no smoothing or mirror.
   const showBrushToolbar = mode === "color" && tool === "brush" && !hideViewControls;
+  const t = useT();
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const paperRef = useRef<HTMLDivElement | null>(null);
@@ -292,25 +294,25 @@ export default function CanvasArea(props: CanvasAreaProps) {
 
       {!hideViewControls && (
         <div className="absolute right-3 top-3 z-20 flex items-center gap-0.5 rounded-pill bg-panel p-1 shadow-toolbar">
-          <ToolbarIconButton label="Zoom out (⌘/Ctrl −)" onClick={() => zoomTo(scale / ZOOM_STEP)}>
+          <ToolbarIconButton label={`${t("Zoom out")} (⌘/Ctrl −)`} onClick={() => zoomTo(scale / ZOOM_STEP)}>
             <Minus size={14} />
           </ToolbarIconButton>
           <button
             type="button"
-            title="Fit page (⌘/Ctrl 0)"
+            title={`${t("Fit page")} (⌘/Ctrl 0)`}
             onClick={() => setZoom(null)}
             className="h-8 min-w-[52px] rounded-pill px-2 font-pw-mono text-helper font-medium text-ink outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             {Math.round(scale * 100)}%
           </button>
-          <ToolbarIconButton label="Zoom in (⌘/Ctrl +)" onClick={() => zoomTo(scale * ZOOM_STEP)}>
+          <ToolbarIconButton label={`${t("Zoom in")} (⌘/Ctrl +)`} onClick={() => zoomTo(scale * ZOOM_STEP)}>
             <Plus size={14} />
           </ToolbarIconButton>
           <span className="mx-1 h-5 w-px bg-hairline" />
-          <ToolbarIconButton label="Grid" pressed={props.showGrid} onClick={() => props.onShowGridChange?.(!props.showGrid)}>
+          <ToolbarIconButton label={t("Grid")} pressed={props.showGrid} onClick={() => props.onShowGridChange?.(!props.showGrid)}>
             <Grid3x3 size={14} />
           </ToolbarIconButton>
-          <ToolbarIconButton label="Print guides (G)" pressed={props.showGuides} onClick={() => props.onShowGuidesChange?.(!props.showGuides)}>
+          <ToolbarIconButton label={`${t("Print guides")} (G)`} pressed={props.showGuides} onClick={() => props.onShowGuidesChange?.(!props.showGuides)}>
             <Ruler size={14} />
           </ToolbarIconButton>
         </div>
@@ -318,7 +320,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
 
       {showBrushToolbar && (
         <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill bg-panel py-2 pl-2 pr-4 shadow-toolbar">
-          <div className="flex items-center gap-0.5" role="group" aria-label="Brush sizes">
+          <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush sizes")}>
             {[8, 16, 28].map((w, i) => (
               <button
                 key={w}
@@ -331,7 +333,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
                 )}
               >
                 <span className="inline-block rounded-pill bg-current" style={{ width: 6 + i * 4, height: 6 + i * 4 }} aria-hidden />
-                {["Thin", "Medium", "Thick"][i]}
+                {t(["Thin", "Medium", "Thick"][i])}
               </button>
             ))}
           </div>
@@ -341,7 +343,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
 
       {showStrokeToolbar && (
         <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill bg-panel py-2 pl-2 pr-4 shadow-toolbar">
-          <div className="flex items-center gap-0.5" role="group" aria-label="Brush presets">
+          <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush presets")}>
             {BRUSH_PRESETS.map((preset) => (
               <button
                 key={preset.label}
@@ -355,19 +357,19 @@ export default function CanvasArea(props: CanvasAreaProps) {
                 )}
               >
                 <span className="inline-block rounded-pill bg-current" style={{ width: Math.min(preset.width, 14), height: Math.min(preset.width, 14) }} aria-hidden />
-                {preset.label}
+                {t(preset.label)}
               </button>
             ))}
           </div>
           <Slider layout="inline" min={1} max={40} step={1} value={strokeWidth} onChange={onStrokeWidthChange} valueLabel={`${strokeWidth}PX`} />
           <span className="h-5 w-px bg-hairline" />
           <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">
-            Smooth
+            {t("Smooth")}
             <Slider layout="inline" min={0} max={1} step={0.05} value={props.smoothing ?? 0} onChange={(v) => props.onSmoothingChange?.(v)} />
           </label>
           <span className="h-5 w-px bg-hairline" />
           <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">
-            Mirror
+            {t("Mirror")}
             <select
               value={symmetry}
               onChange={(e) => props.onSymmetryChange?.(e.target.value as SymmetryMode)}
@@ -378,7 +380,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
             >
               {SYMMETRY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {t(o.label)}
                 </option>
               ))}
             </select>

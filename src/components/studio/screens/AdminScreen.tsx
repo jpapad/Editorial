@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useSession } from "@/lib/auth";
 import { deleteBook } from "@/utils/storage";
 import type { AdminUserRow, BookRow } from "@/types/database";
+import { useT } from "@/lib/i18n";
 
 type AdminBook = Pick<BookRow, "id" | "user_id" | "title" | "status" | "collection" | "updated_at">;
 
@@ -27,6 +28,7 @@ const formatDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) 
 export default function AdminScreen() {
   const { user: me } = useSession();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const t = useT();
   const [openUserId, setOpenUserId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
@@ -62,11 +64,11 @@ export default function AdminScreen() {
   }, [state]);
 
   async function handleDelete(book: AdminBook, ownerEmail: string) {
-    if (!window.confirm(`Delete "${book.title}" (owned by ${ownerEmail})? This can't be undone.`)) return;
+    if (!window.confirm(t("Delete “{title}” (owned by {owner})? This can't be undone.", { title: book.title, owner: ownerEmail }))) return;
     try {
       await deleteBook(book.id);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Couldn't delete the book.");
+      window.alert(err instanceof Error ? err.message : t("Couldn't delete the book."));
       return;
     }
     await load();
@@ -74,8 +76,8 @@ export default function AdminScreen() {
 
   async function handleSetSupervisor(user: AdminUserRow, makeSupervisor: boolean) {
     const prompt = makeSupervisor
-      ? `Make ${user.email} a supervisor? They'll see every account and be able to delete any book.`
-      : `Remove supervisor access from ${user.email}?`;
+      ? t("Make {email} a supervisor? They'll see every account and be able to delete any book.", { email: user.email })
+      : t("Remove supervisor access from {email}?", { email: user.email });
     if (!window.confirm(prompt)) return;
     const { error } = await supabase.rpc("admin_set_supervisor", { target_user: user.id, make_supervisor: makeSupervisor });
     if (error) {
@@ -86,15 +88,15 @@ export default function AdminScreen() {
   }
 
   if (state.kind === "loading") {
-    return <CenteredMessage>Loading…</CenteredMessage>;
+    return <CenteredMessage>{t("Loading…")}</CenteredMessage>;
   }
   if (state.kind === "forbidden") {
     return (
       <CenteredMessage>
-        <p className="text-section-title font-semibold text-ink">Supervisors only</p>
-        <p>This account doesn&apos;t have access to the admin area.</p>
+        <p className="text-section-title font-semibold text-ink">{t("Supervisors only")}</p>
+        <p>{t("This account doesn't have access to the admin area.")}</p>
         <Link href="/studio" className="font-medium text-accent">
-          Back to the studio
+          {t("Back to the studio")}
         </Link>
       </CenteredMessage>
     );
@@ -102,10 +104,10 @@ export default function AdminScreen() {
   if (state.kind === "error") {
     return (
       <CenteredMessage>
-        <p className="text-section-title font-semibold text-ink">Couldn&apos;t load the admin data</p>
+        <p className="text-section-title font-semibold text-ink">{t("Couldn't load the admin data")}</p>
         <p className="text-error">{state.message}</p>
         <Button variant="secondary" onClick={() => void load()}>
-          Try again
+          {t("Try again")}
         </Button>
       </CenteredMessage>
     );
@@ -120,38 +122,38 @@ export default function AdminScreen() {
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-8">
       <header className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <MetaLabel>Pagewright · Supervisor</MetaLabel>
-          <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">Admin</h1>
+          <MetaLabel>Pagewright · {t("Supervisor")}</MetaLabel>
+          <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">{t("Admin")}</h1>
         </div>
         <Link href="/studio" className="text-body font-medium text-ink-secondary hover:text-ink">
-          ← Back to studio
+          ← {t("Back to the studio")}
         </Link>
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Accounts" value={state.users.length} />
-        <Stat label="Confirmed" value={confirmedCount} />
-        <Stat label="Books" value={state.books.length} />
-        <Stat label="Published" value={publishedCount} />
+        <Stat label={t("Accounts")} value={state.users.length} />
+        <Stat label={t("Confirmed")} value={confirmedCount} />
+        <Stat label={t("Books")} value={state.books.length} />
+        <Stat label={t("Published")} value={publishedCount} />
       </div>
 
       <Card className="flex flex-col">
         <div className="flex items-center justify-between gap-4 border-b border-hairline px-5 py-4">
-          <p className="text-section-title font-semibold text-ink">Accounts</p>
+          <p className="text-section-title font-semibold text-ink">{t("Accounts")}</p>
           <label className="flex items-center gap-2 text-helper text-ink-secondary">
-            <span className="sr-only">Search accounts by email</span>
+            <span className="sr-only">{t("Search accounts by email")}</span>
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search email…"
+              placeholder={t("Search email…")}
               className="w-56 rounded-row-sm border border-hairline px-3 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent-ring"
             />
           </label>
         </div>
 
         {users.length === 0 ? (
-          <p className="px-5 py-8 text-center text-body text-ink-muted">No accounts match “{query}”.</p>
+          <p className="px-5 py-8 text-center text-body text-ink-muted">{t("No accounts match “{query}”.", { query })}</p>
         ) : (
           <ul className="divide-y divide-hairline">
             {users.map((user) => {
@@ -168,14 +170,14 @@ export default function AdminScreen() {
                     <span className="flex min-w-0 items-center gap-2">
                       <StatusDot tone={user.email_confirmed_at ? "success" : "warning"} />
                       <span className="truncate text-body font-medium text-ink">{user.email}</span>
-                      {user.is_admin && <MetaLabel tone="accent">Supervisor</MetaLabel>}
+                      {user.is_admin && <MetaLabel tone="accent">{t("Supervisor")}</MetaLabel>}
                     </span>
-                    <span className="hidden text-helper text-ink-muted sm:block">{user.email_confirmed_at ? "Confirmed" : "Unconfirmed"}</span>
-                    <span className="hidden text-helper text-ink-muted sm:block" title="Last sign-in">
+                    <span className="hidden text-helper text-ink-muted sm:block">{user.email_confirmed_at ? t("Confirmed") : t("Unconfirmed")}</span>
+                    <span className="hidden text-helper text-ink-muted sm:block" title={t("Last sign-in")}>
                       {formatDate(user.last_sign_in_at)}
                     </span>
                     <span className="text-helper text-ink-secondary sm:text-right">
-                      {user.book_count} {user.book_count === 1 ? "book" : "books"}
+                      {user.book_count === 1 ? t("1 book") : t("{n} books", { n: user.book_count })}
                     </span>
                     <span aria-hidden className={`hidden text-ink-muted transition-transform sm:block ${open ? "rotate-90" : ""}`}>
                       ›
@@ -185,17 +187,17 @@ export default function AdminScreen() {
                   {open && (
                     <div className="flex flex-col gap-2 bg-surface/60 px-5 py-4">
                       <div className="flex items-center justify-between gap-3">
-                        <MetaLabel>Joined {formatDate(user.created_at)}</MetaLabel>
+                        <MetaLabel>{t("Joined {date}", { date: formatDate(user.created_at) })}</MetaLabel>
                         {user.id === me?.id ? (
-                          <MetaLabel>This is you</MetaLabel>
+                          <MetaLabel>{t("This is you")}</MetaLabel>
                         ) : (
                           <Button variant="secondary" size="sm" onClick={() => void handleSetSupervisor(user, !user.is_admin)}>
-                            {user.is_admin ? "Remove supervisor" : "Make supervisor"}
+                            {user.is_admin ? t("Remove supervisor") : t("Make supervisor")}
                           </Button>
                         )}
                       </div>
                       {books.length === 0 ? (
-                        <p className="text-body text-ink-muted">No books yet.</p>
+                        <p className="text-body text-ink-muted">{t("No books yet.")}</p>
                       ) : (
                         <ul className="flex flex-col gap-1.5">
                           {books.map((book) => (
@@ -203,20 +205,20 @@ export default function AdminScreen() {
                               <div className="flex min-w-0 flex-col">
                                 <span className="truncate text-body font-medium text-ink">{book.title}</span>
                                 <span className="text-helper text-ink-muted">
-                                  {book.status === "published" ? "Published" : "Draft"}
-                                  {book.collection ? ` · ${book.collection}` : ""} · edited {formatDate(book.updated_at)}
+                                  {book.status === "published" ? t("Published") : t("Draft")}
+                                  {book.collection ? ` · ${book.collection}` : ""} · {t("edited {date}", { date: formatDate(book.updated_at) })}
                                 </span>
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
                                 <Link
                                   href={`/studio/editor?book=${encodeURIComponent(book.id)}`}
-                                  title="Open in review mode to leave comments"
+                                  title={t("Open in review mode to leave comments")}
                                   className="rounded-pill px-3 py-1.5 text-helper font-medium text-accent outline-none hover:bg-accent-tint focus-visible:ring-2 focus-visible:ring-accent"
                                 >
-                                  Review
+                                  {t("Review")}
                                 </Link>
                                 <Button variant="ghost" size="sm" onClick={() => void handleDelete(book, user.email)}>
-                                  Delete
+                                  {t("Delete")}
                                 </Button>
                               </div>
                             </li>
