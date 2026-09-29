@@ -8,7 +8,7 @@ import path from "node:path";
 const dir = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "sql");
 const files = fs
   .readdirSync(dir)
-  .filter((f) => /^\d\d_.+\.sql$/.test(f) && !f.startsWith("00_"))
+  .filter((f) => /^\d\d_.+\.sql$/.test(f) && f !== "00_ALL.sql")
   .sort();
 
 const parts = files.map((f) => `-- ===========================================================================\n-- ${f}\n-- ===========================================================================\n\n${fs.readFileSync(path.join(dir, f), "utf8").trimEnd()}\n`);

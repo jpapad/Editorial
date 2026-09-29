@@ -312,31 +312,31 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const gapMarkers = gapCheck && gapCheck.page === activePage ? gapCheck.markers : null;
   const ageResult = ageCheck && ageCheck.page === activePage ? ageCheck.result : null;
 
-  // Reflects a freshly-generated id in the URL and persists the book for
-  // the first time — the write half of the pure/impure split from the
-  // state-init comment above. Runs once on mount only: `initialBook`
-  // being null means this bookId didn't already exist when the component
-  // mounted, not that it should keep re-checking as `pages`/`title` change.
+  // Reflects a freshly-generated id in the URL — the write half of the
+  // pure/impure split from the state-init comment above. Runs once on
+  // mount only: `initialBook` being null means this bookId didn't already
+  // exist when the component mounted, not that it should keep re-checking
+  // as `pages`/`title` change. The first save is the autosave below, which
+  // also runs on mount (once the session is known).
   useEffect(() => {
     if (initialBook || !bookId) return;
     const url = new URL(window.location.href);
     url.searchParams.set("book", bookId);
     window.history.replaceState(null, "", url.toString());
-    saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, createdAt: createdAtRef.current, updatedAt: createdAtRef.current }).catch((err) =>
-      window.alert(err instanceof Error ? err.message : t("Could not save this book."))
-    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Signed out (the local editor at /): nothing to save to, so don't try —
+  // every attempt would fail with an alert.
   useEffect(() => {
-    if (!bookId || sessionLoading || reviewMode) return;
+    if (!bookId || sessionLoading || !user || reviewMode) return;
     const timer = setTimeout(() => {
       saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: coverDesign, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }).catch((err) =>
         window.alert(err instanceof Error ? err.message : t("Could not save this book."))
       );
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, reviewMode, t]);
+  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, user, reviewMode, t]);
 
   // Comments + supervisor flag. Both degrade quietly: no migration yet
   // means no comments table (a friendly note in the panel), not an error.
