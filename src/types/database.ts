@@ -27,13 +27,13 @@ export type BookRow = {
   trim_size: string | null;
   created_at: string;
   updated_at: string;
-  // supabase/migrations/20260928140000_book_print_settings.sql — absent until it runs.
+  // sql/03_book_print_settings.sql — absent until it runs.
   bleed?: boolean;
   paper?: PaperType;
   cover?: CoverDesign | null;
 };
 
-/** supabase/migrations/20260928150000_book_shares.sql */
+/** sql/04_book_shares.sql */
 export type BookShareRow = {
   token: string;
   book_id: string;
@@ -50,7 +50,7 @@ export type SharedBook = {
   pages: BookPage[];
 };
 
-/** supabase/migrations/20260928130000_page_comments.sql */
+/** sql/02_page_comments.sql */
 export type PageCommentRow = {
   id: string;
   book_id: string;
@@ -71,12 +71,12 @@ export type AdminUserRow = {
   email_confirmed_at: string | null;
   is_admin: boolean;
   book_count: number;
-  // 20260928160000_usage_and_templates.sql — absent until it runs.
+  // sql/05_usage_and_templates.sql — absent until it runs.
   ai_used?: number;
   ai_limit?: number;
 };
 
-/** supabase/migrations/20260928160000_usage_and_templates.sql */
+/** sql/05_usage_and_templates.sql */
 export type BookTemplateRow = {
   id: string;
   author_id: string;
@@ -135,7 +135,7 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    // supabase/migrations/20260928120000_admin_role.sql
+    // sql/01_admin_role.sql
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       admin_list_users: { Args: Record<string, never>; Returns: AdminUserRow[] };

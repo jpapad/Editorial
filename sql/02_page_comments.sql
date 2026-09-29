@@ -1,7 +1,7 @@
 -- Page comments: supervisors (and the book's owner) leave notes on
 -- specific pages; the owner sees them in the editor and resolves them.
 --
--- Requires 20260928120000_admin_role.sql (public.is_admin()).
+-- Requires sql/01_admin_role.sql (public.is_admin()).
 -- Run once in Supabase > SQL Editor. Safe to re-run.
 
 -- books.id's type isn't pinned down in this repo (the editor writes its

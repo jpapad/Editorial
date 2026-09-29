@@ -19,7 +19,7 @@ type LoadState =
   | { kind: "loading" }
   | { kind: "forbidden" }
   | { kind: "error"; message: string }
-  // stats: null until the usage migration (20260928160000) has been run.
+  // stats: null until the usage migration (sql/05_usage_and_templates.sql) has been run.
   | { kind: "ready"; users: AdminUserRow[]; books: AdminBook[]; stats: AdminStats | null };
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -27,7 +27,7 @@ const formatDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) 
 
 /**
  * Supervisor view — every account and every book. The real gate is in
- * Postgres (supabase/migrations/…_admin_role.sql): `admin_list_users()`
+ * Postgres (sql/01_admin_role.sql): `admin_list_users()`
  * raises for non-admins and the books "read all" RLS policy only matches
  * admins. The `is_admin()` check here only decides what to render.
  */

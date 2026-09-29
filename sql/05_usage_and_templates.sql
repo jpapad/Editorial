@@ -1,7 +1,7 @@
 -- Usage limits (AI credits per month), usage events for admin statistics,
 -- and community book templates.
 --
--- Requires 20260928120000_admin_role.sql (public.is_admin()).
+-- Requires sql/01_admin_role.sql (public.is_admin()).
 -- Run once in Supabase > SQL Editor. Safe to re-run.
 
 -- ---------------------------------------------------------------------------

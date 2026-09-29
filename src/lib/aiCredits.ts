@@ -18,7 +18,7 @@ function isMissingFunction(message: string): boolean {
 /**
  * Reserves `units` credits for the signed-in user. Returns a refund() for
  * credits that end up not producing an image. Until the usage migration
- * (20260928160000) has been run there's no limit to check: that case is
+ * (sql/05_usage_and_templates.sql) has been run there's no limit to check: that case is
  * allowed through and logged, so AI keeps working on a fresh project.
  */
 export async function reserveCredits(kind: CreditKind, units: number): Promise<CreditGrant> {
