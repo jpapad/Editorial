@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { planBook } from "@/services/bookPlanner";
+import { NoTextProviderError, planBookWithAi } from "@/services/textAi";
 
 const MAX_DESCRIPTION = 500;
 
@@ -25,10 +25,10 @@ export async function POST(request: Request) {
   if (!auth.user) return NextResponse.json({ error: "Sign in to use AI features." }, { status: 401 });
 
   try {
-    const plan = await planBook(description, body.lang === "en" ? "en" : "el");
+    const plan = await planBookWithAi(description, body.lang === "en" ? "en" : "el");
     return NextResponse.json({ plan });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Planning failed";
-    return NextResponse.json({ error: message }, { status: /is not set/.test(message) ? 503 : 502 });
+    return NextResponse.json({ error: message }, { status: err instanceof NoTextProviderError || /is not set/.test(message) ? 503 : 502 });
   }
 }

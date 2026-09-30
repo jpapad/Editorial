@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { runEditorCommand } from "@/services/editorCommandAi";
+import { editorCommandWithAi, NoTextProviderError } from "@/services/textAi";
 import { MAX_SUMMARY_OBJECTS, type PageSummary } from "@/utils/editorCommand";
 
 const MAX_COMMAND = 300;
@@ -49,9 +49,9 @@ export async function POST(request: Request) {
   if (!auth.user) return NextResponse.json({ error: "Sign in to use AI features." }, { status: 401 });
 
   try {
-    return NextResponse.json(await runEditorCommand(command, summary, body.lang === "en" ? "en" : "el"));
+    return NextResponse.json(await editorCommandWithAi(command, summary, body.lang === "en" ? "en" : "el"));
   } catch (err) {
     const message = err instanceof Error ? err.message : "The command failed";
-    return NextResponse.json({ error: message }, { status: /is not set/.test(message) ? 503 : 502 });
+    return NextResponse.json({ error: message }, { status: err instanceof NoTextProviderError || /is not set/.test(message) ? 503 : 502 });
   }
 }
