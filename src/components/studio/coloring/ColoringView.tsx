@@ -73,7 +73,7 @@ export default function ColoringView() {
   }, [bookId]);
 
   if (!loaded) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
+    return <div data-theme="light" className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
   }
 
   return <ColoringViewLoaded bookId={bookId} initialBook={loaded.book} />;
@@ -87,7 +87,7 @@ function ColoringViewLoaded({ bookId, initialBook }: { bookId: string; initialBo
 
   if (!initialBook || initialBook.pages.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface p-8 text-center">
+      <div data-theme="light" className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface p-8 text-center">
         <p className="text-body text-ink-secondary">{t("We couldn't find that book.")}</p>
         <button type="button" onClick={() => router.push("/studio")} className="text-body text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
           {t("Back to library")}
@@ -229,7 +229,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
   if (!activePage) return null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface p-8">
+    <div data-theme="light" className="flex min-h-screen items-center justify-center bg-surface p-8">
       {/* Tablet bezel */}
       <div className="rounded-[34px] bg-[#15181d] p-4 shadow-canvas-dark">
         <div className="relative overflow-hidden rounded-[22px] bg-tablet-ground" style={{ width: 900, height: 660 }}>

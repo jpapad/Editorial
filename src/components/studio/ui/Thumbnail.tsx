@@ -40,10 +40,10 @@ export default function Thumbnail({ src, alt = "", selected = false, dashed = fa
         backgroundImage: src ? `url(${src})` : PLACEHOLDER_ART_PATTERN,
         backgroundSize: src ? "cover" : undefined,
         backgroundPosition: src ? "center" : undefined,
-        boxShadow: selected ? "0 0 0 2px var(--color-accent)" : undefined,
+        boxShadow: selected ? "0 0 0 2px var(--color-accent)" : style?.boxShadow,
       }}
       className={cn(
-        "relative shrink-0 overflow-hidden bg-panel outline-none",
+        "relative shrink-0 overflow-hidden bg-paper outline-none",
         radius === "paper" ? "rounded-paper" : "rounded-paper-sm",
         dashed && "border border-dashed border-hairline",
         onClick && "cursor-pointer focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",

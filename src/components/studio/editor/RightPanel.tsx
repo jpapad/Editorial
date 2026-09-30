@@ -520,7 +520,7 @@ export default function RightPanel(props: RightPanelProps) {
                   aria-label={t(pattern.label)}
                   style={{ backgroundImage: `url(${svgToDataUri(pattern.svg)})`, backgroundSize: `${pattern.tileSize / 2}px ${pattern.tileSize / 2}px` }}
                   className={cn(
-                    "h-12 rounded-row-sm border outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+                    "h-12 rounded-row-sm border bg-white outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
                     page.backgroundPatternId === pattern.id ? "border-accent ring-1 ring-accent" : "border-hairline hover:border-ink-muted"
                   )}
                 />

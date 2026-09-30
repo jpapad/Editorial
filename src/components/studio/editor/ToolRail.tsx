@@ -61,9 +61,9 @@ function ToolButton({ tool, active, onClick }: { tool: ToolDef; active: boolean;
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "flex h-11 w-11 items-center justify-center rounded-row-sm outline-none transition-colors duration-150 motion-reduce:transition-none",
+        "flex h-11 w-11 items-center justify-center rounded-[14px] outline-none transition-colors duration-150 motion-reduce:transition-none",
         "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-        active ? "bg-accent text-white" : "bg-inset-alt text-icon-idle hover:bg-inset"
+        active ? "bg-accent text-on-accent" : "bg-transparent text-icon-idle hover:bg-inset"
       )}
     >
       <Icon size={18} strokeWidth={2} />
@@ -76,7 +76,7 @@ export default function ToolRail({ mode, activeTool, onToolChange, onAiClick, ai
   const t = useT();
 
   return (
-    <nav aria-label={t("Tools")} className="absolute left-[18px] top-[106px] flex w-16 flex-col items-center gap-1.5 rounded-rail bg-panel py-3 shadow-panel">
+    <nav aria-label={t("Tools")} className="absolute left-[18px] top-[88px] flex w-16 flex-col items-center gap-1.5 rounded-rail pw-glass py-3 shadow-panel">
       {tools.map((tool) => (
         <ToolButton key={tool.id} tool={tool} active={activeTool === tool.id} onClick={() => onToolChange(tool.id)} />
       ))}
@@ -90,8 +90,8 @@ export default function ToolRail({ mode, activeTool, onToolChange, onAiClick, ai
         title={t("AI & import: sketch cleanup, page series, AI stamps")}
         onClick={onAiClick}
         className={cn(
-          "flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-row-sm outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-          aiActive ? "bg-accent text-white" : "bg-accent-tint text-accent"
+          "flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-[14px] outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+          aiActive ? "bg-spark-fill text-[#1a0e08]" : "bg-spark-fill/15 text-spark"
         )}
       >
         <Sparkles size={16} strokeWidth={2} />

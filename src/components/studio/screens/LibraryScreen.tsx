@@ -3,18 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Palette, Plus, Search, ShieldCheck, X } from "lucide-react";
-import Button from "@/components/studio/ui/Button";
+import { BookOpen, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Upload, X } from "lucide-react";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
 import TemplatesGallery from "@/components/studio/screens/TemplatesGallery";
 import { cn } from "@/utils/cn";
 import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
+import { ThemeToggle } from "@/lib/theme";
+import { useAiUsage } from "@/lib/aiUsage";
+import { trimShortLabel } from "@/utils/trimSizes";
 import { supabase } from "@/lib/supabase/client";
 import { createBook, deleteBook, duplicateBook, listBooks, readProjectFromFile, saveBook, type StoredBook } from "@/utils/storage";
 
-const NAV_ITEMS = ["All books", "Drafts", "Published", "Loose pages", "Templates"] as const;
+const NAV_ITEMS = ["All books", "Drafts", "Published", "Templates"] as const;
 type NavItem = (typeof NAV_ITEMS)[number];
 
 function bookThumbnail(book: StoredBook): string | undefined {
@@ -38,12 +40,16 @@ function bookMeta(book: StoredBook, t: TFunction): string {
   return book.status === "published" ? `${pageCount} · ${t("published")}` : `${pageCount} · ${relativeTime(book.updatedAt, t)}`;
 }
 
+const ISLAND = "pw-glass rounded-[18px] shadow-panel";
+const CHIP =
+  "flex h-9 items-center gap-2 rounded-[12px] px-3.5 text-helper font-semibold outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent";
+
 /**
- * 2c: library, restyled to the light shell — the real /studio root.
- * Backed by utils/storage.ts's multi-book library (localStorage), not
- * mock data. "Collections" is a real, user-assigned free-text field now
- * (StoredBook.collection) — the sidebar list is derived from whatever
- * values are actually in use, not a fixed decorative list.
+ * The library (/studio root), Pagewright 2026 layout: glass islands on the
+ * dotted workspace — search in the top bar, "Continue" for the book you
+ * touched last, quick starts, and filters/collections as chips. Backed by
+ * utils/storage.ts (Supabase). "Collections" is the user-assigned
+ * StoredBook.collection field; the chips are whatever values are in use.
  */
 export default function LibraryScreen() {
   const router = useRouter();
@@ -133,15 +139,23 @@ export default function LibraryScreen() {
   const filtered = (books ?? []).filter((book) => {
     if (activeNav === "Drafts" && book.status !== "draft") return false;
     if (activeNav === "Published" && book.status !== "published") return false;
-    if (activeNav === "Loose pages") return false; // no such concept in the data model yet — honest empty, not fabricated
     if (activeCollection && book.collection !== activeCollection) return false;
     if (normalizedQuery && !book.title.toLowerCase().includes(normalizedQuery)) return false;
     return true;
   });
   const totalPages = (books ?? []).reduce((sum, b) => sum + b.pages.length, 0);
+  const counts: Record<NavItem, number | null> = {
+    "All books": books?.length ?? 0,
+    Drafts: (books ?? []).filter((b) => b.status === "draft").length,
+    Published: (books ?? []).filter((b) => b.status === "published").length,
+    Templates: null,
+  };
+  // listBooks() is newest-edited first, so the first book is the one to continue.
+  const lastBook = books?.[0];
+  const showHero = Boolean(lastBook) && activeNav === "All books" && !activeCollection && !normalizedQuery;
 
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="pw-workspace flex min-h-screen flex-col gap-6 px-7 pb-10 pt-5 text-ink">
       <input
         ref={fileInputRef}
         type="file"
@@ -154,146 +168,189 @@ export default function LibraryScreen() {
         }}
       />
 
-      <aside className="flex w-[196px] shrink-0 flex-col gap-6 border-r border-hairline bg-panel p-4">
-        <div className="flex items-center gap-2.5 px-1">
-          <div className="h-[26px] w-[26px] rounded-[9px] bg-accent" aria-hidden />
-          <p className="text-card-title font-semibold text-ink">Pagewright</p>
+      <header className="flex items-center gap-4">
+        <div className={cn(ISLAND, "flex h-[52px] items-center gap-2.5 pl-2 pr-4")}>
+          <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-ink text-on-ink" aria-hidden>
+            <BookOpen size={17} />
+          </span>
+          <p className="text-section-title font-extrabold tracking-[-0.02em] text-ink">Pagewright</p>
         </div>
 
-        <nav className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setActiveNav(item)}
-              className={cn(
-                "rounded-row-sm px-3 py-2 text-left text-body outline-none transition-colors duration-150 motion-reduce:transition-none",
-                "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-                activeNav === item ? "bg-panel text-ink shadow-resting" : "text-ink-secondary hover:bg-inset-alt"
-              )}
-            >
-              {t(item)}
-            </button>
-          ))}
-        </nav>
+        <label className={cn(ISLAND, "mx-auto flex h-[52px] w-full max-w-[560px] items-center gap-3 px-4 focus-within:ring-2 focus-within:ring-accent")}>
+          <Search size={17} className="shrink-0 text-ink-muted" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("Search books…")}
+            aria-label={t("Search books")}
+            className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-muted"
+          />
+        </label>
 
-        {collections.length > 0 && (
-          <div className="flex flex-col gap-0.5">
-            <MetaLabel className="px-3">{t("Collections")}</MetaLabel>
+        <div className={cn(ISLAND, "flex h-[52px] items-center gap-2 px-2")}>
+          <AiCredits />
+          {isSupervisor && (
+            <Link
+              href="/studio/admin"
+              className="flex h-9 items-center gap-1.5 rounded-[12px] px-3 text-helper font-semibold text-ink-secondary outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <ShieldCheck size={15} aria-hidden />
+              {t("Admin")}
+            </Link>
+          )}
+          <LanguageToggle />
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {!isLoading && (books?.length ?? 0) === 0 && activeNav !== "Templates" ? (
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <EmptyLibraryScreen onNewBook={handleNewBook} onFromTemplate={() => setActiveNav("Templates")} onImportSketch={() => fileInputRef.current?.click()} />
+        </div>
+      ) : (
+        <>
+          {showHero && lastBook && (
+            <section className="flex gap-5" aria-label={t("Continue where you left off")}>
+              <div className={cn(ISLAND, "relative flex min-h-[260px] flex-1 gap-8 overflow-hidden rounded-[26px] px-7 py-6")}>
+                <div className="flex min-w-0 flex-1 flex-col gap-3">
+                  <MetaLabel>
+                    {t("Continue")} · {relativeTime(lastBook.updatedAt, t)}
+                  </MetaLabel>
+                  <h1 className="truncate text-[38px] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink">{lastBook.title}</h1>
+                  <p className="text-body text-ink-secondary">
+                    {lastBook.pages.length === 1 ? t("1 page") : t("{n} pages", { n: lastBook.pages.length })} · {trimShortLabel(lastBook.trimSize)}
+                    {lastBook.collection ? ` · ${lastBook.collection}` : ""}
+                  </p>
+                  <div className="mt-auto flex gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpen(lastBook.id)}
+                      className="h-11 rounded-[14px] bg-accent px-5 text-body font-bold text-on-accent outline-none hover:brightness-95 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                    >
+                      {t("Open in editor")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleColor(e, lastBook.id)}
+                      className="h-11 rounded-[14px] bg-inset px-5 text-body font-semibold text-ink outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      {t("Color it")}
+                    </button>
+                  </div>
+                </div>
+                <PageStack book={lastBook} />
+              </div>
+
+              <div className={cn(ISLAND, "flex w-[400px] shrink-0 flex-col gap-3 rounded-[26px] p-5")}>
+                <p className="text-section-title font-extrabold text-ink">{t("Start something new")}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <QuickStart icon={<Plus size={20} />} label={t("New book")} onClick={handleNewBook} />
+                  <QuickStart icon={<LayoutTemplate size={20} />} label={t("From template")} onClick={() => setActiveNav("Templates")} />
+                  <QuickStart icon={<Upload size={20} />} label={t("Import art")} onClick={() => fileInputRef.current?.click()} />
+                </div>
+                <p className="mt-auto text-helper text-ink-muted">{t("{books} books · {pages} pages", { books: books?.length ?? 0, pages: totalPages })}</p>
+              </div>
+            </section>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={activeNav === item}
+                onClick={() => {
+                  setActiveNav(item);
+                  setActiveCollection(null);
+                }}
+                className={cn(CHIP, activeNav === item && !activeCollection ? "bg-ink text-on-ink" : "border border-hairline text-ink-secondary hover:bg-inset")}
+              >
+                {t(item)}
+                {counts[item] !== null && (
+                  <span className="font-pw-mono text-mono opacity-60" aria-hidden>
+                    {counts[item]}
+                  </span>
+                )}
+              </button>
+            ))}
+            {collections.length > 0 && <span className="mx-1 h-6 w-px bg-hairline" aria-hidden />}
             {collections.map((c) => (
               <button
                 key={c}
                 type="button"
-                onClick={() => setActiveCollection((current) => (current === c ? null : c))}
-                className={cn(
-                  "rounded-row-sm px-3 py-2 text-left text-body outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-                  activeCollection === c ? "bg-panel text-ink shadow-resting" : "text-ink-secondary hover:bg-inset-alt"
-                )}
+                aria-pressed={activeCollection === c}
+                onClick={() => {
+                  setActiveNav("All books");
+                  setActiveCollection((current) => (current === c ? null : c));
+                }}
+                className={cn(CHIP, activeCollection === c ? "bg-ink text-on-ink" : "border border-hairline text-ink-secondary hover:bg-inset")}
               >
+                <span className="h-2 w-2 rounded-pill bg-accent" aria-hidden />
                 {c}
               </button>
             ))}
+            {activeNav !== "Templates" && (
+              <MetaLabel className="ml-auto">{t("{books} books · {pages} pages", { books: filtered.length, pages: filtered.reduce((n, b) => n + b.pages.length, 0) })}</MetaLabel>
+            )}
           </div>
-        )}
 
-        {isSupervisor && (
-          <Link
-            href="/studio/admin"
-            className="mt-auto flex items-center gap-2 rounded-row-sm px-3 py-2 text-body text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none"
-          >
-            <ShieldCheck size={14} aria-hidden />
-            {t("Admin")}
-          </Link>
-        )}
-        <LanguageToggle className={cn("self-start", !isSupervisor && "mt-auto")} />
-      </aside>
-
-      <div className="flex-1 p-8">
-        {activeNav === "Templates" ? (
-          <div className="flex flex-col gap-6">
-            <div>
-              <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">{t("Templates")}</h1>
-              <MetaLabel>{t("Books other creators shared. Using one makes your own copy.")}</MetaLabel>
-            </div>
-            <TemplatesGallery onOpenBook={handleOpen} />
-          </div>
-        ) : !isLoading && (books?.length ?? 0) === 0 ? (
-          <div className="flex min-h-[70vh] items-center justify-center">
-            <EmptyLibraryScreen onNewBook={handleNewBook} onFromTemplate={handleNewBook} onImportSketch={() => fileInputRef.current?.click()} />
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-4">
+          {activeNav === "Templates" ? (
+            <div className="flex flex-col gap-4">
               <div>
-                <h1 className="text-page-title font-semibold tracking-[-0.02em] text-ink">{activeCollection ?? t(activeNav)}</h1>
-                <MetaLabel>
-                  {t("{books} books · {pages} pages", { books: filtered.length, pages: totalPages })}
-                </MetaLabel>
+                <h1 className="text-page-title font-bold tracking-[-0.02em] text-ink">{t("Templates")}</h1>
+                <MetaLabel>{t("Books other creators shared. Using one makes your own copy.")}</MetaLabel>
               </div>
-              <div className="flex flex-1 items-center justify-end gap-2">
-                <div className="relative w-full max-w-[220px]">
-                  <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={t("Search books…")}
-                    aria-label={t("Search books")}
-                    className="w-full rounded-pill border border-hairline bg-panel py-1.5 pl-8 pr-3 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                  />
-                </div>
-                <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-                  {t("Import art")}
-                </Button>
-                <Button variant="primary" onClick={handleNewBook}>
-                  {t("New book")}
-                </Button>
-              </div>
+              <TemplatesGallery onOpenBook={handleOpen} />
             </div>
-
-            <div className="mt-6 grid grid-cols-4 gap-4">
+          ) : (
+            <div className="grid grid-cols-6 gap-[18px]">
               {filtered.map((book) => (
-                <div key={book.id} className="group relative flex flex-col gap-2 rounded-panel bg-panel p-2.5 shadow-panel">
-                  <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                <div key={book.id} className="group relative flex flex-col gap-2.5">
+                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
                     <button
                       type="button"
                       onClick={(e) => handleColor(e, book.id)}
                       aria-label={t("Color {title}", { title: book.title })}
-                      className="flex h-6 w-6 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                      className="flex h-7 w-7 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      <Palette size={12} />
+                      <Palette size={13} />
                     </button>
                     <button
                       type="button"
                       onClick={(e) => handleDuplicate(e, book)}
                       aria-label={t("Duplicate {title}", { title: book.title })}
-                      className="flex h-6 w-6 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                      className="flex h-7 w-7 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      <Copy size={12} />
+                      <Copy size={13} />
                     </button>
                     <button
                       type="button"
                       onClick={(e) => handleDelete(e, book)}
                       aria-label={t("Delete {title}", { title: book.title })}
-                      className="flex h-6 w-6 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                      className="flex h-7 w-7 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-error focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      <X size={12} />
+                      <X size={13} />
                     </button>
                   </div>
-                  <Thumbnail
-                    src={bookThumbnail(book)}
-                    style={{ width: "100%", aspectRatio: "3 / 4" }}
-                    onClick={() => handleOpen(book.id)}
-                    alt={book.title}
-                    badge={book.status === "draft" ? <span className="rounded-pill bg-accent px-2 py-0.5 text-mono font-medium uppercase tracking-[0.09em] text-white">{t("Draft")}</span> : undefined}
-                  />
-                  <button type="button" onClick={() => handleOpen(book.id)} className="px-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
-                    <p className="text-body font-medium text-ink">{book.title}</p>
+                  <div className="pw-glass relative flex h-[230px] items-center justify-center rounded-[18px]">
+                    <Thumbnail
+                      src={bookThumbnail(book)}
+                      style={{ width: 138, height: 178, boxShadow: "var(--shadow-paper)" }}
+                      radius="paper-sm"
+                      onClick={() => handleOpen(book.id)}
+                      alt={book.title}
+                    />
+                    <StatusBadge status={book.status} />
+                  </div>
+                  <button type="button" onClick={() => handleOpen(book.id)} className="px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <p className="truncate text-body font-bold text-ink">{book.title}</p>
                     <MetaLabel>{bookMeta(book, t)}</MetaLabel>
                   </button>
                   <button
                     type="button"
                     onClick={(e) => handleAssignCollection(e, book)}
-                    className="px-0.5 pb-1 text-left text-helper text-ink-muted outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                    className="-mt-1.5 px-1 text-left text-helper text-ink-muted outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     {book.collection ?? `+ ${t("Add to collection")}`}
                   </button>
@@ -303,16 +360,83 @@ export default function LibraryScreen() {
               <button
                 type="button"
                 onClick={handleNewBook}
-                className="flex flex-col items-center justify-center gap-2 rounded-panel border border-dashed border-hairline text-ink-muted outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                style={{ aspectRatio: "3 / 4" }}
+                className="flex h-[230px] flex-col items-center justify-center gap-2.5 rounded-[18px] border-[1.5px] border-dashed border-hairline text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <Plus size={20} />
-                <MetaLabel>{t("New book")}</MetaLabel>
+                <span className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-inset text-accent">
+                  <Plus size={20} />
+                </span>
+                <span className="text-body font-bold">{t("New book")}</span>
               </button>
             </div>
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AiCredits() {
+  const t = useT();
+  const { usage } = useAiUsage();
+  if (!usage || usage.limit === null) return null;
+  const share = usage.limit ? Math.min(1, usage.used / usage.limit) : 1;
+  return (
+    <div className="flex items-center gap-2 px-2" title={t("{left} of {limit} AI credits left this month", { left: Math.max(0, usage.limit - usage.used), limit: usage.limit })}>
+      <span
+        className="flex h-[26px] w-[26px] items-center justify-center rounded-pill"
+        style={{ background: `conic-gradient(var(--color-accent) 0 ${share * 100}%, var(--color-inset) ${share * 100}% 100%)` }}
+        aria-hidden
+      >
+        <span className="h-[18px] w-[18px] rounded-pill bg-panel" />
+      </span>
+      <span className="flex flex-col leading-tight">
+        <span className="font-pw-mono text-mono text-ink">
+          {usage.used} / {usage.limit}
+        </span>
+        <span className="text-[10px] text-ink-muted">{t("AI images")}</span>
+      </span>
+    </div>
+  );
+}
+
+function QuickStart({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-[88px] flex-col items-center justify-center gap-2 rounded-[16px] border border-hairline bg-panel/40 text-helper font-semibold text-ink outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function StatusBadge({ status }: { status: StoredBook["status"] }) {
+  const t = useT();
+  const draft = status === "draft";
+  return (
+    <span className="absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-pill bg-panel/90 px-2 py-0.5 text-[11px] font-semibold text-ink-secondary shadow-resting">
+      <span className={cn("h-1.5 w-1.5 rounded-pill", draft ? "bg-warning" : "bg-success")} aria-hidden />
+      {draft ? t("Draft") : t("Published")}
+    </span>
+  );
+}
+
+/** The book's first pages as a small stack of paper — the cover-ish page in front. */
+function PageStack({ book }: { book: StoredBook }) {
+  const front = bookThumbnail(book);
+  const others = book.pages.filter((p) => p.thumbnailDataUrl && p.thumbnailDataUrl !== front).slice(0, 2);
+  return (
+    <div className="relative hidden w-[340px] shrink-0 lg:block" aria-hidden>
+      {others.map((p, i) => (
+        <div
+          key={p.id}
+          className="absolute top-7 h-[190px] w-[146px] rounded-paper-sm bg-white bg-cover bg-center opacity-80 shadow-panel"
+          style={{ left: i === 0 ? 14 : 180, transform: `rotate(${i === 0 ? -8 : 8}deg)`, backgroundImage: `url(${p.thumbnailDataUrl})` }}
+        />
+      ))}
+      <Thumbnail src={front} className="absolute left-[92px] top-1" style={{ width: 166, height: 214, boxShadow: "var(--shadow-paper)" }} radius="paper-sm" />
     </div>
   );
 }

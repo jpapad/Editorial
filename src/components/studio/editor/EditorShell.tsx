@@ -1203,7 +1203,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   }, []);
 
   return (
-    <div className="relative h-screen bg-surface p-[18px]">
+    <div className="pw-workspace relative h-screen p-[18px] font-pw-sans text-ink">
       <EditorTopBar
         title={title}
         onTitleChange={setTitle}
@@ -1401,7 +1401,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {showPublishTemplate && <PublishTemplateDialog title={title} pages={pages} trimSize={trimSizeId} bleed={bleed} onClose={() => setShowPublishTemplate(false)} />}
 
       {showPreflight && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={() => setShowPreflight(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6" onClick={() => setShowPreflight(false)}>
           <div onClick={(e) => e.stopPropagation()}>
             <PreflightBlockingModal
               issues={preflightModalIssues}

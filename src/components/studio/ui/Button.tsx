@@ -23,9 +23,9 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
 }
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-white shadow-resting hover:brightness-95",
+  primary: "bg-accent text-on-accent shadow-resting hover:brightness-95",
   secondary: "bg-inset text-ink hover:bg-inset-alt",
-  dark: "bg-ink text-white shadow-resting hover:brightness-110",
+  dark: "bg-ink text-on-ink shadow-resting hover:brightness-110",
   ghost: "bg-transparent text-ink-secondary hover:bg-inset",
 };
 

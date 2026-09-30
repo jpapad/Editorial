@@ -25,7 +25,7 @@ export default function Card({ children, tone = "default", radius = "panel", cla
       className={cn(
         "shadow-panel",
         radius === "panel" ? "rounded-panel" : "rounded-panel-sm",
-        tone === "accent" ? "bg-accent-tint" : "bg-panel",
+        tone === "accent" ? "bg-accent-tint" : "pw-glass",
         className
       )}
     >

@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { useRef, useState, type ChangeEvent } from "react";
 import { cn } from "@/utils/cn";
 import { Camera, CheckCircle2, Circle, Loader2, ScanLine, Sparkles, X, XCircle } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
@@ -13,6 +12,7 @@ import AiGeneratePanel from "@/components/studio/editor/AiGeneratePanel";
 import { cleanSketchImage } from "@/components/studio/editor/sketchCleanup";
 import type { StampFilter } from "@/types/editor";
 import { aiErrorText, useT } from "@/lib/i18n";
+import { useAiUsage } from "@/lib/aiUsage";
 
 const MAX_SERIES = 12;
 
@@ -373,15 +373,6 @@ function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed }: Pick<AiStud
 
 /** The tool rail's AI panel: sketch cleanup, AI page series and single AI stamps, in the right-hand column. */
 /** "12 of 20 AI credits left this month" — hidden until the usage migration exists. */
-function useAiUsage() {
-  const [usage, setUsage] = useState<{ used: number; limit: number | null } | null>(null);
-  const refresh = useCallback(() => {
-    supabase.rpc("my_ai_usage").then(({ data, error }) => setUsage(error ? null : (data ?? null)));
-  }, []);
-  useEffect(() => refresh(), [refresh]);
-  return { usage, refresh };
-}
-
 export default function AiStudioPanel(props: AiStudioPanelProps) {
   const t = useT();
   const { usage, refresh } = useAiUsage();

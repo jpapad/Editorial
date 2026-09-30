@@ -36,7 +36,7 @@ export default function SegmentedControl<T extends string>({ options, value, onC
             className={cn(
               "rounded-pill px-3.5 py-1.5 text-helper font-medium outline-none transition-colors duration-150 motion-reduce:transition-none",
               "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-              active ? "bg-ink text-white" : "text-ink-secondary hover:text-ink"
+              active ? "bg-ink text-on-ink" : "text-ink-secondary hover:text-ink"
             )}
           >
             {option.label}

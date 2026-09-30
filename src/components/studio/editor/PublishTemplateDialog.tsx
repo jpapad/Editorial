@@ -34,7 +34,7 @@ export default function PublishTemplateDialog({ title, pages, trimSize, bleed, o
   const input = "rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6" onClick={onClose}>
       <form
         role="dialog"
         aria-modal="true"

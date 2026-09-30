@@ -61,7 +61,7 @@ export default function ActivityChart({ title, points, unit }: { title: string; 
         {hover !== null && points[hover] && (
           <div
             role="status"
-            className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-row-sm bg-ink px-2 py-1 text-helper text-white shadow-toolbar"
+            className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-row-sm bg-ink px-2 py-1 text-helper text-on-ink shadow-toolbar"
             style={{ left: `${((hover + 0.5) / n) * 100}%` }}
           >
             {label(points[hover])}: <b>{points[hover].value}</b> {unit}

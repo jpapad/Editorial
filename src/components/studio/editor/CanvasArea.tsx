@@ -295,7 +295,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       )}
 
       {!hideViewControls && (
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-0.5 rounded-pill bg-panel p-1 shadow-toolbar">
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-0.5 rounded-pill pw-glass p-1 shadow-toolbar">
           <ToolbarIconButton label={`${t("Zoom out")} (⌘/Ctrl −)`} onClick={() => zoomTo(scale / ZOOM_STEP)}>
             <Minus size={14} />
           </ToolbarIconButton>
@@ -321,7 +321,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       )}
 
       {showBrushToolbar && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill bg-panel py-2 pl-2 pr-4 shadow-toolbar">
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar">
           <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush sizes")}>
             {[8, 16, 28].map((w, i) => (
               <button
@@ -331,7 +331,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
                 onClick={() => onStrokeWidthChange(w)}
                 className={cn(
                   "flex h-8 items-center gap-1.5 rounded-pill px-2.5 text-helper font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                  strokeWidth === w ? "bg-ink text-white" : "text-ink-secondary hover:bg-inset-alt"
+                  strokeWidth === w ? "bg-ink text-on-ink" : "text-ink-secondary hover:bg-inset-alt"
                 )}
               >
                 <span className="inline-block rounded-pill bg-current" style={{ width: 6 + i * 4, height: 6 + i * 4 }} aria-hidden />
@@ -344,7 +344,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       )}
 
       {showStrokeToolbar && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill bg-panel py-2 pl-2 pr-4 shadow-toolbar">
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar">
           <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush presets")}>
             {BRUSH_PRESETS.map((preset) => (
               <button
@@ -355,7 +355,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
                 onClick={() => onStrokeWidthChange(preset.width)}
                 className={cn(
                   "flex h-8 items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 text-helper font-medium outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-                  strokeWidth === preset.width ? "bg-ink text-white" : "text-ink-secondary hover:bg-inset-alt"
+                  strokeWidth === preset.width ? "bg-ink text-on-ink" : "text-ink-secondary hover:bg-inset-alt"
                 )}
               >
                 <span className="inline-block rounded-pill bg-current" style={{ width: Math.min(preset.width, 14), height: Math.min(preset.width, 14) }} aria-hidden />

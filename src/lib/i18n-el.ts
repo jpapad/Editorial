@@ -117,7 +117,6 @@ export const EL: Record<string, string> = {
   "Close the gaps for me": "Κλείσε μου τα κενά",
   "Clouds": "Σύννεφα",
   "Collection name (leave blank to remove)": "Όνομα συλλογής (άφησέ το κενό για αφαίρεση)",
-  "Collections": "Συλλογές",
   "Color": "Χρώμα",
   "Color for the bucket and the brush.": "Χρώμα για τον κουβά και το πινέλο.",
   "Color Test Page": "Δοκιμή χρωμάτων",
@@ -611,4 +610,13 @@ export const EL: Record<string, string> = {
   "by you": "από εσάς",
   "Use template": "Χρήση προτύπου",
   "Remove template": "Αφαίρεση προτύπου",
+  // Pagewright 2026 library + theme
+  "Continue where you left off": "Συνέχισε από εκεί που σταμάτησες",
+  "Open in editor": "Άνοιγμα στον editor",
+  "Color it": "Χρωμάτισέ το",
+  "Start something new": "Ξεκίνα κάτι νέο",
+  "From template": "Από πρότυπο",
+  "AI images": "εικόνες AI",
+  "Light theme": "Φωτεινό θέμα",
+  "Dark theme": "Σκοτεινό θέμα",
 };

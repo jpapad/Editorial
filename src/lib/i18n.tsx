@@ -86,7 +86,7 @@ export function LanguageToggle({ className }: { className?: string }) {
           role="radio"
           aria-checked={lang === l}
           onClick={() => setLang(l)}
-          className={`rounded-pill px-2 py-0.5 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] outline-none focus-visible:ring-2 focus-visible:ring-accent ${lang === l ? "bg-ink text-white" : "text-ink-secondary hover:text-ink"}`}
+          className={`rounded-pill px-2 py-0.5 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] outline-none focus-visible:ring-2 focus-visible:ring-accent ${lang === l ? "bg-ink text-on-ink" : "text-ink-secondary hover:text-ink"}`}
         >
           {l}
         </button>

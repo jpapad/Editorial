@@ -86,7 +86,7 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
   const input = "h-9 rounded-row-sm border border-hairline bg-panel px-2.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

@@ -79,7 +79,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
   }
 
   return (
-    <div className="flex h-[92px] shrink-0 items-center gap-3 rounded-panel bg-panel px-4 shadow-panel" style={{ flex: "none" }}>
+    <div className="flex h-[92px] shrink-0 items-center gap-3 rounded-panel pw-glass px-4 shadow-panel" style={{ flex: "none" }}>
       <div className="flex flex-col items-start gap-1.5">
         <MetaLabel>{t("Pages")}</MetaLabel>
         <button
@@ -136,7 +136,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
               alt={page.isBlankBack ? t("Page {n} (blank back)", { n: index + 1 }) : t("Page {n}", { n: index + 1 })}
               badge={
                 page.isCover ? (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-pill bg-warning text-white">
+                  <span className="flex h-4 w-4 items-center justify-center rounded-pill bg-warning text-on-ink">
                     <Star size={9} fill="currentColor" />
                   </span>
                 ) : undefined
@@ -147,7 +147,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
             <span className="pointer-events-none absolute -bottom-3.5 left-0 right-0 text-center font-pw-mono text-[8px] text-ink-muted">{index + 1}</span>
             {commentCounts[page.id] > 0 && (
               <span
-                className="pointer-events-none absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-error px-1 text-[9px] font-semibold text-white"
+                className="pointer-events-none absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-error px-1 text-[9px] font-semibold text-on-ink"
                 title={commentCounts[page.id] === 1 ? t("1 open comment") : t("{n} open comments", { n: commentCounts[page.id] })}
               >
                 {commentCounts[page.id]}

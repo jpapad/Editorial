@@ -49,10 +49,10 @@ export default function SharedColoring() {
   }, [token]);
 
   if (state.kind === "loading") {
-    return <div className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
+    return <div data-theme="light" className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
   }
   if (state.kind === "missing") {
-    return <div className="flex min-h-screen items-center justify-center bg-surface p-8 text-center text-body text-ink-secondary">{t(state.message)}</div>;
+    return <div data-theme="light" className="flex min-h-screen items-center justify-center bg-surface p-8 text-center text-body text-ink-secondary">{t(state.message)}</div>;
   }
 
   return (

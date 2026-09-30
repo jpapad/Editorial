@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderOpen, Save, Loader2, Undo2, Redo2, Keyboard, BookOpen, MessageSquare, Share2 } from "lucide-react";
+import { FolderOpen, Save, Loader2, Undo2, Redo2, Keyboard, BookOpen, MessageSquare, Share2, Eye } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Button from "@/components/studio/ui/Button";
 import SegmentedControl from "@/components/studio/ui/SegmentedControl";
@@ -7,6 +7,7 @@ import MetaLabel from "@/components/studio/ui/MetaLabel";
 import type { EditorMode } from "@/components/studio/types";
 import type { BookPage } from "@/types/editor";
 import { useT } from "@/lib/i18n";
+import { ThemeToggle } from "@/lib/theme";
 
 export interface EditorTopBarProps {
   title: string;
@@ -47,7 +48,8 @@ const MODE_OPTIONS: { value: EditorMode; label: string }[] = [
 ];
 
 /**
- * Floating top bar (2b): absolute-positioned, 18px insets, height 56 —
+ * Floating top bar: three glass islands (where you are · mode · actions),
+ * absolute-positioned with 18px insets, height 52 —
  * "floating" rather than a normal document-flow header because the tool
  * rail and right panel both start their own `margin-top:88px` below it
  * independently (see EditorShell), not because it's a layout container
@@ -67,19 +69,23 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
   const t = useT();
 
   return (
-    <header className="absolute inset-x-[18px] top-[18px] z-10 flex h-14 items-center justify-between rounded-panel bg-panel px-4 shadow-panel">
-      <div className="flex items-center gap-3">
+    <header className="pointer-events-none absolute inset-x-[18px] top-[18px] z-10 flex h-[52px] items-center justify-between gap-3">
+      {/* Left island: back to library + title + where you are in the book */}
+      <div className="pw-glass pointer-events-auto flex h-full min-w-0 items-center gap-3 rounded-[18px] pl-2 pr-4 shadow-panel">
         <Link
           href="/studio"
           aria-label={t("Back to library")}
-          className="h-[26px] w-[26px] shrink-0 rounded-[9px] bg-accent outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-        />
-        <div>
+          title={t("Back to library")}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-ink text-on-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        >
+          <BookOpen size={17} strokeWidth={2} />
+        </Link>
+        <div className="min-w-0">
           <input
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             aria-label={t("Book title")}
-            className="-mx-1 rounded-row-sm border border-transparent bg-transparent px-1 text-card-title font-semibold text-ink outline-none hover:border-hairline focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            className="-mx-1 max-w-[260px] rounded-row-sm border border-transparent bg-transparent px-1 text-body font-semibold text-ink outline-none hover:border-hairline focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent"
             style={{ width: `${Math.max(title.length, 8)}ch` }}
           />
           <MetaLabel className="block whitespace-nowrap">
@@ -88,9 +94,13 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <SegmentedControl options={MODE_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))} value={mode} onChange={onModeChange} />
+      {/* Centre island: the mode switch */}
+      <div className="pw-glass pointer-events-auto rounded-[18px] p-[5px] shadow-panel">
+        <SegmentedControl options={MODE_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))} value={mode} onChange={onModeChange} className="bg-transparent p-0" />
+      </div>
 
+      {/* Right island: file, history, collaboration, theme, output */}
+      <div className="pw-glass pointer-events-auto flex h-full items-center gap-1.5 rounded-[18px] px-2 shadow-panel">
         <label title={t("Open project file")} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-pill text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2">
           <FolderOpen size={16} />
           <input
@@ -104,23 +114,15 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
             }}
           />
         </label>
-        <button
-          type="button"
-          aria-label={t("Save project")}
-          title={t("Save project")}
-          onClick={onSave}
-          className="flex h-9 w-9 items-center justify-center rounded-pill text-ink-secondary outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-        >
+        <button type="button" aria-label={t("Save project")} title={t("Save project")} onClick={onSave} className={ICON_BUTTON_CLASS}>
           <Save size={16} />
         </button>
-        <div className="flex items-center">
-          <button type="button" aria-label={t("Undo")} title={`${t("Undo")} (⌘/Ctrl Z)`} onClick={onUndo} disabled={!canUndo} className={ICON_BUTTON_CLASS}>
-            <Undo2 size={16} />
-          </button>
-          <button type="button" aria-label={t("Redo")} title={`${t("Redo")} (⌘/Ctrl Shift Z)`} onClick={onRedo} disabled={!canRedo} className={ICON_BUTTON_CLASS}>
-            <Redo2 size={16} />
-          </button>
-        </div>
+        <button type="button" aria-label={t("Undo")} title={`${t("Undo")} (⌘/Ctrl Z)`} onClick={onUndo} disabled={!canUndo} className={ICON_BUTTON_CLASS}>
+          <Undo2 size={16} />
+        </button>
+        <button type="button" aria-label={t("Redo")} title={`${t("Redo")} (⌘/Ctrl Shift Z)`} onClick={onRedo} disabled={!canRedo} className={ICON_BUTTON_CLASS}>
+          <Redo2 size={16} />
+        </button>
         <button
           type="button"
           aria-label={commentCount ? t("Comments ({n} open)", { n: commentCount }) : t("Comments")}
@@ -131,7 +133,7 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
         >
           <MessageSquare size={16} />
           {commentCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-pill bg-error px-1 text-[9px] font-semibold text-white">{commentCount}</span>
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-pill bg-error px-1 text-[9px] font-semibold text-on-ink">{commentCount}</span>
           )}
         </button>
         {onShare && (
@@ -142,14 +144,16 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
         <button type="button" aria-label={t("Keyboard shortcuts")} title={`${t("Keyboard shortcuts")} (?)`} onClick={onShowShortcuts} className={ICON_BUTTON_CLASS}>
           <Keyboard size={16} />
         </button>
-
-        <Button variant="secondary" onClick={onPreview} icon={<BookOpen size={14} />}>
-          {t("Preview")}
-        </Button>
-        <Button variant="secondary" onClick={onExport} disabled={isExporting} icon={isExporting ? <Loader2 size={14} className="animate-spin" /> : undefined}>
+        <span className="mx-1 h-6 w-px bg-hairline" aria-hidden />
+        <ThemeToggle />
+        <span className="mx-1 h-6 w-px bg-hairline" aria-hidden />
+        <button type="button" aria-label={t("Preview")} title={t("Preview")} onClick={onPreview} className={ICON_BUTTON_CLASS}>
+          <Eye size={16} />
+        </button>
+        <Button variant="secondary" size="sm" onClick={onExport} disabled={isExporting} icon={isExporting ? <Loader2 size={14} className="animate-spin" /> : undefined}>
           {t("Export")}
         </Button>
-        <Button variant="primary" onClick={onPublish}>
+        <Button variant="primary" size="sm" onClick={onPublish}>
           {t("Publish")}
         </Button>
       </div>

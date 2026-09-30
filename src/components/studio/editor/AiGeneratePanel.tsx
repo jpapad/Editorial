@@ -130,13 +130,13 @@ export default function AiGeneratePanel({ onPickStamp, onUsed }: AiGeneratePanel
       )}
 
       {isGenerating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6">
           <AiGeneratingModal tiles={QUEUED_TILES} etaLabel={t("Generating…")} onStop={handleStop} />
         </div>
       )}
 
       {failure && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-6" onClick={() => setFailure(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6" onClick={() => setFailure(null)}>
           <div onClick={(e) => e.stopPropagation()}>
             <AiFailureModal cause={t("Generation failed")} explanation={failure} prompt={theme ? `${subject} (${theme})` : subject} remedies={[]} onRetry={() => void runGenerate()} creditRefunded={refunded} />
           </div>
