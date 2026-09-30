@@ -74,6 +74,8 @@ export interface CanvasAreaProps {
   padding?: number;
   /** Dark canvas surround (the 2a variant) — scoped to just this background, never the rest of the shell. */
   darkSurround?: boolean;
+  /** Extra UI positioned over the paper in CSS px (e.g. the selection toolbar); gets the current zoom. */
+  overlay?: (scale: number) => React.ReactNode;
 }
 
 function clampScale(s: number) {
@@ -233,7 +235,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       <div ref={scrollRef} className="absolute inset-0 overflow-auto">
         {/* min-w/min-h-full + w/h-max: centered while the page fits, scrollable (not clipped) once zoomed past the viewport. */}
         <div className="grid min-h-full min-w-full place-items-center" style={{ width: "max-content", height: "max-content", padding }}>
-          <div ref={paperRef}>
+          <div ref={paperRef} className="relative">
             <CanvasEditor
               page={props.page}
               space={props.space}
@@ -267,6 +269,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
               onStageReady={props.onStageReady}
               scale={scale}
             />
+            {props.overlay?.(scale)}
           </div>
         </div>
       </div>

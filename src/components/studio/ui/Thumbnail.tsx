@@ -35,6 +35,7 @@ export default function Thumbnail({ src, alt = "", selected = false, dashed = fa
       type={onClick ? "button" : undefined}
       onClick={onClick}
       aria-label={onClick ? alt : undefined}
+      aria-current={selected ? "true" : undefined}
       style={{
         ...style,
         backgroundImage: src ? `url(${src})` : PLACEHOLDER_ART_PATTERN,

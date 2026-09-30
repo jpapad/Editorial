@@ -13,6 +13,8 @@ import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
 import { ThemeToggle } from "@/lib/theme";
 import { useAiUsage } from "@/lib/aiUsage";
 import { trimShortLabel } from "@/utils/trimSizes";
+import { bookReadiness } from "@/utils/readiness";
+import { ReadinessRing, readinessLabel } from "@/components/studio/editor/ReadinessCard";
 import { supabase } from "@/lib/supabase/client";
 import { createBook, deleteBook, duplicateBook, listBooks, readProjectFromFile, saveBook, type StoredBook } from "@/utils/storage";
 
@@ -222,6 +224,7 @@ export default function LibraryScreen() {
                     {lastBook.pages.length === 1 ? t("1 page") : t("{n} pages", { n: lastBook.pages.length })} · {trimShortLabel(lastBook.trimSize)}
                     {lastBook.collection ? ` · ${lastBook.collection}` : ""}
                   </p>
+                  <HeroReadiness book={lastBook} />
                   <div className="mt-auto flex gap-2.5">
                     <button
                       type="button"
@@ -342,6 +345,7 @@ export default function LibraryScreen() {
                       alt={book.title}
                     />
                     <StatusBadge status={book.status} />
+                    <ScoreBadge book={book} />
                   </div>
                   <button type="button" onClick={() => handleOpen(book.id)} className="px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
                     <p className="truncate text-body font-bold text-ink">{book.title}</p>
@@ -396,6 +400,33 @@ function AiCredits() {
         <span className="text-[10px] text-ink-muted">{t("AI images")}</span>
       </span>
     </div>
+  );
+}
+
+function HeroReadiness({ book }: { book: StoredBook }) {
+  const t = useT();
+  const r = bookReadiness(book.pages);
+  return (
+    <div className="flex items-center gap-2.5">
+      <ReadinessRing score={r.score} level={r.level} size={34} />
+      <span className="text-helper font-semibold text-ink-secondary">{readinessLabel(r.level, t)}</span>
+    </div>
+  );
+}
+
+/** The book's print-readiness score, small, on its cover card. */
+function ScoreBadge({ book }: { book: StoredBook }) {
+  const t = useT();
+  const r = bookReadiness(book.pages);
+  return (
+    <span
+      className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-pill bg-panel/90 px-2 py-0.5 font-pw-mono text-mono font-medium text-ink-secondary shadow-resting"
+      title={`${readinessLabel(r.level, t)} · ${r.score}/100`}
+      aria-label={`${readinessLabel(r.level, t)} · ${r.score}/100`}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-pill", r.level === "ready" ? "bg-success" : r.level === "almost" ? "bg-warning" : "bg-error")} aria-hidden />
+      {r.score}
+    </span>
   );
 }
 

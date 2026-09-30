@@ -103,6 +103,8 @@ export interface RightPanelProps {
   onRunAgeCheck: (group: AgeGroup) => void;
   onClearAgeCheck: () => void;
   /** Extra cards at the bottom (book print settings, the cover card). */
+  /** Shown first, above everything else (the readiness score). */
+  leadCard?: React.ReactNode;
   extraCards?: React.ReactNode;
 }
 
@@ -426,6 +428,7 @@ export default function RightPanel(props: RightPanelProps) {
 
   return (
     <aside className="absolute bottom-[18px] right-[18px] top-[106px] flex w-[264px] flex-col gap-3.5 overflow-y-auto pb-1">
+      {props.leadCard}
       <Card className="flex shrink-0 flex-col gap-3 p-4">
         <p className="text-card-title font-semibold text-ink">{t("Palette")}</p>
         <div className="grid grid-cols-6 gap-[7px]">

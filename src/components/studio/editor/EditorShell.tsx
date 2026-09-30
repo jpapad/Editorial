@@ -21,6 +21,9 @@ import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometr
 import { captureInk, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
 import PublishTemplateDialog from "@/components/studio/editor/PublishTemplateDialog";
+import SelectionToolbar from "@/components/studio/editor/SelectionToolbar";
+import ReadinessCard from "@/components/studio/editor/ReadinessCard";
+import { bookReadiness } from "@/utils/readiness";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
 import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
 import ShareDialog from "@/components/studio/editor/ShareDialog";
@@ -742,6 +745,14 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     if (!obj[flag]) setSelectedIds((ids) => ids.filter((x) => x !== id));
   }
 
+  /** Locks every selected object (and drops them from the selection — locked objects can't be selected). */
+  function handleLockSelected() {
+    if (selectedObjects.length === 0) return;
+    pushHistory();
+    applyChanges(new Map(selectedObjects.map((o) => [o.id, { locked: true }])));
+    setSelectedIds([]);
+  }
+
   function handleUpdateSelectedText(changes: ObjectChanges) {
     const texts = selectedObjects.filter((o) => o.kind === "text");
     if (texts.length === 0) return;
@@ -1045,6 +1056,22 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     return index === -1 ? id : String(index + 1).padStart(2, "0");
   }
 
+  // The preflight's one-click repairs — shared by the export gate and the readiness card.
+  function fixPageCount() {
+    const toAdd = pagesNeededForMultipleOf4(pages.length);
+    if (toAdd === 0) return;
+    pushHistory();
+    setPages((prev) => renumber([...prev, ...Array.from({ length: toAdd }, () => createPageFromTemplate(0, space))]));
+  }
+  function fixThinStrokes() {
+    pushHistory();
+    setPages((prev) => thickenThinStrokes(prev));
+  }
+  function fixMargins() {
+    pushHistory();
+    setPages((prev) => clampObjectsToMargin(prev));
+  }
+
   function mapPreflightIssue(issue: EditorPreflightIssue): PreflightIssue {
     if (issue.code === "PAGE_COUNT") {
       const toAdd = pagesNeededForMultipleOf4(pages.length);
@@ -1053,10 +1080,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         cause: t("Total pages: {n}. Saddle stitch binding needs a multiple of 4.", { n: issue.count }),
         explanation: t("Saddle-stitch binding requires the total page count to be a multiple of 4."),
         autoFixLabel: toAdd === 1 ? t("Add 1 blank page") : t("Add {n} blank pages", { n: toAdd }),
-        onAutoFix: () => {
-          pushHistory();
-          setPages((prev) => renumber([...prev, ...Array.from({ length: toAdd }, () => createPageFromTemplate(0, space))]));
-        },
+        onAutoFix: fixPageCount,
       };
     }
     if (issue.code === "THIN_STROKE") {
@@ -1065,10 +1089,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         cause: t("{n} lines below 3pt — may print faint.", { n: issue.count }),
         explanation: t("Very thin lines can print faint or drop out entirely."),
         autoFixLabel: t("Thicken all"),
-        onAutoFix: () => {
-          pushHistory();
-          setPages((prev) => thickenThinStrokes(prev));
-        },
+        onAutoFix: fixThinStrokes,
       };
     }
     return {
@@ -1076,10 +1097,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       cause: t("{n} pages — content extends past the 0.5in safe margin.", { n: issue.count }),
       explanation: t("Content should stay clear of the page edges to survive trimming."),
       autoFixLabel: t("Nudge shapes inside margin"),
-      onAutoFix: () => {
-        pushHistory();
-        setPages((prev) => clampObjectsToMargin(prev));
-      },
+      onAutoFix: fixMargins,
     };
   }
 
@@ -1285,6 +1303,24 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               gapMarkers={gapMarkers}
               detailMarkers={ageResult?.tooSmall}
               darkSurround={darkSurround}
+              overlay={(scale) => {
+                const bounds = tool === "select" && !reviewMode && selectedObjects.length > 0 ? unionBounds(selectedObjects.map(objectBounds)) : null;
+                return bounds ? (
+                  <SelectionToolbar
+                    bounds={bounds}
+                    scale={scale}
+                    count={selectedObjects.length}
+                    canGroup={selectedObjects.length > 1}
+                    canUngroup={selectedObjects.some((o) => o.groupId)}
+                    onDuplicate={handleDuplicateSelected}
+                    onMirror={() => handleFlip("horizontal")}
+                    onLock={handleLockSelected}
+                    onGroup={handleGroup}
+                    onUngroup={handleUngroup}
+                    onDelete={handleDeleteSelected}
+                  />
+                ) : null;
+              }}
             />
             {!editingCover && (
             <PageFilmstrip
@@ -1369,6 +1405,15 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onRunAgeCheck={handleRunAgeCheck}
           onClearAgeCheck={() => setAgeCheck(null)}
           onClearGapCheck={() => setGapCheck(null)}
+          leadCard={
+            mode === "draw" || mode === "color" ? (
+              <ReadinessCard
+                readiness={bookReadiness(pages)}
+                fixes={{ "page-count": fixPageCount, "thin-strokes": fixThinStrokes, margin: fixMargins }}
+                onGoToPage={(id) => pages.some((p) => p.id === id) && handleSelectPage(id)}
+              />
+            ) : undefined
+          }
           extraCards={
             editingCover ? (
               <CoverCard
