@@ -43,3 +43,11 @@ next-env.d.ts
 
 # e2e screenshots
 /tests/e2e/.output/
+
+# design system build + Claude Design sync (machine state)
+/ds-dist/
+/ds-bundle/
+/.ds-sync/
+/.design-sync/.cache/
+/.design-sync/learnings/
+/.design-sync/node_modules
