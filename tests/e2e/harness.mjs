@@ -23,7 +23,7 @@ export const launch = () => chromium.launch();
  * Dialogs are dismissed (or accepted with `acceptDialogs`) and recorded
  * in `page.dialogs`.
  */
-export async function newPage(target, { lang = "en", viewport = { width: 1440, height: 960 }, acceptDialogs = false, ...options } = {}) {
+export async function newPage(target, { lang = "en", viewport = { width: 1440, height: 1080 }, acceptDialogs = false, ...options } = {}) {
   const page = "newContext" in target ? await target.newPage({ viewport, ...options }) : await target.newPage();
   if (lang) await page.addInitScript((l) => localStorage.setItem("pagewright-lang", l), lang);
   page.errors = [];

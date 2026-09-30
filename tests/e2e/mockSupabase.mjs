@@ -42,6 +42,8 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       if (method === 'POST' || method === 'PATCH') {
         const body = JSON.parse(req.postData() || '{}');
         const row = Array.isArray(body) ? body[0] : body;
+        // insert() without an id: the database would assign one.
+        if (method === 'POST' && !row.id) Object.assign(row, { id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
         const i = db.books.findIndex((b) => b.id === row.id);
         if (i >= 0) db.books[i] = { ...db.books[i], ...row }; else db.books.push(row);
         onWrite?.('books', row);

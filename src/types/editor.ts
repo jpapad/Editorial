@@ -47,6 +47,7 @@ export interface StampData extends Placeable {
   threshold?: number; // 0-1, only meaningful when filter is "lineArt"
   isFrame?: boolean; // a page frame from the Frames picker — at most one per page, always kept at the back
   frameId?: string; // which frameLibrary frame, so the picker can show it as selected
+  label?: string; // what the picture shows (AI pictures carry their subject) — lets later AI commands refer to it
 }
 
 // Every kind is drawn inside its own width x height box (see

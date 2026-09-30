@@ -122,7 +122,7 @@ function IconButton({ label, onClick, disabled, children }: { label: string; onC
 function objectLabel(obj: PageObject, t: TFunction): string {
   if (obj.kind === "text") return obj.text.replace(/\s+/g, " ").trim() || t("Text");
   if (obj.kind === "shape") return t(obj.shapeKind[0].toUpperCase() + obj.shapeKind.slice(1));
-  return obj.isFrame ? t("Frame") : t("Image");
+  return obj.isFrame ? t("Frame") : (obj.label ?? t("Image"));
 }
 
 function ObjectIcon({ obj }: { obj: PageObject }) {

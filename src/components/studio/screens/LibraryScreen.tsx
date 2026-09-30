@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Upload, X } from "lucide-react";
+import { ArrowUp, BookOpen, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
 import TemplatesGallery from "@/components/studio/screens/TemplatesGallery";
+import BookFromDescriptionDialog from "@/components/studio/screens/BookFromDescriptionDialog";
 import { cn } from "@/utils/cn";
 import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
 import { ThemeToggle } from "@/lib/theme";
@@ -62,6 +63,8 @@ export default function LibraryScreen() {
   const [books, setBooks] = useState<StoredBook[] | null>(null);
   const [isSupervisor, setIsSupervisor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [describe, setDescribe] = useState("");
+  const [describeOpen, setDescribeOpen] = useState<string | null>(null);
 
   function refresh() {
     listBooks()
@@ -145,7 +148,6 @@ export default function LibraryScreen() {
     if (normalizedQuery && !book.title.toLowerCase().includes(normalizedQuery)) return false;
     return true;
   });
-  const totalPages = (books ?? []).reduce((sum, b) => sum + b.pages.length, 0);
   const counts: Record<NavItem, number | null> = {
     "All books": books?.length ?? 0,
     Drafts: (books ?? []).filter((b) => b.status === "draft").length,
@@ -206,6 +208,8 @@ export default function LibraryScreen() {
         </div>
       </header>
 
+      {describeOpen !== null && <BookFromDescriptionDialog initialDescription={describeOpen} onClose={() => setDescribeOpen(null)} onCreated={handleOpen} />}
+
       {!isLoading && (books?.length ?? 0) === 0 && activeNav !== "Templates" ? (
         <div className="flex min-h-[70vh] items-center justify-center">
           <EmptyLibraryScreen onNewBook={handleNewBook} onFromTemplate={() => setActiveNav("Templates")} onImportSketch={() => fileInputRef.current?.click()} />
@@ -252,7 +256,35 @@ export default function LibraryScreen() {
                   <QuickStart icon={<LayoutTemplate size={20} />} label={t("From template")} onClick={() => setActiveNav("Templates")} />
                   <QuickStart icon={<Upload size={20} />} label={t("Import art")} onClick={() => fileInputRef.current?.click()} />
                 </div>
-                <p className="mt-auto text-helper text-ink-muted">{t("{books} books · {pages} pages", { books: books?.length ?? 0, pages: totalPages })}</p>
+                <form
+                  className="mt-auto flex flex-col gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setDescribeOpen(describe.trim());
+                  }}
+                >
+                  <label htmlFor="describe-book" className="flex items-center gap-1.5 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-spark">
+                    <Sparkles size={12} aria-hidden />
+                    {t("Or describe it")}
+                  </label>
+                  <div className="flex h-12 items-center gap-2 rounded-[14px] border border-hairline bg-panel/60 pl-3.5 pr-1.5 focus-within:ring-2 focus-within:ring-accent">
+                    <input
+                      id="describe-book"
+                      value={describe}
+                      onChange={(e) => setDescribe(e.target.value)}
+                      maxLength={500}
+                      placeholder={t("A 20-page book of farm animals for 4-year-olds")}
+                      className="min-w-0 flex-1 bg-transparent text-helper text-ink outline-none placeholder:text-ink-muted"
+                    />
+                    <button
+                      type="submit"
+                      aria-label={t("Plan the book")}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-spark-fill text-[#1a0e08] outline-none hover:brightness-95 focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <ArrowUp size={16} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                </form>
               </div>
             </section>
           )}

@@ -53,8 +53,8 @@ export interface RhymeResult {
 
 const FAL_MODEL_ENDPOINT = "https://fal.run/fal-ai/fast-sdxl"; // adjust to whatever text-to-image model your Fal.ai account has access to
 const OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/generations";
-const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-const REQUEST_TIMEOUT_MS = 30_000;
+export const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * The actual prompt-engineering: every clause here exists to push the
@@ -89,7 +89,7 @@ function aspectRatioToFalSize(aspectRatio: LineArtRequest["aspectRatio"]): strin
  * body goes to the server log only — providers echo request details back
  * (OpenAI's 401 even quotes part of the API key).
  */
-async function providerError(provider: string, what: string, response: Response): Promise<Error> {
+export async function providerError(provider: string, what: string, response: Response): Promise<Error> {
   console.error(`[aiGenerator] ${provider} ${what} failed: HTTP ${response.status}`, await response.text().catch(() => ""));
   const hint =
     response.status === 401 || response.status === 403
@@ -102,7 +102,7 @@ async function providerError(provider: string, what: string, response: Response)
   return new Error(`${provider} ${what} failed (HTTP ${response.status}): ${hint}.`);
 }
 
-function requireEnv(name: string): string {
+export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set — see .env.local.example`);
   return value;

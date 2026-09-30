@@ -7,7 +7,6 @@ import { useT, type TFunction } from "@/lib/i18n";
 import { KDP_MIN_PAGES, type Readiness, type ReadinessCheck, type ReadinessItem, type ReadinessLevel } from "@/utils/readiness";
 
 const LEVEL_COLOR: Record<ReadinessLevel, string> = { ready: "var(--color-success)", almost: "var(--color-warning)", work: "var(--color-error)" };
-const LEVEL_LABEL: Record<ReadinessLevel, string> = { ready: "Ready to print", almost: "Almost ready to print", work: "Needs work before print" };
 
 /** The score as a ring. `size` in px. */
 export function ReadinessRing({ score, level, size = 56 }: { score: number; level: ReadinessLevel; size?: number }) {
@@ -25,7 +24,7 @@ export function ReadinessRing({ score, level, size = 56 }: { score: number; leve
 }
 
 export function readinessLabel(level: ReadinessLevel, t: TFunction) {
-  return t(LEVEL_LABEL[level]);
+  return level === "ready" ? t("Ready to print") : level === "almost" ? t("Almost ready to print") : t("Needs work before print");
 }
 
 function itemText(item: ReadinessItem, t: TFunction): string {

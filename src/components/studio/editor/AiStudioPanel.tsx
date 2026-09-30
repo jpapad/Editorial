@@ -13,13 +13,12 @@ import { cleanSketchImage } from "@/components/studio/editor/sketchCleanup";
 import type { StampFilter } from "@/types/editor";
 import { aiErrorText, useT } from "@/lib/i18n";
 import { useAiUsage } from "@/lib/aiUsage";
+import { generateLineArtPicture, imageSize } from "@/lib/lineArt";
+import type { ImageSize } from "@/utils/imagePages";
 
 const MAX_SERIES = 12;
 
-export interface ImageSize {
-  width: number;
-  height: number;
-}
+export type { ImageSize } from "@/utils/imagePages";
 
 export interface AiStudioPanelProps {
   onClose: () => void;
@@ -43,14 +42,6 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function imageSize(src: string): Promise<ImageSize> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.onload = () => resolve({ width: img.naturalWidth || 1024, height: img.naturalHeight || 1024 });
-    img.onerror = () => reject(new Error("Could not read the generated image"));
-    img.src = src;
-  });
-}
 
 /** Photo of a drawing → clean black line art (sketchCleanup.ts). Runs entirely in the browser. */
 function SketchCleanupSection({ onPickStamp, onPlaceFullPage }: Pick<AiStudioPanelProps, "onPickStamp" | "onPlaceFullPage">) {
@@ -284,16 +275,8 @@ function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed }: Pick<AiStud
       if (stopRef.current) break;
       update(i, { status: "running" });
       try {
-        const response = await fetch("/api/generate-line-art", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subject: queue[i].subject, theme: theme.trim() || undefined, count: 1, aspectRatio: "portrait" }),
-        });
-        const body = (await response.json().catch(() => null)) as { results?: { ok: boolean; svgMarkup?: string; error?: string }[]; error?: string } | null;
-        const first = body?.results?.[0];
-        if (!response.ok || !first?.ok || !first.svgMarkup) throw new Error(aiErrorText(t, response.status, first?.error ?? body?.error ?? `HTTP ${response.status}`));
-        const src = `data:image/svg+xml;utf8,${encodeURIComponent(first.svgMarkup)}`;
-        onAppendImagePage(src, await imageSize(src), captions ? queue[i].subject : undefined);
+        const { src, size } = await generateLineArtPicture(queue[i].subject, theme, t);
+        onAppendImagePage(src, size, captions ? queue[i].subject : undefined);
         update(i, { status: "done" });
       } catch (err) {
         update(i, { status: "failed", error: err instanceof Error ? err.message : t("Generation failed") });

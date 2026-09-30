@@ -17,6 +17,7 @@ const CANVAS_PADDING_PX = 24; // breathing room so the paper never touches the c
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 4;
 const ZOOM_STEP = 1.25;
+const BOTTOM_BAR_ROOM_PX = 76;
 
 /** One-click stroke widths. "Ages 3–5" is the chunky line very young children need to stay inside. */
 export const BRUSH_PRESETS = [
@@ -76,6 +77,10 @@ export interface CanvasAreaProps {
   darkSurround?: boolean;
   /** Extra UI positioned over the paper in CSS px (e.g. the selection toolbar); gets the current zoom. */
   overlay?: (scale: number) => React.ReactNode;
+  /** Pinned to the bottom centre (the AI command bar); the stroke toolbars move up above it. */
+  bottomBar?: React.ReactNode;
+  /** Blocks pointer input on the page (e.g. while an AI command is changing it). */
+  locked?: boolean;
 }
 
 function clampScale(s: number) {
@@ -126,6 +131,9 @@ export default function CanvasArea(props: CanvasAreaProps) {
 
   const spaceRef = useRef(props.space);
   const paddingRef = useRef(padding);
+  // Room kept under the page for the bottom bar, so it never covers the paper at the fitted zoom.
+  const reserveBottom = props.bottomBar ? BOTTOM_BAR_ROOM_PX : 0;
+  const reserveRef = useRef(reserveBottom);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -134,7 +142,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       const { width, height } = entries[0]?.contentRect ?? {};
       if (!width || !height) return;
       const availableWidth = width - paddingRef.current * 2;
-      const availableHeight = height - paddingRef.current * 2;
+      const availableHeight = height - paddingRef.current * 2 - reserveRef.current;
       setFitScale(Math.min(availableWidth / spaceRef.current.width, availableHeight / spaceRef.current.height, 1));
     });
     observer.observe(el);
@@ -146,12 +154,13 @@ export default function CanvasArea(props: CanvasAreaProps) {
   useEffect(() => {
     spaceRef.current = { ...spaceRef.current, width: spaceWidth, height: spaceHeight };
     paddingRef.current = padding;
+    reserveRef.current = reserveBottom;
     const el = scrollRef.current;
     if (!el) return;
     const width = el.clientWidth - padding * 2;
-    const height = el.clientHeight - padding * 2;
+    const height = el.clientHeight - padding * 2 - reserveBottom;
     if (width > 0 && height > 0) setFitScale(Math.min(width / spaceWidth, height / spaceHeight, 1));
-  }, [spaceWidth, spaceHeight, padding]);
+  }, [spaceWidth, spaceHeight, padding, reserveBottom]);
 
   function zoomTo(next: number, anchor?: { clientX: number; clientY: number }) {
     const paper = paperRef.current?.getBoundingClientRect();
@@ -234,7 +243,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
     <div className={cn("relative flex min-h-0 flex-1 overflow-hidden rounded-panel", darkSurround && "canvas-dark")}>
       <div ref={scrollRef} className="absolute inset-0 overflow-auto">
         {/* min-w/min-h-full + w/h-max: centered while the page fits, scrollable (not clipped) once zoomed past the viewport. */}
-        <div className="grid min-h-full min-w-full place-items-center" style={{ width: "max-content", height: "max-content", padding }}>
+        <div className="grid min-h-full min-w-full place-items-center" style={{ width: "max-content", height: "max-content", padding, paddingBottom: padding + reserveBottom }}>
           <div ref={paperRef} className="relative">
             <CanvasEditor
               page={props.page}
@@ -273,6 +282,9 @@ export default function CanvasArea(props: CanvasAreaProps) {
           </div>
         </div>
       </div>
+
+      {props.locked && <div className="absolute inset-0 z-10 cursor-progress" aria-hidden />}
+      {props.bottomBar && <div className="pointer-events-none absolute inset-x-4 bottom-4 z-30 flex justify-center">{props.bottomBar}</div>}
 
       {/* Space held: a transparent layer over the page turns drags into scrolling instead of drawing. */}
       {isPanning && (
@@ -324,7 +336,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       )}
 
       {showBrushToolbar && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar">
+        <div className={cn("absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar", props.bottomBar ? "bottom-[84px]" : "bottom-4")}>
           <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush sizes")}>
             {[8, 16, 28].map((w, i) => (
               <button
@@ -347,7 +359,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
       )}
 
       {showStrokeToolbar && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar">
+        <div className={cn("absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar", props.bottomBar ? "bottom-[84px]" : "bottom-4")}>
           <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush presets")}>
             {BRUSH_PRESETS.map((preset) => (
               <button

@@ -23,17 +23,21 @@ import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettin
 import PublishTemplateDialog from "@/components/studio/editor/PublishTemplateDialog";
 import SelectionToolbar from "@/components/studio/editor/SelectionToolbar";
 import ReadinessCard from "@/components/studio/editor/ReadinessCard";
+import CommandBar, { type CommandOutcome } from "@/components/studio/editor/CommandBar";
+import { applyCommandActions, parseCommandResult, summarizePage, type CommandPictures } from "@/utils/editorCommand";
+import { generateLineArtPicture } from "@/lib/lineArt";
 import { bookReadiness } from "@/utils/readiness";
+import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
 import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
 import ShareDialog from "@/components/studio/editor/ShareDialog";
-import { convertPages, geometryFromSpace, interiorSpace, needsConversion, type PageGeometry } from "@/utils/pageGeometry";
+import { convertPages, geometryFromSpace, interiorSpace, needsConversion } from "@/utils/pageGeometry";
 import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
 import { checkAge, type AgeCheckResult, type AgeGroup } from "@/components/studio/editor/ageCheck";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
-import { useT, type TFunction } from "@/lib/i18n";
+import { aiErrorText, useLanguage, useT, type TFunction } from "@/lib/i18n";
 import type { EditorMode } from "@/components/studio/types";
 import type {
   BookPage,
@@ -49,7 +53,6 @@ import type {
   PaperType,
   PendingPlacement,
   ShapeKind,
-  StampData,
   StampFilter,
   SymmetryMode,
   TextData,
@@ -85,53 +88,6 @@ function computeStampDimensions(naturalSize?: { width: number; height: number })
   }
   const scale = Math.min(MAX_STAMP_DIMENSION / naturalSize.width, MAX_STAMP_DIMENSION / naturalSize.height, 1);
   return { width: naturalSize.width * scale, height: naturalSize.height * scale };
-}
-
-/** A stamp scaled to fill the page's safe area (keeping its aspect ratio) and centered — leaving `captionSpace` free at the bottom. */
-function fullPageStamp(src: string, size: ImageSize, geo: PageGeometry, captionSpace = 0): StampData {
-  const { safe } = geo;
-  const availW = safe.right - safe.left;
-  const availH = safe.bottom - safe.top - captionSpace;
-  const k = Math.min(availW / size.width, availH / size.height);
-  const width = size.width * k;
-  const height = size.height * k;
-  return {
-    kind: "stamp",
-    id: makeId("stamp"),
-    src,
-    x: safe.left + (availW - width) / 2,
-    y: safe.top + (availH - height) / 2,
-    width,
-    height,
-    rotation: 0,
-    scaleX: 1,
-    scaleY: 1,
-    filter: "none",
-  };
-}
-
-const CAPTION_SPACE = 90;
-
-function captionText(text: string, geo: PageGeometry): TextData {
-  const width = geo.safe.right - geo.safe.left;
-  return {
-    kind: "text",
-    id: makeId("text"),
-    text,
-    fontFamily: '"Fredoka", "Comic Sans MS", cursive',
-    fontSize: 44,
-    align: "center",
-    x: geo.safe.left,
-    y: geo.safe.bottom - CAPTION_SPACE + 18,
-    width,
-    height: 62,
-    rotation: 0,
-    scaleX: 1,
-    scaleY: 1,
-    fill: "#111827",
-    isDragging: false,
-    outline: true,
-  };
 }
 
 function slugify(title: string) {
@@ -237,6 +193,7 @@ interface EditorShellLoadedProps extends EditorShellProps {
 
 function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: EditorShellLoadedProps) {
   const t = useT();
+  const { lang } = useLanguage();
   const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
 
   const [title, setTitle] = useState(initialBook?.title || t(DEFAULT_TITLE));
@@ -248,7 +205,6 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [paper, setPaper] = useState<PaperType>(initialBook?.paper ?? "white");
   const [convertingBleed, setConvertingBleed] = useState(false);
   const space: PageSpace = interiorSpace(trimSizeId, bleed);
-  const geo = geometryFromSpace(space);
   const [pages, setPages] = useState<BookPage[]>(initialBook && initialBook.pages.length > 0 ? initialBook.pages : [createPageFromTemplate(1, space)]);
   const [coverDesign, setCoverDesign] = useState<CoverDesign | null>(initialBook?.cover ?? null);
   const [bookStatus, setBookStatus] = useState<BookStatus>(initialBook?.status ?? "draft");
@@ -745,6 +701,51 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     if (!obj[flag]) setSelectedIds((ids) => ids.filter((x) => x !== id));
   }
 
+  // ---------- AI command bar ----------
+
+  const [commandStatus, setCommandStatus] = useState<string | null>(null);
+
+  /** Runs one AI command on the current page: plan (server) → pictures, if any → one undo step. */
+  async function handleCommand(command: string): Promise<CommandOutcome> {
+    const pageId = activePage.id;
+    const summary = summarizePage(activePage, activeGeo, selectedIds);
+    setCommandStatus(t("Thinking…"));
+    try {
+      const response = await fetch("/api/editor-command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command, page: summary, lang }),
+      });
+      const body = (await response.json().catch(() => null)) as { reply?: string; actions?: unknown; error?: string } | null;
+      if (!response.ok || !body) return { ok: false, changed: false, reply: aiErrorText(t, response.status, body?.error ?? t("The command failed")) };
+      // Re-checked here too: only real objects of this page, only known actions.
+      const result = parseCommandResult(body, summary.objects.map((o) => o.id));
+      if (result.actions.length === 0) return { ok: true, changed: false, reply: result.reply || t("I couldn't do that on this page.") };
+
+      const pictures: CommandPictures = new Map();
+      const total = result.actions.filter((a) => a.type === "add_picture").length;
+      let failed = 0;
+      for (const [i, action] of result.actions.entries()) {
+        if (action.type !== "add_picture") continue;
+        setCommandStatus(total === 1 ? t("Drawing the picture…") : t("Drawing picture {n} of {total}…", { n: pictures.size + failed + 1, total }));
+        try {
+          pictures.set(i, await generateLineArtPicture(action.subject, "simple coloring page line art", t));
+        } catch {
+          failed++;
+        }
+      }
+      const applied = applyCommandActions(activePage, activeGeo, result.actions, pictures);
+      pushHistory();
+      setPages((prev) => prev.map((p) => (p.id === pageId ? applied.page : p)));
+      setTool("select");
+      setSelectedIds(applied.selected);
+      const note = failed === 0 ? "" : ` ${failed === 1 ? t("1 picture couldn't be made.") : t("{n} pictures couldn't be made.", { n: failed })}`;
+      return { ok: true, changed: true, reply: `${result.reply || t("Done.")}${note}` };
+    } finally {
+      setCommandStatus(null);
+    }
+  }
+
   /** Locks every selected object (and drops them from the selection — locked objects can't be selected). */
   function handleLockSelected() {
     if (selectedObjects.length === 0) return;
@@ -888,8 +889,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
   /** Called as each series page finishes — functional update, since the series runs across many renders. */
   function handleAppendImagePage(src: string, size: ImageSize, caption?: string) {
-    const page = createPageFromTemplate(0, space);
-    page.objects = caption ? [fullPageStamp(src, size, geo, CAPTION_SPACE), captionText(caption, geo)] : [fullPageStamp(src, size, geo)];
+    const page = pageFromImage(src, size, space, caption);
     setPages((prev) => renumber([...prev, page]));
     setActivePageId(page.id);
     setSelectedIds([]);
@@ -1321,6 +1321,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                   />
                 ) : null;
               }}
+              locked={commandStatus !== null}
+              bottomBar={mode === "draw" && !reviewMode ? <CommandBar onRun={handleCommand} onUndo={handleUndo} status={commandStatus} /> : undefined}
             />
             {!editingCover && (
             <PageFilmstrip
