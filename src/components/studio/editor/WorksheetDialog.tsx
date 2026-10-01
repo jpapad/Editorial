@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Hash, Route, Search, Spline, Type, X } from "lucide-react";
+import { FlipHorizontal2, Grid3x3, Hash, Puzzle, Route, Search, Spline, Type, X } from "lucide-react";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Slider from "@/components/studio/ui/Slider";
@@ -17,10 +17,11 @@ import {
   type DotsDesign,
   type MazeLevel,
 } from "@/components/editor/worksheets";
+import { crosswordPages, finishDrawingPage, normalizeWord, wordSearchPages, type CrosswordEntry } from "@/components/editor/puzzles";
 import type { BookPage, PageSpace } from "@/types/editor";
-import { useT } from "@/lib/i18n";
+import { useLanguage, useT } from "@/lib/i18n";
 
-type Kind = "letters" | "numbers" | "dots" | "maze" | "spot";
+type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish";
 
 const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] = [
   { value: "letters", label: "Letter tracing", hint: "One page per letter", Icon: Type },
@@ -28,7 +29,31 @@ const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] =
   { value: "dots", label: "Connect the dots", hint: "Numbered dots that reveal a picture", Icon: Spline },
   { value: "maze", label: "Maze", hint: "Always solvable, 3 levels", Icon: Route },
   { value: "spot", label: "Spot the difference", hint: "From the current page, with answers", Icon: Search },
+  { value: "wordsearch", label: "Word search", hint: "Your words hidden in a letter grid, with answers", Icon: Grid3x3 },
+  { value: "crossword", label: "Crossword", hint: "Your words and clues, with answers", Icon: Puzzle },
+  { value: "finish", label: "Finish the picture", hint: "Half of the current page, to draw the other half", Icon: FlipHorizontal2 },
 ];
+
+const SAMPLE_WORDS: Record<string, string> = {
+  en: "CAT\nDOG\nHORSE\nRABBIT\nDUCK\nSHEEP",
+  el: "ΓΑΤΑ\nΣΚΥΛΟΣ\nΑΛΟΓΟ\nΛΑΓΟΣ\nΠΑΠΙΑ\nΠΡΟΒΑΤΟ",
+};
+const SAMPLE_CLUES: Record<string, string> = {
+  en: "HORSE: You can ride it\nSHEEP: It gives us wool\nGOAT: It has horns and a beard\nMOUSE: It loves cheese\nTIGER: A big cat with stripes\nRABBIT: It hops and eats carrots",
+  el: "ΓΑΤΑ: Κάνει νιάου\nΣΚΥΛΟΣ: Γαβγίζει\nΑΛΟΓΟ: Το καβαλάμε\nΠΑΠΙΑ: Κάνει πα πα\nΠΡΟΒΑΤΟ: Μας δίνει μαλλί\nΛΑΓΟΣ: Τρώει καρότα",
+};
+
+/** "word: clue" per line (the clue is optional). */
+function parseClues(source: string): CrosswordEntry[] {
+  return source
+    .split("\n")
+    .map((row) => {
+      const at = row.search(/[:=\-–]/);
+      return at < 0 ? { word: row, clue: "" } : { word: row.slice(0, at), clue: row.slice(at + 1) };
+    })
+    .filter((e) => normalizeWord(e.word).length >= 2)
+    .slice(0, 20);
+}
 
 const PRESETS = [
   { label: "A–Z", value: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
@@ -47,6 +72,9 @@ const MAX_PAGES = 40;
 /** Builds worksheet pages (see worksheets.ts) and hands them to the editor to append. */
 export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: WorksheetDialogProps) {
   const t = useT();
+  const { lang } = useLanguage();
+  const [words, setWords] = useState(SAMPLE_WORDS[lang] ?? SAMPLE_WORDS.en);
+  const [clues, setClues] = useState(SAMPLE_CLUES[lang] ?? SAMPLE_CLUES.en);
   const [kind, setKind] = useState<Kind>("letters");
   const [letters, setLetters] = useState("ABC");
   const [from, setFrom] = useState(1);
@@ -60,17 +88,40 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
 
   const letterList = [...new Set([...letters.replace(/\s+/g, "")].map((c) => c.toLocaleUpperCase()))].slice(0, MAX_PAGES);
   const numberCount = Math.max(0, Math.min(MAX_PAGES, to - from + 1));
-  const pageCount = kind === "letters" ? letterList.length : kind === "numbers" ? numberCount : kind === "dots" ? 1 : kind === "maze" ? mazeCount : 2;
+  const wordList = [...new Set(words.split(/[\n,;]+/).map(normalizeWord).filter((w) => w.length >= 2))].slice(0, 24);
+  const clueList = parseClues(clues);
+  const pageCount =
+    kind === "letters" ? letterList.length
+    : kind === "numbers" ? numberCount
+    : kind === "dots" || kind === "finish" ? 1
+    : kind === "maze" ? mazeCount
+    : kind === "wordsearch" ? (wordList.length ? 2 : 0)
+    : kind === "crossword" ? (clueList.length >= 2 ? 2 : 0)
+    : 2;
 
   function build() {
     setError(null);
-    const seed = Math.floor(Math.random() * 1e9);
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0] % 1e9;
     let pages: BookPage[] = [];
     if (kind === "letters") pages = letterList.map((l) => letterTracingPage(space, l));
     else if (kind === "numbers") pages = Array.from({ length: numberCount }, (_, i) => numberTracingPage(space, from + i));
     else if (kind === "dots") pages = [connectDotsPage(space, design, dotCount, t)];
     else if (kind === "maze") pages = Array.from({ length: mazeCount }, (_, i) => mazePage(space, level, seed + i, t));
-    else {
+    else if (kind === "wordsearch" || kind === "crossword") {
+      const result = kind === "wordsearch" ? wordSearchPages(space, wordList, seed, t) : crosswordPages(space, clueList, seed, t);
+      if (!result) {
+        setError(kind === "wordsearch" ? t("These words don't fit in the grid. Use shorter words (up to 15 letters).") : t("These words don't cross each other. Add words that share letters."));
+        return;
+      }
+      pages = [result.puzzle, result.answers];
+    } else if (kind === "finish") {
+      const page = finishDrawingPage(currentPage, space, t);
+      if (!page) {
+        setError(t("The left half of the current page is empty. Draw something first — the Mirror tool works best."));
+        return;
+      }
+      pages = [page];
+    } else {
       const result = spotTheDifference(currentPage, space, differences, seed, t);
       if (!result) {
         setError(t("The current page needs at least 2 objects or pen strokes to make differences from. Draw or place something first."));
@@ -104,7 +155,7 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
           </button>
         </div>
 
-        <div role="radiogroup" aria-label={t("Worksheet type")} className="grid grid-cols-5 gap-2">
+        <div role="radiogroup" aria-label={t("Worksheet type")} className="grid grid-cols-4 gap-2">
           {KINDS.map(({ value, label, hint, Icon }) => (
             <button
               key={value}
@@ -199,6 +250,26 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
             </p>
             <Slider label={t("Differences")} valueLabel={String(differences)} min={3} max={10} step={1} value={differences} onChange={setDifferences} />
           </div>
+        )}
+
+        {kind === "wordsearch" && (
+          <label className="flex flex-col gap-1">
+            <MetaLabel>{t("Words — one per line")}</MetaLabel>
+            <textarea value={words} onChange={(e) => setWords(e.target.value)} rows={7} className={cn(input, "h-auto resize-y py-2")} />
+            <span className="text-helper text-ink-muted">{t("{n} words. Accents are removed and letters are capitalised.", { n: wordList.length })}</span>
+          </label>
+        )}
+
+        {kind === "crossword" && (
+          <label className="flex flex-col gap-1">
+            <MetaLabel>{t("Word: clue — one per line")}</MetaLabel>
+            <textarea value={clues} onChange={(e) => setClues(e.target.value)} rows={7} className={cn(input, "h-auto resize-y py-2")} />
+            <span className="text-helper text-ink-muted">{t("{n} words. Words that can't cross the others are left out.", { n: clueList.length })}</span>
+          </label>
+        )}
+
+        {kind === "finish" && (
+          <p className="text-body text-ink-secondary">{t("Keeps the left half of the page you're on, with a dashed line down the middle and a grid on the right to copy onto.")}</p>
         )}
 
         {error && <p className="text-helper text-error">{error}</p>}

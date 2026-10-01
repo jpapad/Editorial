@@ -14,6 +14,7 @@ function cleanPages(pages: BookPage[]): BookPage[] {
   return pages.map((p) => {
     const copy = { ...p };
     delete copy.fillDataUrl;
+    delete copy.traceImage; // a private reference photo, not part of the design
     delete copy.completedAt;
     return copy;
   });

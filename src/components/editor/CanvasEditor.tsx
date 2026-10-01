@@ -18,11 +18,11 @@ import useImage from "use-image";
 // A value import (not `import type`) — Konva.Filters.Grayscale/Threshold are
 // runtime functions we apply to cached stamp nodes for the line-art filter.
 import Konva from "konva";
-import type { BookPage, DrawingTool, FillStyle, LineData, ObjectChanges, ObjectUpdate, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
+import type { BookPage, DrawingTool, FillStyle, LineData, LineStyle, ObjectChanges, ObjectUpdate, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
 import { patternPixels } from "@/components/studio/editor/fillPatterns";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 import { isOpenStroke, isPolygonShape, polygonPoints } from "@/components/editor/shapeGeometry";
-import { smoothStroke, stabilize, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
+import { lineDash, smoothStroke, stabilize, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
 import type { EditorMode } from "@/components/studio/types";
 import { floodFill, samplePixelColor, type PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
@@ -140,6 +140,8 @@ interface CanvasEditorProps {
   showGuides: boolean;
   /** Pen/eraser strokes are repeated across the page center — see strokeTools.ts. */
   symmetry?: SymmetryMode;
+  /** Style for new pen strokes (the eraser is always solid). */
+  lineStyle?: LineStyle;
   /** 0–1: live stabilizer + final smoothing for pen/eraser strokes. */
   smoothing?: number;
   /** Results of the gap check, drawn as red rings until the page changes. */
@@ -378,6 +380,20 @@ function BackgroundPatternLayer({ patternId, width, height }: { patternId: strin
   );
 }
 
+/** The tracing reference: fitted to the page, faded, and an overlay — so captureStage leaves it out of every export. */
+function TraceLayer({ src, opacity, width, height }: { src: string; opacity: number; width: number; height: number }) {
+  const [image] = useImage(src);
+  if (!image) return null;
+  const k = Math.min(width / image.width, height / image.height);
+  const w = image.width * k;
+  const h = image.height * k;
+  return (
+    <Layer listening={false} name={OVERLAY_NAME}>
+      <KonvaImage image={image} x={(width - w) / 2} y={(height - h) / 2} width={w} height={h} opacity={opacity} />
+    </Layer>
+  );
+}
+
 function GuidesLayer({ spec, width, height }: { spec: GuideSpec; width: number; height: number }) {
   const { trim } = spec;
   const hasBleed = trim.left > 0 || trim.top > 0 || trim.right < width || trim.bottom < height;
@@ -458,6 +474,7 @@ export default function CanvasEditor({
   showGrid,
   showGuides,
   symmetry = "off",
+  lineStyle,
   smoothing = 0,
   gapMarkers,
   detailMarkers,
@@ -787,7 +804,7 @@ export default function CanvasEditor({
     if (isFreehand) {
       isDrawing.current = true;
       lastStabilizedRef.current = [pos.x, pos.y];
-      setDraftLine({ id: makeLineId(), tool, strokeWidth, points: [pos.x, pos.y] });
+      setDraftLine({ id: makeLineId(), tool, strokeWidth, points: [pos.x, pos.y], ...(tool === "pen" && lineStyle ? { style: lineStyle } : {}) });
     }
   }
 
@@ -911,6 +928,8 @@ export default function CanvasEditor({
 
         {backgroundPatternId && <BackgroundPatternLayer patternId={backgroundPatternId} width={pageWidth} height={pageHeight} />}
 
+        {page.traceImage && mode === "draw" && <TraceLayer src={page.traceImage.src} opacity={page.traceImage.opacity} width={pageWidth} height={pageHeight} />}
+
         {showGrid && (
           <Layer listening={false} name={OVERLAY_NAME}>
             {Array.from({ length: Math.floor(pageWidth / GRID_SIZE) + 1 }, (_, i) => (
@@ -962,6 +981,7 @@ export default function CanvasEditor({
               points={line.points}
               stroke={PEN_COLOR}
               strokeWidth={line.strokeWidth}
+              dash={lineDash(line.style, line.strokeWidth)}
               tension={0.5}
               lineCap="round"
               lineJoin="round"
@@ -977,6 +997,7 @@ export default function CanvasEditor({
                 points={points}
                 stroke={PEN_COLOR}
                 strokeWidth={draftLine.strokeWidth}
+                dash={lineDash(draftLine.style, draftLine.strokeWidth)}
                 tension={0.5}
                 lineCap="round"
                 lineJoin="round"

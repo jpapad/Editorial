@@ -6,7 +6,7 @@ const p = await newPage(b);
 await openEditor(p);
 const list = p.getByRole("list", { name: "Print checks" });
 const score = async () => Number((await list.locator("xpath=../div//span[contains(@class,'font-extrabold')]").first().textContent()).trim());
-const pages = () => p.locator('[aria-label^="Page "]').count();
+const pages = () => p.locator('button[aria-label^="Page "]').count();
 
 const s0 = await score();
 check(s0 === 75, "new one-page book: 75 (under 24 pages, not ×4, 1 empty page)", String(s0));

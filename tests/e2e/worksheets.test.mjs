@@ -4,7 +4,7 @@ import { launch, newPage, openEditor, check, noPageErrors } from "./harness.mjs"
 const b = await launch();
 const p = await newPage(b);
 const cb = await openEditor(p);
-const count = () => p.locator('[aria-label^="Page "]').count();
+const count = () => p.locator('button[aria-label^="Page "]').count();
 const open = async () => { await p.getByRole('button', { name: 'Add page' }).click(); await p.getByRole('button', { name: /Worksheets…/ }).click(); await p.waitForTimeout(200); };
 const n0 = await count();
 

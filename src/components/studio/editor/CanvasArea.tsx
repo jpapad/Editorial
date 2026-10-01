@@ -6,10 +6,10 @@ import { Grid3x3, Minus, Plus, Ruler } from "lucide-react";
 import Slider from "@/components/studio/ui/Slider";
 import { cn } from "@/utils/cn";
 import type { GuideSpec } from "@/components/editor/CanvasEditor";
-import { SYMMETRY_OPTIONS } from "@/components/editor/strokeTools";
+import { LINE_STYLE_OPTIONS, SYMMETRY_OPTIONS } from "@/components/editor/strokeTools";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
-import type { BookPage, DrawingTool, FillStyle, LineData, ObjectUpdate, PageSpace, PendingPlacement, SymmetryMode } from "@/types/editor";
+import type { BookPage, DrawingTool, FillStyle, LineData, LineStyle, ObjectUpdate, PageSpace, PendingPlacement, SymmetryMode } from "@/types/editor";
 import type { EditorMode } from "@/components/studio/types";
 import { useT } from "@/lib/i18n";
 
@@ -67,6 +67,8 @@ export interface CanvasAreaProps {
   onSymmetryChange?: (mode: SymmetryMode) => void;
   smoothing?: number;
   onSmoothingChange?: (amount: number) => void;
+  lineStyle?: LineStyle;
+  onLineStyleChange?: (style: LineStyle | undefined) => void;
   gapMarkers?: GapMarker[] | null;
   detailMarkers?: { x: number; y: number; r: number }[] | null;
   /** Hides the view toolbar (zoom/grid/guides) — for embedded, child-facing uses like ColoringView. */
@@ -256,6 +258,7 @@ export default function CanvasArea(props: CanvasAreaProps) {
               showGrid={props.showGrid ?? false}
               showGuides={props.showGuides ?? false}
               symmetry={symmetry}
+              lineStyle={props.lineStyle}
               smoothing={props.smoothing ?? 0}
               gapMarkers={props.gapMarkers}
               detailMarkers={props.detailMarkers}
@@ -384,6 +387,25 @@ export default function CanvasArea(props: CanvasAreaProps) {
             {t("Smooth")}
             <Slider layout="inline" min={0} max={1} step={0.05} value={props.smoothing ?? 0} onChange={(v) => props.onSmoothingChange?.(v)} />
           </label>
+          {tool === "pen" && props.onLineStyleChange && (
+            <>
+              <span className="h-5 w-px bg-hairline" />
+              <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">
+                {t("Line")}
+                <select
+                  value={props.lineStyle ?? "solid"}
+                  onChange={(e) => props.onLineStyleChange?.(e.target.value === "solid" ? undefined : (e.target.value as LineStyle))}
+                  className="h-8 rounded-pill border border-hairline bg-panel px-2 font-pw-sans text-helper normal-case tracking-normal text-ink-secondary outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  {LINE_STYLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {t(o.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <span className="h-5 w-px bg-hairline" />
           <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">
             {t("Mirror")}

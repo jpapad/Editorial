@@ -1,7 +1,20 @@
 // Pure stroke processing for the pen/eraser: mirror/radial symmetry and
 // stroke smoothing. Points are Konva's flattened [x1, y1, x2, y2, …].
 
-import type { SymmetryMode } from "@/types/editor";
+import type { LineStyle, SymmetryMode } from "@/types/editor";
+
+/** Konva dash pattern for a pen line's style, scaled to its width (undefined = solid). Round caps turn the near-zero "dotted" dashes into dots. */
+export function lineDash(style: LineStyle | undefined, strokeWidth: number): number[] | undefined {
+  if (style === "dashed") return [strokeWidth * 2.5, strokeWidth * 2.2];
+  if (style === "dotted") return [0.01, strokeWidth * 2.2];
+  return undefined;
+}
+
+export const LINE_STYLE_OPTIONS: { value: "solid" | LineStyle; label: string }[] = [
+  { value: "solid", label: "Solid" },
+  { value: "dashed", label: "Dashed" },
+  { value: "dotted", label: "Dotted" },
+];
 
 export const SYMMETRY_OPTIONS: { value: SymmetryMode; label: string }[] = [
   { value: "off", label: "Off" },

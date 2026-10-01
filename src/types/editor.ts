@@ -17,7 +17,11 @@ export interface LineData {
   tool: Extract<DrawingTool, "pen" | "eraser">;
   strokeWidth: number;
   points: number[]; // flattened [x1, y1, x2, y2, ...], Konva's native Line format
+  style?: LineStyle; // absent = a solid line
 }
+
+/** Pen line styles: dashed for lines to trace over or cut along, dotted for guides. */
+export type LineStyle = "dashed" | "dotted";
 
 // Every placeable object shares position/rotation/scale so a single
 // Transformer instance can resize, rotate, and move any of them uniformly.
@@ -33,6 +37,8 @@ interface Placeable {
   locked?: boolean; // can't be selected/moved on the canvas — only from the Layers list
   hidden?: boolean; // not rendered, so not exported either
   groupId?: string; // objects sharing a groupId select and move together
+  role?: "pageNumber"; // the automatic page number (utils/pageNumbers.ts) — re-stamped when pages move
+  repeatId?: string; // copies of one element repeated on every page share this (utils/pageNumbers.ts)
 }
 
 // "lineArt" runs Konva's Grayscale + Threshold filter pipeline on the image
@@ -88,6 +94,12 @@ export interface PageSpace {
   bleed: number;
 }
 
+/** A faded picture behind a page to draw over. Editor-only: never exported, previewed or in thumbnails. */
+export interface TraceImage {
+  src: string;
+  opacity: number; // 0–1
+}
+
 export interface BookPage {
   id: string;
   pageNumber: number;
@@ -95,6 +107,7 @@ export interface BookPage {
   lines: LineData[];
   objects: PageObject[]; // stamps/shapes/text, in z-order — index 0 is the back
   backgroundPatternId?: string | null; // preset tiled pattern behind everything else
+  traceImage?: TraceImage;
   isCover?: boolean; // page 1 can be flagged as the book's front cover
   coverBackgroundColor?: string; // solid RGB fill, only used while isCover is true
   fillDataUrl?: string; // Color mode's raster paint layer (rasterFloodFill.ts), serialized as a PNG data URL so it survives page navigation/reload/autosave

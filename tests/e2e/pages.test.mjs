@@ -4,7 +4,7 @@ import { launch, newPage, openEditor, draw, check, shot, noPageErrors } from "./
 const b = await launch();
 const p = await newPage(b);
 const cb = await openEditor(p);
-const labels = () => p.locator('[aria-label^="Page "]').evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
+const labels = () => p.locator('button[aria-label^="Page "]').evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
 
 await p.keyboard.press('p');
 // open square: the right side stops short, leaving a gap; plus a closed triangle

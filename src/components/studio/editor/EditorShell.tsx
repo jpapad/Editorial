@@ -28,6 +28,8 @@ import { applyCommandActions, parseCommandResult, summarizePage, type CommandPic
 import { generateLineArtPicture } from "@/lib/lineArt";
 import { bookReadiness } from "@/utils/readiness";
 import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
+import PageToolsCard from "@/components/studio/editor/PageToolsCard";
+import { applyPageNumbers, pageNumberMode, removeRepeats, repeatOnAllPages, syncPageNumbers, type PageNumberMode } from "@/utils/pageNumbers";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
 import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
 import ShareDialog from "@/components/studio/editor/ShareDialog";
@@ -45,6 +47,7 @@ import type {
   DrawingTool,
   FillStyle,
   LineData,
+  LineStyle,
   ObjectChanges,
   ObjectUpdate,
   PageObject,
@@ -121,7 +124,7 @@ function logExport(kind: "export_pdf" | "export_cover") {
 
 /** Page numbers follow array order — re-stamp them after any structural change. */
 function renumber(pages: BookPage[]): BookPage[] {
-  return pages.map((p, i) => (p.pageNumber === i + 1 ? p : { ...p, pageNumber: i + 1 }));
+  return syncPageNumbers(pages.map((p, i) => (p.pageNumber === i + 1 ? p : { ...p, pageNumber: i + 1 })));
 }
 
 /**
@@ -219,6 +222,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const lastShapeRef = useRef<ShapeKind>("rectangle");
   const [strokeWidth, setStrokeWidth] = useState(6);
   const [smoothing, setSmoothing] = useState(0.3);
+  const [lineStyle, setLineStyle] = useState<LineStyle | undefined>(undefined);
   const [symmetry, setSymmetry] = useState<SymmetryMode>("off");
   const [showGrid, setShowGrid] = useState(false);
   const [showGuides, setShowGuides] = useState(true);
@@ -599,6 +603,24 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setSelectedIds([]);
   }
 
+  /** Copies the selection onto every other page — or, when it's already repeated, removes it from all of them. */
+  function handleToggleRepeat() {
+    if (selectedObjects.length === 0) return;
+    pushHistory();
+    const repeatIds = selectedObjects.map((o) => o.repeatId).filter((id): id is string => Boolean(id));
+    if (repeatIds.length === selectedObjects.length) {
+      setPages((prev) => removeRepeats(prev, repeatIds));
+      setSelectedIds([]);
+    } else {
+      setPages((prev) => repeatOnAllPages(prev, activePage.id, selectedIds));
+    }
+  }
+
+  function handlePageNumbers(mode: PageNumberMode) {
+    pushHistory();
+    setPages((prev) => applyPageNumbers(prev, mode));
+  }
+
   function handleDuplicateSelected() {
     if (selectedObjects.length === 0) return;
     pushHistory();
@@ -609,7 +631,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         if (!groupIds.has(groupId)) groupIds.set(groupId, makeId("group"));
         groupId = groupIds.get(groupId);
       }
-      return { ...o, id: makeId(o.kind), x: o.x + 24, y: o.y + 24, groupId, locked: false, isFrame: false } as PageObject;
+      return { ...o, id: makeId(o.kind), x: o.x + 24, y: o.y + 24, groupId, locked: false, isFrame: false, role: undefined, repeatId: undefined } as PageObject;
     });
     setActiveObjects([...activePage.objects, ...copies]);
     setSelectedIds(copies.map((c) => c.id));
@@ -806,7 +828,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setConvertingBleed(true);
     try {
       const converted = await convertPages(pages, interiorSpace(trimSizeId, on));
-      setPages(converted);
+      setPages(syncPageNumbers(converted));
       setBleed(on);
       setSelectedIds([]);
     } finally {
@@ -901,7 +923,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     captureActiveThumbnail();
     pushHistory();
     const page = createPageFromTemplate(pages.length + 1, space, template, t);
-    setPages((prev) => [...prev, page]);
+    setPages((prev) => renumber([...prev, page]));
     setActivePageId(page.id);
     setSelectedIds([]);
   }
@@ -1300,6 +1322,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               onSymmetryChange={setSymmetry}
               smoothing={smoothing}
               onSmoothingChange={setSmoothing}
+              lineStyle={lineStyle}
+              onLineStyleChange={setLineStyle}
               gapMarkers={gapMarkers}
               detailMarkers={ageResult?.tooSmall}
               darkSurround={darkSurround}
@@ -1315,6 +1339,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     onDuplicate={handleDuplicateSelected}
                     onMirror={() => handleFlip("horizontal")}
                     onLock={handleLockSelected}
+                    repeated={!editingCover && selectedObjects.every((o) => o.repeatId)}
+                    onToggleRepeat={handleToggleRepeat}
                     onGroup={handleGroup}
                     onUngroup={handleUngroup}
                     onDelete={handleDeleteSelected}
@@ -1430,7 +1456,18 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                 exporting={isExportingCover}
               />
             ) : mode === "draw" ? (
-              <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} />
+              <>
+                <PageToolsCard
+                  pageNumbers={pageNumberMode(pages)}
+                  onPageNumbersChange={handlePageNumbers}
+                  trace={activePage.traceImage}
+                  onTraceChange={(traceImage) => {
+                    pushHistory();
+                    updateActivePage({ traceImage });
+                  }}
+                />
+                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} />
+              </>
             ) : null
           }
         />
