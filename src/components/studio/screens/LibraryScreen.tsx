@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, BookOpen, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
+import { ArrowUp, BookOpen, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload } from "lucide-react";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
@@ -342,32 +342,6 @@ export default function LibraryScreen() {
             <div className="grid grid-cols-6 gap-[18px]">
               {filtered.map((book) => (
                 <div key={book.id} className="group relative flex flex-col gap-2.5">
-                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-                    <button
-                      type="button"
-                      onClick={(e) => handleColor(e, book.id)}
-                      aria-label={t("Color {title}", { title: book.title })}
-                      className="flex h-7 w-7 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      <Palette size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDuplicate(e, book)}
-                      aria-label={t("Duplicate {title}", { title: book.title })}
-                      className="flex h-7 w-7 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      <Copy size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDelete(e, book)}
-                      aria-label={t("Delete {title}", { title: book.title })}
-                      className="flex h-7 w-7 items-center justify-center rounded-pill bg-panel text-ink-muted shadow-toolbar outline-none hover:text-error focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
                   <div className="pw-glass relative flex h-[230px] items-center justify-center rounded-[18px]">
                     <Thumbnail
                       src={bookThumbnail(book)}
@@ -379,10 +353,22 @@ export default function LibraryScreen() {
                     <StatusBadge status={book.status} />
                     <ScoreBadge book={book} />
                   </div>
-                  <button type="button" onClick={() => handleOpen(book.id)} className="px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    <p className="truncate text-body font-bold text-ink">{book.title}</p>
-                    <MetaLabel>{bookMeta(book, t)}</MetaLabel>
-                  </button>
+                  <div className="flex items-start gap-1">
+                    <button type="button" onClick={() => handleOpen(book.id)} className="min-w-0 flex-1 px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                      <p className="truncate text-body font-bold leading-8 text-ink">{book.title}</p>
+                    </button>
+                    {/* Always visible (not hover-only): these are how you colour, copy and delete a book. */}
+                    <button type="button" onClick={(e) => handleColor(e, book.id)} aria-label={t("Color {title}", { title: book.title })} title={t("Color it")} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-muted outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent hover:text-accent">
+                      <Palette size={15} />
+                    </button>
+                    <button type="button" onClick={(e) => handleDuplicate(e, book)} aria-label={t("Duplicate {title}", { title: book.title })} title={t("Duplicate")} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-muted outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent hover:text-accent">
+                      <Copy size={15} />
+                    </button>
+                    <button type="button" onClick={(e) => handleDelete(e, book)} aria-label={t("Delete {title}", { title: book.title })} title={t("Delete")} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-muted outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent hover:text-error">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                  <MetaLabel className="-mt-2 block px-1">{bookMeta(book, t)}</MetaLabel>
                   <button
                     type="button"
                     onClick={(e) => handleAssignCollection(e, book)}

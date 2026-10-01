@@ -50,6 +50,7 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
         return json(single ? row : [row], 201);
       }
     }
+    if (table === 'books' && method === 'DELETE') { db.books = db.books.filter((b) => b.id !== idEq); onWrite?.('books_delete', idEq); return json([]); }
     if (table === 'book_shares') {
       db.shares ??= [];
       if (method === 'GET') return json(db.shares.filter((s) => !s.revoked_at));
