@@ -32,7 +32,8 @@ for (let i = 1; i <= 4; i++) {
   await p.getByRole("button", { name: `Page ${i}`, exact: true }).click();
   await p.waitForTimeout(250);
   await p.keyboard.press("p");
-  await p.mouse.move(cb.x + 150, cb.y + 200); await p.mouse.down(); await p.mouse.move(cb.x + 300, cb.y + 260, { steps: 6 }); await p.mouse.up();
+  // A different stroke on each page — identical pages would count as repeats.
+  await p.mouse.move(cb.x + 150, cb.y + 200 + i * 50); await p.mouse.down(); await p.mouse.move(cb.x + 300, cb.y + 260 + i * 50, { steps: 6 }); await p.mouse.up();
   await p.waitForTimeout(150);
 }
 const s2 = await score();
