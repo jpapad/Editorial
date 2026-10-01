@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, CopyMinus, CopyPlus, FlipHorizontal2, Group, Lock, Trash2, Ungroup } from "lucide-react";
+import { BookmarkPlus, Copy, CopyMinus, CopyPlus, FlipHorizontal2, Group, Lock, Trash2, Ungroup } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useT } from "@/lib/i18n";
 import type { Bounds } from "@/utils/objectGeometry";
@@ -19,6 +19,7 @@ export interface SelectionToolbarProps {
   /** The selection is already repeated on every page (so the button removes it everywhere). */
   repeated: boolean;
   onToggleRepeat: () => void;
+  onSaveStamp: () => void;
   onGroup: () => void;
   onUngroup: () => void;
   onDelete: () => void;
@@ -33,7 +34,7 @@ const BAR_H = 44;
  * selection hugs the top edge): the actions you reach for most, next to the
  * thing they act on. Everything here is also in the right panel.
  */
-export default function SelectionToolbar({ bounds, scale, count, canGroup, canUngroup, onDuplicate, onMirror, onLock, repeated, onToggleRepeat, onGroup, onUngroup, onDelete }: SelectionToolbarProps) {
+export default function SelectionToolbar({ bounds, scale, count, canGroup, canUngroup, onDuplicate, onMirror, onLock, repeated, onToggleRepeat, onSaveStamp, onGroup, onUngroup, onDelete }: SelectionToolbarProps) {
   const t = useT();
   const centerX = ((bounds.left + bounds.right) / 2) * scale;
   const above = bounds.top * scale - GAP_PX - BAR_H;
@@ -74,6 +75,9 @@ export default function SelectionToolbar({ bounds, scale, count, canGroup, canUn
       </button>
       <button type="button" aria-label={repeated ? t("Remove from all pages") : t("Repeat on all pages")} title={repeated ? t("Remove from all pages") : t("Repeat on all pages")} onClick={onToggleRepeat} className={cn(button, repeated && "bg-accent-tint text-accent")}>
         {repeated ? <CopyMinus size={16} /> : <CopyPlus size={16} />}
+      </button>
+      <button type="button" aria-label={t("Save to my stamps")} title={t("Save to my stamps")} onClick={onSaveStamp} className={button}>
+        <BookmarkPlus size={16} />
       </button>
       <span className="mx-1 h-5 w-px bg-hairline" aria-hidden />
       <button type="button" aria-label={t("Delete selection")} title={`${t("Delete")} (Del)`} onClick={onDelete} className={cn(button, "hover:text-error")}>

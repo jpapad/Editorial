@@ -22,11 +22,12 @@ import type { BookPage, DrawingTool, FillStyle, LineData, LineStyle, ObjectChang
 import { patternPixels } from "@/components/studio/editor/fillPatterns";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 import { isOpenStroke, isPolygonShape, polygonPoints } from "@/components/editor/shapeGeometry";
-import { lineDash, smoothStroke, stabilize, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
+import { curveThrough, lineDash, moveStrokes, smoothStroke, stabilize, strokeAt, strokeBounds, strokesInRect, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
+import { snapBox, snapTargets, type SnapResult } from "@/utils/snapping";
 import type { EditorMode } from "@/components/studio/types";
 import { floodFill, samplePixelColor, type PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import type { GapMarker } from "@/components/studio/editor/gapCheck";
-import { objectBounds } from "@/utils/objectGeometry";
+import { objectBounds, unionBounds } from "@/utils/objectGeometry";
 import { geometryFromSpace, type PageGeometry, type Rect as PageRect } from "@/utils/pageGeometry";
 import { ensureKidFonts } from "@/components/editor/kidFonts";
 import { useT } from "@/lib/i18n";
@@ -69,6 +70,9 @@ const LONG_PRESS_MS = 500;
 const MOVE_CANCEL_PX = 6;
 const MAX_FILL_HISTORY = 20;
 const MARQUEE_MIN_PX = 4;
+const SNAP_PX = 6;
+const SNAP_COLOR = "#e0489b";
+const PICK_COLOR = "#4453d6";
 
 /** Name carried by every editor-only node (guides, grid, gap markers, selection UI) — captureStage hides them so they never reach an export or thumbnail. */
 const OVERLAY_NAME = "editor-overlay";
@@ -89,6 +93,30 @@ export function captureStage(stage: Konva.Stage, pixelRatio: number): string {
     return stage.toDataURL({ pixelRatio: pixelRatio / stage.scaleX(), mimeType: "image/png" });
   } finally {
     overlays.forEach((n) => n.show());
+  }
+}
+
+/**
+ * A small PNG of one part of the page (page points), without editor
+ * overlays, paint or the selection glow — the preview of a saved stamp.
+ */
+export function captureRegion(stage: Konva.Stage, box: { left: number; top: number; right: number; bottom: number }, maxPx: number): string | null {
+  const layer = stage.findOne(`.${INK_LAYER_NAME}`) as Konva.Layer | undefined;
+  if (!layer) return null;
+  const s = stage.scaleX();
+  const pad = 4;
+  const w = box.right - box.left + pad * 2;
+  const h = box.bottom - box.top + pad * 2;
+  const overlays = layer.find(`.${OVERLAY_NAME}, .${PAINT_NAME}`).filter((n) => n.visible());
+  const glowing = layer.find((n: Konva.Node) => n instanceof Konva.Shape && n.shadowOpacity() > 0) as Konva.Shape[];
+  const glow = glowing.map((n) => n.shadowOpacity());
+  overlays.forEach((n) => n.hide());
+  glowing.forEach((n) => n.shadowOpacity(0));
+  try {
+    return layer.toDataURL({ x: (box.left - pad) * s, y: (box.top - pad) * s, width: w * s, height: h * s, pixelRatio: maxPx / (Math.max(w, h) * s), mimeType: "image/png" });
+  } finally {
+    overlays.forEach((n) => n.show());
+    glowing.forEach((n, i) => n.shadowOpacity(glow[i]));
   }
 }
 
@@ -176,6 +204,13 @@ interface CanvasEditorProps {
   onSelectObject: (id: string | null, additive: boolean) => void;
   /** A finished marquee drag in the Select tool. */
   onSelectIds: (ids: string[], additive: boolean) => void;
+  /** Pen strokes picked with the "Select strokes" tool. */
+  selectedLineIds?: string[];
+  onSelectLines?: (ids: string[], additive: boolean) => void;
+  /** A finished drag of the picked strokes. */
+  onMoveLines?: (ids: string[], dx: number, dy: number) => void;
+  /** Dragged objects line up with the page centre, the margins and each other (hold Alt to switch off). */
+  snap?: boolean;
   /** One pen/eraser gesture — the stroke plus its symmetry copies, committed as a single undo step. */
   onAddLines: (lines: LineData[]) => void;
   onPlaceObject: (placement: PendingPlacement, x: number, y: number) => void;
@@ -193,6 +228,7 @@ interface ObjectHandlers {
   isSelected: boolean;
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   onDragStart: () => void;
+  onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onCommit: () => void;
   registerNode: (id: string, node: Konva.Node | null) => void;
 }
@@ -201,7 +237,7 @@ function selectionShadow(isSelected: boolean) {
   return { shadowColor: isSelected ? "#6366f1" : undefined, shadowBlur: isSelected ? 10 : 0, shadowOpacity: isSelected ? 0.6 : 0 };
 }
 
-function StampNode({ obj, draggable, listening, isSelected, onSelect, onDragStart, onCommit, registerNode }: ObjectHandlers & { obj: StampData }) {
+function StampNode({ obj, draggable, listening, isSelected, onSelect, onDragStart, onDragMove, onCommit, registerNode }: ObjectHandlers & { obj: StampData }) {
   const [image] = useImage(obj.src, "anonymous");
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
@@ -243,6 +279,7 @@ function StampNode({ obj, draggable, listening, isSelected, onSelect, onDragStar
       onClick={onSelect}
       onTap={onSelect}
       onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onDragEnd={onCommit}
       onTransformEnd={onCommit}
       {...selectionShadow(isSelected)}
@@ -250,7 +287,7 @@ function StampNode({ obj, draggable, listening, isSelected, onSelect, onDragStar
   );
 }
 
-function ShapeNode({ obj, draggable, listening, isSelected, onSelect, onDragStart, onCommit, registerNode }: ObjectHandlers & { obj: ShapeData }) {
+function ShapeNode({ obj, draggable, listening, isSelected, onSelect, onDragStart, onDragMove, onCommit, registerNode }: ObjectHandlers & { obj: ShapeData }) {
   const shadowProps = selectionShadow(isSelected);
   const common = {
     x: obj.x,
@@ -263,6 +300,7 @@ function ShapeNode({ obj, draggable, listening, isSelected, onSelect, onDragStar
     onClick: onSelect,
     onTap: onSelect,
     onDragStart,
+    onDragMove,
     onDragEnd: onCommit,
     onTransformEnd: onCommit,
   };
@@ -315,6 +353,7 @@ function TextNode({
   isSelected,
   onSelect,
   onDragStart,
+  onDragMove,
   onCommit,
   registerNode,
   onDragStateChange,
@@ -356,6 +395,7 @@ function TextNode({
         onDragStart();
         onDragStateChange(true);
       }}
+      onDragMove={onDragMove}
       onDragEnd={() => {
         onDragStateChange(false);
         onCommit();
@@ -482,6 +522,10 @@ export default function CanvasEditor({
   isCover,
   coverBackgroundColor,
   mode = "draw",
+  selectedLineIds = [],
+  onSelectLines,
+  onMoveLines,
+  snap = true,
   activeColor = "#000000",
   fillStyle = "solid",
   onSampleColor,
@@ -508,6 +552,12 @@ export default function CanvasEditor({
   const [draftLine, setDraftLine] = useState<LineData | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
+  // Select-strokes tool: the picked strokes being dragged (applied on release).
+  const [lineDrag, setLineDrag] = useState<{ x0: number; y0: number; dx: number; dy: number } | null>(null);
+  // Curve tool: the anchors clicked so far, and where the pointer is.
+  const [curve, setCurve] = useState<number[]>([]);
+  const [curveHover, setCurveHover] = useState<[number, number] | null>(null);
+  const [snapGuides, setSnapGuides] = useState<SnapResult["guides"]>([]);
 
   // Latest selection for the batched commit below, which runs from Konva
   // event handlers that may close over an older render's props.
@@ -801,6 +851,18 @@ export default function CanvasEditor({
       return;
     }
 
+    if (tool === "lasso") {
+      const inside = pickedBox && pos.x >= pickedBox.left - 4 && pos.x <= pickedBox.right + 4 && pos.y >= pickedBox.top - 4 && pos.y <= pickedBox.bottom + 4;
+      if (inside && !e.evt.shiftKey) setLineDrag({ x0: pos.x, y0: pos.y, dx: 0, dy: 0 });
+      else setMarquee({ x0: pos.x, y0: pos.y, x1: pos.x, y1: pos.y, additive: e.evt.shiftKey });
+      return;
+    }
+
+    if (tool === "curve") {
+      addCurvePoint(pos.x, pos.y);
+      return;
+    }
+
     if (isFreehand) {
       isDrawing.current = true;
       lastStabilizedRef.current = [pos.x, pos.y];
@@ -819,9 +881,21 @@ export default function CanvasEditor({
       return;
     }
 
+    if (lineDrag) {
+      const pos = pagePointer(stage);
+      if (pos) setLineDrag({ ...lineDrag, dx: pos.x - lineDrag.x0, dy: pos.y - lineDrag.y0 });
+      return;
+    }
+
     if (marquee) {
       const pos = pagePointer(stage);
       if (pos) setMarquee({ ...marquee, x1: pos.x, y1: pos.y });
+      return;
+    }
+
+    if (tool === "curve" && curve.length > 0) {
+      const pos = pagePointer(stage);
+      if (pos) setCurveHover([pos.x, pos.y]);
       return;
     }
 
@@ -848,6 +922,12 @@ export default function CanvasEditor({
       clearTimeout(press.timer);
       longPressRef.current = null;
       if (!press.fired) performFillAt(press.x, press.y); // released before the long-press threshold — a tap, so paint
+      return;
+    }
+
+    if (lineDrag) {
+      if (Math.abs(lineDrag.dx) + Math.abs(lineDrag.dy) > 0.5) onMoveLines?.(selectedLineIds, lineDrag.dx, lineDrag.dy);
+      setLineDrag(null);
       return;
     }
 
@@ -886,7 +966,14 @@ export default function CanvasEditor({
     const right = Math.max(m.x0, m.x1);
     const top = Math.min(m.y0, m.y1);
     const bottom = Math.max(m.y0, m.y1);
-    if ((right - left) * scale < MARQUEE_MIN_PX && (bottom - top) * scale < MARQUEE_MIN_PX) {
+    const isClick = (right - left) * scale < MARQUEE_MIN_PX && (bottom - top) * scale < MARQUEE_MIN_PX;
+    if (tool === "lasso") {
+      // A tap picks the stroke under it; a drag picks every stroke the box touches.
+      const hit = isClick ? strokeAt(page.lines, m.x0, m.y0, 6 / scale) : null;
+      onSelectLines?.(isClick ? (hit ? [hit] : []) : strokesInRect(page.lines, { left, top, right, bottom }), m.additive);
+      return;
+    }
+    if (isClick) {
       // A plain click on empty page.
       if (!m.additive) onSelectObject(null, false);
       return;
@@ -901,8 +988,84 @@ export default function CanvasEditor({
     onSelectIds(ids, m.additive);
   }
 
+  // ---------- Curve tool ----------
+
+  function finishCurve(closed: boolean) {
+    if (curve.length >= 4) {
+      const points = curveThrough(curve, closed);
+      const base: LineData = { id: makeLineId(), tool: "pen", strokeWidth, points, ...(lineStyle ? { style: lineStyle } : {}) };
+      const copies = symmetricCopies(points, symmetry, pageWidth / 2, pageHeight / 2).map((pts) => ({ ...base, id: makeLineId(), points: pts }));
+      onAddLines([base, ...copies]);
+    }
+    setCurve([]);
+    setCurveHover(null);
+  }
+
+  /** A click adds an anchor; clicking the first anchor closes the shape, clicking the last one again (a double-click) ends the curve. */
+  function addCurvePoint(x: number, y: number) {
+    const n = curve.length;
+    const near = (ax: number, ay: number) => Math.hypot(x - ax, y - ay) <= 9 / scale;
+    if (n >= 6 && near(curve[0], curve[1])) return finishCurve(true);
+    if (n >= 2 && near(curve[n - 2], curve[n - 1])) {
+      if (n >= 4) finishCurve(false);
+      return;
+    }
+    setCurve([...curve, x, y]);
+  }
+
+  const curveKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    curveKeyRef.current = (e: KeyboardEvent) => {
+      if (tool !== "curve" || curve.length === 0) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        finishCurve(false);
+      } else if (e.key === "Escape") {
+        setCurve([]);
+        setCurveHover(null);
+      } else if (e.key === "Backspace") {
+        setCurve(curve.slice(0, -2));
+      }
+    };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => curveKeyRef.current(e);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const curveDraft = tool === "curve" && curve.length >= 2 ? curveThrough(curveHover ? [...curve, ...curveHover] : curve) : null;
+
+  // ---------- Select strokes ----------
+
+  const pickedLines = tool === "lasso" ? page.lines.filter((l) => selectedLineIds.includes(l.id)) : [];
+  const pickedBox = unionBounds(pickedLines.map(strokeBounds));
+  const pickedOffset = lineDrag ?? { dx: 0, dy: 0 };
+  const shownLines = lineDrag ? moveStrokes(page.lines, selectedLineIds, lineDrag.dx, lineDrag.dy) : page.lines;
+
+  // ---------- Smart guides ----------
+
+  function snapDrag(id: string, e: Konva.KonvaEventObject<DragEvent>) {
+    const obj = page.objects.find((o) => o.id === id);
+    // Only a single object: a multi-selection is moved by the Transformer, which follows the dragged node itself.
+    if (!snap || !obj || e.evt?.altKey || (selectedIdsRef.current.length > 1 && selectedIdsRef.current.includes(id))) {
+      if (snapGuides.length) setSnapGuides([]);
+      return;
+    }
+    const node = e.target;
+    const box = objectBounds({ ...obj, x: node.x(), y: node.y() });
+    const others = page.objects.filter((o) => o.id !== id && !o.hidden && !(o.kind === "stamp" && o.isFrame) && o.role !== "pageNumber").map(objectBounds);
+    const pageBox = { left: 0, top: 0, right: pageWidth, bottom: pageHeight };
+    // A cover has its own guide layout; a page also snaps to its safe margins.
+    const targets = snapTargets([pageBox, ...(guides ? [] : [geometryFromSpace(space).safe]), ...others]);
+    const result = snapBox(box, targets, SNAP_PX / scale);
+    if (result.dx) node.x(node.x() + result.dx);
+    if (result.dy) node.y(node.y() + result.dy);
+    setSnapGuides(result.guides);
+  }
+
   const draftCopies = draftLine ? symmetricCopies(draftLine.points, symmetry, pageWidth / 2, pageHeight / 2) : [];
-  const axes = isFreehand && mode === "draw" ? symmetryAxes(symmetry, pageWidth, pageHeight) : [];
+  const axes = (isFreehand || tool === "curve") && mode === "draw" ? symmetryAxes(symmetry, pageWidth, pageHeight) : [];
 
   return (
     <div className="relative overflow-hidden rounded-lg bg-white shadow-md" style={{ width: pageWidth * scale, height: pageHeight * scale }}>
@@ -917,7 +1080,7 @@ export default function CanvasEditor({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        style={{ cursor: tool === "select" ? "default" : isFillTool ? "pointer" : "crosshair", touchAction: "none" }}
+        style={{ cursor: tool === "select" ? "default" : tool === "lasso" ? (lineDrag ? "grabbing" : "default") : isFillTool ? "pointer" : "crosshair", touchAction: "none" }}
         onPointerLeave={(e) => brushRef.current && handlePointerUp(e)}
       >
         {isCover && (
@@ -957,7 +1120,11 @@ export default function CanvasEditor({
               onDragStart: () => {
                 if (!selectedIdsRef.current.includes(obj.id)) onSelectObject(obj.id, false);
               },
-              onCommit: () => queueCommit(obj.id),
+              onDragMove: (e) => snapDrag(obj.id, e),
+              onCommit: () => {
+                setSnapGuides([]);
+                queueCommit(obj.id);
+              },
               registerNode: registerObjectNode,
             };
 
@@ -975,7 +1142,7 @@ export default function CanvasEditor({
             );
           })}
 
-          {page.lines.map((line) => (
+          {shownLines.map((line) => (
             <Line
               key={line.id}
               points={line.points}
@@ -1006,6 +1173,8 @@ export default function CanvasEditor({
               />
             ))}
 
+          {curveDraft && <Line points={curveDraft} stroke={PEN_COLOR} strokeWidth={strokeWidth} dash={lineDash(lineStyle, strokeWidth)} lineCap="round" lineJoin="round" listening={false} />}
+
           {/* Color mode's paint, multiplied OVER the line art in this same
               layer (blend modes only mix within one layer's canvas): on
               white — including white-filled shapes, frame motifs and hollow
@@ -1028,6 +1197,32 @@ export default function CanvasEditor({
         </Layer>
 
         {showGuides && <GuidesLayer spec={guideSpec} width={pageWidth} height={pageHeight} />}
+
+        {(pickedBox || curve.length > 0 || snapGuides.length > 0) && (
+          <Layer listening={false} name={OVERLAY_NAME}>
+            {snapGuides.map((g, i) => (
+              <Line key={`snap-${i}`} points={g.axis === "x" ? [g.at, 0, g.at, pageHeight] : [0, g.at, pageWidth, g.at]} stroke={SNAP_COLOR} strokeWidth={1 / scale} />
+            ))}
+            {pickedLines.map((l) => (
+              <Line key={`pick-${l.id}`} x={pickedOffset.dx} y={pickedOffset.dy} points={l.points} stroke={PICK_COLOR} strokeWidth={Math.max(1.5 / scale, l.strokeWidth * 0.3)} tension={0.5} lineCap="round" lineJoin="round" />
+            ))}
+            {pickedBox && (
+              <Rect
+                x={pickedBox.left - 4 + pickedOffset.dx}
+                y={pickedBox.top - 4 + pickedOffset.dy}
+                width={pickedBox.right - pickedBox.left + 8}
+                height={pickedBox.bottom - pickedBox.top + 8}
+                stroke={PICK_COLOR}
+                strokeWidth={1 / scale}
+                dash={[5 / scale, 4 / scale]}
+              />
+            )}
+            {tool === "curve" &&
+              Array.from({ length: curve.length / 2 }, (_, i) => (
+                <Circle key={`anchor-${i}`} x={curve[i * 2]} y={curve[i * 2 + 1]} radius={(i === 0 && curve.length >= 6 ? 6 : 4) / scale} fill="#ffffff" stroke={PICK_COLOR} strokeWidth={1.5 / scale} />
+              ))}
+          </Layer>
+        )}
 
         {(axes.length > 0 || marquee || (gapMarkers && gapMarkers.length > 0) || (detailMarkers && detailMarkers.length > 0)) && (
           <Layer listening={false} name={OVERLAY_NAME}>

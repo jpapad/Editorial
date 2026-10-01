@@ -18,7 +18,9 @@ import BookPreviewModal from "@/components/editor/BookPreviewModal";
 import PreflightBlockingModal, { type FlaggedPage, type PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
 import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from "@/components/editor/pageTemplates";
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
-import { captureInk, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
+import { moveStrokes } from "@/components/editor/strokeTools";
+import { captureInk, captureRegion, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
+import { deleteMyStamp, listMyStamps, placeMyStamp, saveMyStamp, toMyStamp, type MyStamp } from "@/utils/myStamps";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
 import PublishTemplateDialog from "@/components/studio/editor/PublishTemplateDialog";
 import SelectionToolbar from "@/components/studio/editor/SelectionToolbar";
@@ -79,7 +81,7 @@ const NUDGE_HISTORY_WINDOW_MS = 600; // a burst of arrow-key nudges is one undo 
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const TOOL_KEYS: Record<string, DrawingTool> = { v: "select", p: "pen", e: "eraser", s: "stamp", r: "shape", t: "text", f: "fill", b: "brush" };
+const TOOL_KEYS: Record<string, DrawingTool> = { v: "select", p: "pen", e: "eraser", s: "stamp", r: "shape", t: "text", f: "fill", b: "brush", l: "lasso", c: "curve" };
 
 function waitForNextPaint() {
   return new Promise<void>((resolve) => {
@@ -225,6 +227,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [strokeWidth, setStrokeWidth] = useState(6);
   const [smoothing, setSmoothing] = useState(0.3);
   const [lineStyle, setLineStyle] = useState<LineStyle | undefined>(undefined);
+  const [selectedLineIds, setSelectedLineIds] = useState<string[]>([]);
+  const [myStamps, setMyStamps] = useState<MyStamp[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [symmetry, setSymmetry] = useState<SymmetryMode>("off");
   const [showGrid, setShowGrid] = useState(false);
   const [showGuides, setShowGuides] = useState(true);
@@ -275,6 +280,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const activeSpace = editingCover ? cover.space : space;
   const activeGeo = geometryFromSpace(activeSpace);
   const selectedObjects = activePage.objects.filter((o) => selectedIds.includes(o.id));
+  const pickedLineIds = selectedLineIds.filter((id) => activePage.lines.some((l) => l.id === id));
   const gapMarkers = gapCheck && gapCheck.page === activePage ? gapCheck.markers : null;
   const ageResult = ageCheck && ageCheck.page === activePage ? ageCheck.result : null;
 
@@ -445,6 +451,65 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   function handleAddLines(lines: LineData[]) {
     pushHistory();
     updateActivePage({ lines: [...activePage.lines, ...lines] });
+  }
+
+  // ---------- My stamps ----------
+
+  useEffect(() => {
+    void listMyStamps().then(setMyStamps);
+  }, []);
+
+  async function handleSaveMyStamp() {
+    const stage = stageRef.current;
+    const box = unionBounds(selectedObjects.map(objectBounds));
+    const preview = stage && box ? captureRegion(stage, box, 160) : null;
+    const first = selectedObjects[0];
+    const name = (first?.kind === "stamp" && first.label) || (first?.kind === "text" && first.text.slice(0, 24)) || t("Stamp {n}", { n: myStamps.length + 1 });
+    const stamp = preview ? toMyStamp(selectedObjects, name, preview) : null;
+    if (!stamp) return;
+    try {
+      setMyStamps(await saveMyStamp(stamp));
+      setNotice(t("Saved to my stamps — find it under the Stamp tool."));
+    } catch {
+      setNotice(t("Could not save the stamp on this device."));
+    }
+  }
+
+  function handlePlaceMyStamp(stamp: MyStamp) {
+    pushHistory();
+    const { safe } = activeGeo;
+    const copies = placeMyStamp(stamp, (safe.left + safe.right) / 2, (safe.top + safe.bottom) / 2);
+    setActiveObjects([...activePage.objects, ...copies]);
+    setPendingPlacement(null);
+    setTool("select");
+    setSelectedIds(copies.map((c) => c.id));
+  }
+
+  // ---------- Drawn strokes (the Select-strokes tool) ----------
+
+  function handleSelectLines(ids: string[], additive: boolean) {
+    setSelectedLineIds((prev) => (additive ? [...new Set([...prev, ...ids])] : ids));
+  }
+
+  function handleMoveLines(ids: string[], dx: number, dy: number) {
+    if (ids.length === 0) return;
+    pushHistory();
+    updateActivePage({ lines: moveStrokes(activePage.lines, ids, dx, dy) });
+  }
+
+  function handleDeleteLines() {
+    if (pickedLineIds.length === 0) return;
+    pushHistory();
+    updateActivePage({ lines: activePage.lines.filter((l) => !pickedLineIds.includes(l.id)) });
+    setSelectedLineIds([]);
+  }
+
+  function handleDuplicateLines() {
+    const copies = activePage.lines.filter((l) => pickedLineIds.includes(l.id)).map((l) => ({ ...l, id: makeId("line"), points: l.points.map((v) => v + 18) }));
+    if (copies.length === 0) return;
+    pushHistory();
+    updateActivePage({ lines: [...activePage.lines, ...copies] });
+    setSelectedLineIds(copies.map((c) => c.id));
   }
 
   function handleUpdateObjects(updates: ObjectUpdate[]) {
@@ -1158,6 +1223,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
   function handleToolChange(next: DrawingTool) {
     setTool(next);
+    if (next !== "lasso") setSelectedLineIds([]);
     if (next !== "select") setSelectedIds([]);
     // Shape and Text are ready to place straight away (last shape used /
     // the default text style), so a click on the page does something even
@@ -1210,8 +1276,14 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        handleDeleteSelected();
+        if (tool === "lasso") handleDeleteLines();
+        else handleDeleteSelected();
+      } else if (e.key.startsWith("Arrow") && tool === "lasso" && pickedLineIds.length > 0) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        handleMoveLines(pickedLineIds, e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0);
       } else if (e.key === "Escape") {
+        setSelectedLineIds([]);
         setSelectedIds([]);
         setPendingPlacement(null);
         setShowShortcuts(false);
@@ -1327,6 +1399,11 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               onSmoothingChange={setSmoothing}
               lineStyle={lineStyle}
               onLineStyleChange={setLineStyle}
+              selectedLineIds={pickedLineIds}
+              onSelectLines={handleSelectLines}
+              onMoveLines={handleMoveLines}
+              onDeleteLines={handleDeleteLines}
+              onDuplicateLines={handleDuplicateLines}
               gapMarkers={gapMarkers}
               detailMarkers={ageResult?.tooSmall}
               darkSurround={darkSurround}
@@ -1344,6 +1421,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     onLock={handleLockSelected}
                     repeated={!editingCover && selectedObjects.every((o) => o.repeatId)}
                     onToggleRepeat={handleToggleRepeat}
+                    onSaveStamp={() => void handleSaveMyStamp()}
                     onGroup={handleGroup}
                     onUngroup={handleUngroup}
                     onDelete={handleDeleteSelected}
@@ -1424,6 +1502,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onPickStamp={handlePickStamp}
           onAddShape={handleAddShape}
           onAddText={handleAddText}
+          myStamps={myStamps}
+          onPlaceMyStamp={handlePlaceMyStamp}
+          onDeleteMyStamp={(id) => void deleteMyStamp(id).then(setMyStamps)}
           onSetBackgroundPattern={handleSetBackgroundPattern}
           onSetFrame={handleSetFrame}
           onToggleCover={handleToggleCover}
@@ -1483,6 +1564,14 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
       {showShare && <ShareDialog bookId={bookId} onClose={() => setShowShare(false)} />}
 
+      {notice && (
+        <div role="status" className="pw-glass fixed left-1/2 top-24 z-40 flex -translate-x-1/2 items-center gap-3 rounded-pill px-4 py-2 text-helper text-ink shadow-toolbar">
+          {notice}
+          <button type="button" onClick={() => setNotice(null)} className="font-semibold text-accent outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            {t("OK")}
+          </button>
+        </div>
+      )}
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
       {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 

@@ -40,6 +40,7 @@ import { FONT_OPTIONS } from "@/components/editor/kidFonts";
 import { cn } from "@/utils/cn";
 import { useT, type TFunction } from "@/lib/i18n";
 import type { AlignEdge } from "@/utils/objectGeometry";
+import type { MyStamp } from "@/utils/myStamps";
 import type { EditorMode } from "@/components/studio/types";
 import type { BookPage, DrawingTool, FillStyle, ObjectChanges, PageObject, ShapeKind, StampFilter, TextData } from "@/types/editor";
 import FillStylePicker from "@/components/studio/editor/FillStylePicker";
@@ -87,6 +88,9 @@ export interface RightPanelProps {
   onPickStamp: (src: string, options?: { naturalSize?: { width: number; height: number }; filter?: StampFilter; threshold?: number }) => void;
   onAddShape: (shapeKind: ShapeKind) => void;
   onAddText: (fontFamily: string, fontSize: number, fill?: string) => void;
+  myStamps?: MyStamp[];
+  onPlaceMyStamp?: (stamp: MyStamp) => void;
+  onDeleteMyStamp?: (id: string) => void;
   onSetBackgroundPattern: (patternId: string | null) => void;
   onSetFrame: (frameId: string | null) => void;
   onToggleCover: () => void;
@@ -446,7 +450,7 @@ export default function RightPanel(props: RightPanelProps) {
 
       {showAssetPicker && (
         <div className="shrink-0">
-          <AssetPicker tool={tool as "stamp" | "shape" | "text"} onPickStamp={props.onPickStamp} onAddShape={props.onAddShape} onAddText={props.onAddText} />
+          <AssetPicker tool={tool as "stamp" | "shape" | "text"} onPickStamp={props.onPickStamp} onAddShape={props.onAddShape} onAddText={props.onAddText} myStamps={props.myStamps} onPlaceMyStamp={props.onPlaceMyStamp} onDeleteMyStamp={props.onDeleteMyStamp} />
         </div>
       )}
 

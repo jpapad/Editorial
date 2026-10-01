@@ -27,6 +27,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     items: [
       { keys: ["V"], label: "Select" },
       { keys: ["P"], label: "Pen" },
+      { keys: ["C"], label: "Curve" },
+      { keys: ["L"], label: "Select strokes" },
       { keys: ["E"], label: "Eraser" },
       { keys: ["S"], label: "Stamp" },
       { keys: ["R"], label: "Shape" },
@@ -35,6 +37,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["B"], label: "Brush (Color mode)" },
       { keys: ["M"], label: "Toggle mirror drawing" },
       { keys: ["[", "]"], label: "Thinner / thicker brush" },
+      { keys: ["Alt"], label: "Hold while dragging: no snapping" },
     ],
   },
   {

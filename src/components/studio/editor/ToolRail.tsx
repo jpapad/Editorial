@@ -1,4 +1,4 @@
-import { MousePointer2, PenTool, Eraser, Square, Type, Sticker, PaintBucket, Paintbrush, Sparkles } from "lucide-react";
+import { MousePointer2, PenTool, Eraser, Square, Type, Sticker, PaintBucket, Paintbrush, Sparkles, Spline, LassoSelect } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { LanguageToggle, useT } from "@/lib/i18n";
 import type { EditorMode } from "@/components/studio/types";
@@ -31,7 +31,9 @@ interface ToolDef {
  */
 const DRAW_TOOLS: ToolDef[] = [
   { id: "select", icon: MousePointer2, label: "Select" },
+  { id: "lasso", icon: LassoSelect, label: "Select strokes" },
   { id: "pen", icon: PenTool, label: "Pen" },
+  { id: "curve", icon: Spline, label: "Curve" },
   { id: "eraser", icon: Eraser, label: "Eraser" },
   { id: "stamp", icon: Sticker, label: "Stamp" },
   { id: "shape", icon: Square, label: "Shape" },

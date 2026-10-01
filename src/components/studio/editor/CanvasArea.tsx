@@ -67,6 +67,11 @@ export interface CanvasAreaProps {
   onSymmetryChange?: (mode: SymmetryMode) => void;
   smoothing?: number;
   onSmoothingChange?: (amount: number) => void;
+  selectedLineIds?: string[];
+  onSelectLines?: (ids: string[], additive: boolean) => void;
+  onMoveLines?: (ids: string[], dx: number, dy: number) => void;
+  onDeleteLines?: () => void;
+  onDuplicateLines?: () => void;
   lineStyle?: LineStyle;
   onLineStyleChange?: (style: LineStyle | undefined) => void;
   gapMarkers?: GapMarker[] | null;
@@ -116,7 +121,10 @@ function ToolbarIconButton({ label, pressed, onClick, children }: { label: strin
  */
 export default function CanvasArea(props: CanvasAreaProps) {
   const { mode, tool, strokeWidth, onStrokeWidthChange, darkSurround = false, hideViewControls = false, padding = CANVAS_PADDING_PX } = props;
-  const showStrokeToolbar = (mode === "draw" || mode === "cover") && (tool === "pen" || tool === "eraser");
+  const drawLike = mode === "draw" || mode === "cover";
+  const showStrokeToolbar = drawLike && (tool === "pen" || tool === "eraser" || tool === "curve");
+  const showLassoToolbar = drawLike && tool === "lasso";
+  const pickedCount = props.selectedLineIds?.length ?? 0;
   // The coloring brush gets sizes only — no smoothing or mirror.
   const showBrushToolbar = mode === "color" && tool === "brush" && !hideViewControls;
   const t = useT();
@@ -259,6 +267,9 @@ export default function CanvasArea(props: CanvasAreaProps) {
               showGuides={props.showGuides ?? false}
               symmetry={symmetry}
               lineStyle={props.lineStyle}
+              selectedLineIds={props.selectedLineIds}
+              onSelectLines={props.onSelectLines}
+              onMoveLines={props.onMoveLines}
               smoothing={props.smoothing ?? 0}
               gapMarkers={props.gapMarkers}
               detailMarkers={props.detailMarkers}
@@ -361,6 +372,24 @@ export default function CanvasArea(props: CanvasAreaProps) {
         </div>
       )}
 
+      {showLassoToolbar && (
+        <div role="toolbar" aria-label={t("Selected strokes")} className={cn("absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-pill pw-glass py-2 pl-4 pr-2 shadow-toolbar", props.bottomBar ? "bottom-[84px]" : "bottom-4")}>
+          <span className="whitespace-nowrap text-helper text-ink-secondary">
+            {pickedCount === 0 ? t("Tap a line, or drag a box around lines, to select them") : pickedCount === 1 ? t("1 stroke selected — drag to move") : t("{n} strokes selected — drag to move", { n: pickedCount })}
+          </span>
+          {pickedCount > 0 && (
+            <>
+              <button type="button" onClick={props.onDuplicateLines} className="h-8 rounded-pill px-3 text-helper font-medium text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
+                {t("Duplicate")}
+              </button>
+              <button type="button" onClick={props.onDeleteLines} className="h-8 rounded-pill px-3 text-helper font-medium text-error outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
+                {t("Delete")}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {showStrokeToolbar && (
         <div className={cn("absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-pill pw-glass py-2 pl-2 pr-4 shadow-toolbar", props.bottomBar ? "bottom-[84px]" : "bottom-4")}>
           <div className="flex items-center gap-0.5" role="group" aria-label={t("Brush presets")}>
@@ -382,12 +411,21 @@ export default function CanvasArea(props: CanvasAreaProps) {
             ))}
           </div>
           <Slider layout="inline" min={1} max={40} step={1} value={strokeWidth} onChange={onStrokeWidthChange} valueLabel={`${strokeWidth}PX`} />
-          <span className="h-5 w-px bg-hairline" />
-          <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">
-            {t("Smooth")}
-            <Slider layout="inline" min={0} max={1} step={0.05} value={props.smoothing ?? 0} onChange={(v) => props.onSmoothingChange?.(v)} />
-          </label>
-          {tool === "pen" && props.onLineStyleChange && (
+          {tool === "curve" ? (
+            <>
+              <span className="h-5 w-px bg-hairline" />
+              <span className="whitespace-nowrap text-helper text-ink-muted">{t("Click to add points · double-click or Enter to finish")}</span>
+            </>
+          ) : (
+            <>
+              <span className="h-5 w-px bg-hairline" />
+              <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">
+                {t("Smooth")}
+                <Slider layout="inline" min={0} max={1} step={0.05} value={props.smoothing ?? 0} onChange={(v) => props.onSmoothingChange?.(v)} />
+              </label>
+            </>
+          )}
+          {(tool === "pen" || tool === "curve") && props.onLineStyleChange && (
             <>
               <span className="h-5 w-px bg-hairline" />
               <label className="flex items-center gap-2 font-pw-mono text-mono font-medium uppercase tracking-[0.09em] text-ink-muted">

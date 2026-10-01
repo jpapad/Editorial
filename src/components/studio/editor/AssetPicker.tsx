@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
-import { Star, Heart, Cat, RectangleHorizontal, Square, Circle, Triangle, Hexagon, Minus, MoveRight, Type, Upload, Sparkles } from "lucide-react";
+import { Star, Heart, Cat, RectangleHorizontal, Square, Circle, Triangle, Hexagon, Minus, MoveRight, Type, Upload, Sparkles, X } from "lucide-react";
+import MetaLabel from "@/components/studio/ui/MetaLabel";
+import type { MyStamp } from "@/utils/myStamps";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import Slider from "@/components/studio/ui/Slider";
@@ -55,6 +57,10 @@ export interface AssetPickerProps {
   onPickStamp: (src: string, options?: { naturalSize?: { width: number; height: number }; filter?: StampFilter; threshold?: number }) => void;
   onAddShape: (shapeKind: ShapeKind) => void;
   onAddText: (fontFamily: string, fontSize: number, fill?: string) => void;
+  /** Pieces the user saved from a selection ("Save to my stamps"). */
+  myStamps?: MyStamp[];
+  onPlaceMyStamp?: (stamp: MyStamp) => void;
+  onDeleteMyStamp?: (id: string) => void;
 }
 
 /**
@@ -67,7 +73,7 @@ export interface AssetPickerProps {
  * (stamp/shape/text); patterns/cover are a natural follow-up, not
  * silently dropped capability.
  */
-export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }: AssetPickerProps) {
+export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText, myStamps = [], onPlaceMyStamp, onDeleteMyStamp }: AssetPickerProps) {
   const t = useT();
   const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value);
   const [fontSize, setFontSize] = useState(FONT_SIZE_OPTIONS[1].value);
@@ -109,6 +115,38 @@ export default function AssetPicker({ tool, onPickStamp, onAddShape, onAddText }
                 </button>
               );
             })}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-hairline pt-3">
+            <MetaLabel>{t("My stamps")}</MetaLabel>
+            {myStamps.length === 0 ? (
+              <p className="text-helper text-ink-muted">{t("Select something on the page and press “Save to my stamps” to keep it here for any book.")}</p>
+            ) : (
+              <ul className="grid grid-cols-3 gap-1.5" aria-label={t("My stamps")}>
+                {myStamps.map((stamp) => (
+                  <li key={stamp.id} className="group relative">
+                    <button
+                      type="button"
+                      aria-label={t("Place {name}", { name: stamp.name })}
+                      title={stamp.name}
+                      onClick={() => onPlaceMyStamp?.(stamp)}
+                      className="flex aspect-square w-full items-center justify-center rounded-row-sm border border-hairline bg-white p-1 outline-none hover:border-ink-muted focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- a local data URL */}
+                      <img src={stamp.preview} alt="" className="max-h-full max-w-full object-contain" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t("Delete {name}", { name: stamp.name })}
+                      onClick={() => onDeleteMyStamp?.(stamp.id)}
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-pill bg-panel text-ink-muted opacity-0 shadow-resting outline-none hover:text-error focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
+                    >
+                      <X size={11} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-col gap-2 border-t border-hairline pt-3">

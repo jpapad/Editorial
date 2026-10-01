@@ -5,7 +5,9 @@
 // beneath the ink, rather than drawing a line.
 // "brush" paints freehand on that same paint layer (under the ink, like a
 // marker that can't cover the outlines).
-export type DrawingTool = "pen" | "eraser" | "select" | "stamp" | "shape" | "text" | "fill" | "brush";
+// "lasso" picks drawn pen strokes (to move or delete them); "curve" draws a
+// smooth line through clicked points.
+export type DrawingTool = "pen" | "eraser" | "select" | "stamp" | "shape" | "text" | "fill" | "brush" | "lasso" | "curve";
 
 /** What the paint bucket lays down: flat color, or a two-tone pattern in that color. */
 export type FillStyle = "solid" | "stars" | "stripes" | "dots" | "hearts";
