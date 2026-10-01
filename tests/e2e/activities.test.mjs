@@ -49,7 +49,7 @@ await p.screenshot({ path: shot("sudoku.png") });
 
 // ---- find the shadow (no pictures on the current page → built-in shapes)
 n = await pageCount();
-const shadows = await worksheet("Find the shadow");
+await worksheet("Find the shadow");
 page = await ink();
 check((await pageCount()) === n + 1 && page.texts.includes("Find the shadow!"), "find the shadow adds a matching page");
 await p.screenshot({ path: shot("shadows.png") });

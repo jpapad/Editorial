@@ -39,6 +39,8 @@ function itemText(item: ReadinessItem, t: TFunction): string {
       return item.ok ? t("Everything inside the safe margin") : item.count === 1 ? t("1 page past the safe margin") : t("{n} pages past the safe margin", { n: item.count });
     case "empty-pages":
       return item.ok ? t("No empty pages") : item.count === 1 ? t("1 empty page") : t("{n} empty pages", { n: item.count });
+    case "duplicates":
+      return item.ok ? t("No repeated pages") : item.count === 1 ? t("1 page repeats an earlier one") : t("{n} pages repeat earlier ones", { n: item.count });
   }
 }
 

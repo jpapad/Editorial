@@ -33,6 +33,9 @@ import { bookReadiness } from "@/utils/readiness";
 import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
 import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
+import VersionHistoryDialog from "@/components/studio/editor/VersionHistoryDialog";
+import MockupDialog from "@/components/studio/editor/MockupDialog";
+import { bookSignature, listVersions, saveVersion, snapshotDue } from "@/utils/versions";
 import ImportImagesDialog from "@/components/studio/editor/ImportImagesDialog";
 import { applyFrameToAll, applyPatternToAll, propagateRepeats, setLineWidth, withRepeats } from "@/utils/bookTools";
 import PageToolsCard from "@/components/studio/editor/PageToolsCard";
@@ -255,6 +258,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showPublishTemplate, setShowPublishTemplate] = useState(false);
   const [showWorksheets, setShowWorksheets] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
+  // undefined = closed; null = open, pages still rendering.
+  const [mockupImages, setMockupImages] = useState<string[] | null | undefined>(undefined);
   const [colorPreviewInk, setColorPreviewInk] = useState<PixelBuffer | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [comments, setComments] = useState<PageComment[]>([]);
@@ -741,6 +747,35 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     }
   }
 
+  // ---------- Mockups / version history ----------
+
+  /** The first non-empty pages, rendered for the listing mockups (page 1 stands in as the cover). */
+  async function handleOpenMockups() {
+    setMockupImages(null);
+    const picks = pages.filter((p) => !p.isBlankBack && (p.objects.length > 0 || p.lines.length > 0)).slice(0, 3);
+    setMockupImages(await renderAllPages(2, picks.length ? picks : pages.slice(0, 1)));
+  }
+
+  function handleRestoreVersion(saved: BookPage[]) {
+    if (saved.length === 0) return;
+    captureActiveThumbnail();
+    pushHistory();
+    setPages(renumber(saved));
+    setActivePageId(saved[0].id);
+    setSelectedIds([]);
+  }
+
+  // A snapshot every ten minutes of work (see versions.ts), a few seconds after the last change.
+  useEffect(() => {
+    if (!bookId || reviewMode) return;
+    const timer = setTimeout(() => {
+      void listVersions(bookId).then((versions) => {
+        if (snapshotDue(versions, bookSignature(pages), Date.now())) void saveVersion(bookId, title, pages).catch(() => undefined);
+      });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [bookId, pages, title, reviewMode]);
+
   // ---------- Whole-book edits ----------
 
   function handleApplyFrameToAll() {
@@ -1162,7 +1197,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   }
 
   /** Renders every page in turn and captures it at `pixelRatio` (plus a fresh thumbnail). Restores the active page after. */
-  async function renderAllPages(pixelRatio: number): Promise<string[]> {
+  async function renderAllPages(pixelRatio: number, only: BookPage[] = pages): Promise<string[]> {
     setSelectedIds([]);
     const originalActivePageId = activePageId;
     // Cover and Assemble don't show interior pages on the canvas — render in Draw, then come back.
@@ -1172,7 +1207,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     const thumbnails: Record<string, string> = {};
     try {
       await waitForNextPaint();
-      for (const page of pages) {
+      for (const page of only) {
         setActivePageId(page.id);
         await waitForNextPaint();
         const stage = stageRef.current;
@@ -1639,7 +1674,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     updateActivePage({ traceImage });
                   }}
                 />
-                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} />
+                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} />
               </>
             ) : null
           }
@@ -1661,6 +1696,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         </div>
       )}
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
+      {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}
+      {mockupImages !== undefined && <MockupDialog images={mockupImages} fileName={slugify(title)} onClose={() => setMockupImages(undefined)} />}
       {showImport && <ImportImagesDialog space={space} onAdd={handleAppendPages} onClose={() => setShowImport(false)} />}
       {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} capturePage={() => (stageRef.current ? captureStage(stageRef.current, 2) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 
