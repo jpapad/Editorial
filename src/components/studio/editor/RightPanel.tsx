@@ -93,6 +93,9 @@ export interface RightPanelProps {
   onDeleteMyStamp?: (id: string) => void;
   onSetBackgroundPattern: (patternId: string | null) => void;
   onSetFrame: (frameId: string | null) => void;
+  /** Puts this page's frame / background on every page of the book. */
+  onApplyFrameToAll?: () => void;
+  onApplyPatternToAll?: () => void;
   onToggleCover: () => void;
   onSetCoverBackgroundColor: (color: string) => void;
   /** null = no check run for the current page state. */
@@ -475,7 +478,14 @@ export default function RightPanel(props: RightPanelProps) {
           <p className="text-card-title font-semibold text-ink">{t("Page")}</p>
 
           <div>
-            <MetaLabel>{t("Frame")}</MetaLabel>
+            <div className="flex items-center justify-between">
+              <MetaLabel>{t("Frame")}</MetaLabel>
+              {props.onApplyFrameToAll && (
+                <button type="button" aria-label={t("Use this frame on all pages")} onClick={props.onApplyFrameToAll} className="rounded-pill px-1.5 text-helper font-medium text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
+                  {t("All pages")}
+                </button>
+              )}
+            </div>
             <div className="mt-1.5 grid grid-cols-4 gap-1.5">
               <button
                 type="button"
@@ -506,7 +516,14 @@ export default function RightPanel(props: RightPanelProps) {
           </div>
 
           <div>
-            <MetaLabel>{t("Background pattern")}</MetaLabel>
+            <div className="flex items-center justify-between">
+              <MetaLabel>{t("Background pattern")}</MetaLabel>
+              {props.onApplyPatternToAll && (
+                <button type="button" aria-label={t("Use this background on all pages")} onClick={props.onApplyPatternToAll} className="rounded-pill px-1.5 text-helper font-medium text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent">
+                  {t("All pages")}
+                </button>
+              )}
+            </div>
             <div className="mt-1.5 grid grid-cols-3 gap-1.5">
               <button
                 type="button"

@@ -25,6 +25,7 @@ export interface PageFilmstripProps {
   commentCounts?: Record<string, number>;
   /** Opens the worksheet generator (tracing, dots, mazes, spot the difference). */
   onOpenWorksheets?: () => void;
+  onOpenImport?: () => void;
 }
 
 const THUMB_RADIUS_PX = 5; // exact spec value ("44x58 thumbnails radius 5") — doesn't match any named radius token, so passed as a raw style override
@@ -42,7 +43,7 @@ const THUMB_RADIUS_PX = 5; // exact spec value ("44x58 thumbnails radius 5") —
  * PageManager's template-picker + delete-on-hover pattern onto the new
  * tokens/primitives.
  */
-export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAddPage, onDeletePage, onDuplicatePage, onReorderPages, onToggleBlankBacks, commentCounts = {}, onOpenWorksheets }: PageFilmstripProps) {
+export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAddPage, onDeletePage, onDuplicatePage, onReorderPages, onToggleBlankBacks, commentCounts = {}, onOpenWorksheets, onOpenImport }: PageFilmstripProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const hasBlankBacks = pages.some((p) => p.isBlankBack);
@@ -225,6 +226,19 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
                 <span className="text-helper text-ink-muted">{t(option.description)}</span>
               </button>
             ))}
+            {onOpenImport && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenImport();
+                  setShowTemplateMenu(false);
+                }}
+                className="mt-0.5 flex flex-col items-start rounded-row-sm border-t border-hairline px-2 py-1.5 text-left outline-none transition-colors duration-150 hover:bg-inset-alt motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              >
+                <span className="text-body font-medium text-accent">{t("Pictures as pages…")}</span>
+                <span className="text-helper text-ink-muted">{t("Many pictures at once, one page each")}</span>
+              </button>
+            )}
             {onOpenWorksheets && (
               <button
                 type="button"

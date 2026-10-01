@@ -32,6 +32,8 @@ import { bookReadiness } from "@/utils/readiness";
 import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
 import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
+import ImportImagesDialog from "@/components/studio/editor/ImportImagesDialog";
+import { applyFrameToAll, applyPatternToAll, propagateRepeats, setLineWidth, withRepeats } from "@/utils/bookTools";
 import PageToolsCard from "@/components/studio/editor/PageToolsCard";
 import { applyPageNumbers, pageNumberMode, removeRepeats, repeatOnAllPages, syncPageNumbers, type PageNumberMode } from "@/utils/pageNumbers";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
@@ -250,6 +252,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showListing, setShowListing] = useState(false);
   const [showPublishTemplate, setShowPublishTemplate] = useState(false);
   const [showWorksheets, setShowWorksheets] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [colorPreviewInk, setColorPreviewInk] = useState<PixelBuffer | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [comments, setComments] = useState<PageComment[]>([]);
@@ -428,7 +431,13 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       });
       return;
     }
-    setPages((prev) => prev.map((p) => (p.id === activePage.id ? { ...p, ...update } : p)));
+    // An edit to a repeated element is carried to its copies on the other pages.
+    const before = activePage.objects;
+    const pageId = activePage.id;
+    setPages((prev) => {
+      const next = prev.map((p) => (p.id === pageId ? { ...p, ...update } : p));
+      return update.objects ? propagateRepeats(next, pageId, before) : next;
+    });
   }
 
   function setActiveObjects(objects: PageObject[]) {
@@ -445,7 +454,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       setCoverDesign((prev) => (prev ? { ...prev, page: patch(prev.page) } : prev));
       return;
     }
-    setPages((prev) => prev.map((p) => (p.id !== activePage.id ? p : patch(p))));
+    const before = activePage.objects;
+    const pageId = activePage.id;
+    setPages((prev) => propagateRepeats(prev.map((p) => (p.id !== pageId ? p : patch(p))), pageId, before));
   }
 
   function handleAddLines(lines: LineData[]) {
@@ -682,6 +693,25 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     } else {
       setPages((prev) => repeatOnAllPages(prev, activePage.id, selectedIds));
     }
+  }
+
+  // ---------- Whole-book edits ----------
+
+  function handleApplyFrameToAll() {
+    const frame = activePage.objects.find((o) => o.kind === "stamp" && o.isFrame);
+    pushHistory();
+    setPages((prev) => applyFrameToAll(prev, frame?.kind === "stamp" ? (frame.frameId ?? null) : null));
+  }
+
+  function handleApplyPatternToAll() {
+    pushHistory();
+    setPages((prev) => applyPatternToAll(prev, activePage.backgroundPatternId ?? null));
+  }
+
+  function handleSetLineWidth(width: number, allPages: boolean) {
+    pushHistory();
+    if (editingCover) updateActivePage(setLineWidth([activePage], width)[0]);
+    else setPages((prev) => setLineWidth(prev, width, allPages ? undefined : activePage.id));
   }
 
   function handlePageNumbers(mode: PageNumberMode) {
@@ -980,7 +1010,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   /** Called as each series page finishes — functional update, since the series runs across many renders. */
   function handleAppendImagePage(src: string, size: ImageSize, caption?: string) {
     const page = pageFromImage(src, size, space, caption);
-    setPages((prev) => renumber([...prev, page]));
+    setPages((prev) => renumber([...prev, ...withRepeats([page], prev)]));
     setActivePageId(page.id);
     setSelectedIds([]);
   }
@@ -991,7 +1021,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     captureActiveThumbnail();
     pushHistory();
     const page = createPageFromTemplate(pages.length + 1, space, template, t);
-    setPages((prev) => renumber([...prev, page]));
+    setPages((prev) => renumber([...prev, ...withRepeats([page], prev)]));
     setActivePageId(page.id);
     setSelectedIds([]);
   }
@@ -1001,7 +1031,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     if (newPages.length === 0) return;
     captureActiveThumbnail();
     pushHistory();
-    setPages((prev) => renumber([...prev, ...newPages]));
+    setPages((prev) => renumber([...prev, ...withRepeats(newPages, prev)]));
     setActivePageId(newPages[0].id);
     setSelectedIds([]);
   }
@@ -1151,7 +1181,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     const toAdd = pagesNeededForMultipleOf4(pages.length);
     if (toAdd === 0) return;
     pushHistory();
-    setPages((prev) => renumber([...prev, ...Array.from({ length: toAdd }, () => createPageFromTemplate(0, space))]));
+    setPages((prev) => renumber([...prev, ...withRepeats(Array.from({ length: toAdd }, () => createPageFromTemplate(0, space)), prev)]));
   }
   function fixThinStrokes() {
     pushHistory();
@@ -1443,6 +1473,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               onToggleBlankBacks={handleToggleBlankBacks}
               commentCounts={openCommentCounts}
               onOpenWorksheets={() => setShowWorksheets(true)}
+              onOpenImport={() => setShowImport(true)}
             />
             )}
           </>
@@ -1473,6 +1504,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onPlaceFullPage={handlePlaceFullPage}
           onSeriesStart={handleSeriesStart}
           onAppendImagePage={handleAppendImagePage}
+          currentSubject={activePage.objects.flatMap((o) => (o.kind === "stamp" && o.label ? [o.label] : []))[0]}
         />
       )}
 
@@ -1507,6 +1539,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onDeleteMyStamp={(id) => void deleteMyStamp(id).then(setMyStamps)}
           onSetBackgroundPattern={handleSetBackgroundPattern}
           onSetFrame={handleSetFrame}
+          onApplyFrameToAll={editingCover ? undefined : handleApplyFrameToAll}
+          onApplyPatternToAll={editingCover ? undefined : handleApplyPatternToAll}
           onToggleCover={handleToggleCover}
           onSetCoverBackgroundColor={handleSetCoverBackgroundColor}
           gapCount={gapMarkers ? gapMarkers.length : null}
@@ -1544,6 +1578,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                 <PageToolsCard
                   pageNumbers={pageNumberMode(pages)}
                   onPageNumbersChange={handlePageNumbers}
+                  defaultLineWidth={strokeWidth}
+                  onSetLineWidth={handleSetLineWidth}
                   onColorPreview={() => setColorPreviewInk(stageRef.current ? captureInk(stageRef.current) : null)}
                   trace={activePage.traceImage}
                   onTraceChange={(traceImage) => {
@@ -1573,6 +1609,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         </div>
       )}
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
+      {showImport && <ImportImagesDialog space={space} onAdd={handleAppendPages} onClose={() => setShowImport(false)} />}
       {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}

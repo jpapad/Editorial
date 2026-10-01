@@ -1,5 +1,6 @@
 "use client";
 
+import { variationSubjects } from "@/utils/bookTools";
 import { useRef, useState, type ChangeEvent } from "react";
 import { cn } from "@/utils/cn";
 import { Camera, CheckCircle2, Circle, Loader2, ScanLine, Sparkles, X, XCircle } from "lucide-react";
@@ -29,6 +30,8 @@ export interface AiStudioPanelProps {
   onSeriesStart: () => void;
   /** Appends one new page holding the image (and an optional caption). */
   onAppendImagePage: (src: string, size: ImageSize, caption?: string) => void;
+  /** What the AI picture on the current page shows — offers "more like this". */
+  currentSubject?: string;
 }
 
 type SeriesItem = { subject: string; status: "queued" | "running" | "done" | "failed"; error?: string };
@@ -247,7 +250,7 @@ function PhotoToPageSection({ onPickStamp, onPlaceFullPage, onUsed }: Pick<AiStu
  * time so each page lands as soon as it's ready and one failure doesn't
  * sink the rest.
  */
-function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage"> & { onUsed: () => void }) {
+function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed, currentSubject }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage" | "currentSubject"> & { onUsed: () => void }) {
   const t = useT();
   const [theme, setTheme] = useState("");
   const [subjects, setSubjects] = useState("");
@@ -295,6 +298,11 @@ function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed }: Pick<AiStud
         <p className="text-card-title font-semibold text-ink">{t("Generate a page series")}</p>
       </div>
       <p className="text-helper text-ink-muted">{t("One new page per subject, all in the same theme and style.")}</p>
+      {currentSubject && !running && (
+        <Button variant="secondary" size="sm" icon={<Sparkles size={13} />} onClick={() => setSubjects(variationSubjects(currentSubject, 5).join("\n"))}>
+          {t("5 more like this page")}
+        </Button>
+      )}
       <input
         value={theme}
         onChange={(e) => setTheme(e.target.value)}
@@ -384,7 +392,7 @@ export default function AiStudioPanel(props: AiStudioPanelProps) {
         <PhotoToPageSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} onUsed={refresh} />
       </div>
       <div className="shrink-0">
-        <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} onUsed={refresh} />
+        <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} onUsed={refresh} currentSubject={props.currentSubject} />
       </div>
       <Card className="shrink-0 p-4">
         <AiGeneratePanel onPickStamp={props.onPickStamp} onUsed={refresh} />

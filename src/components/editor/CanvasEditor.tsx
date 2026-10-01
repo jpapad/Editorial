@@ -979,7 +979,7 @@ export default function CanvasEditor({
       return;
     }
     const ids = page.objects
-      .filter((o) => !o.locked && !o.hidden)
+      .filter((o) => !o.locked && !o.hidden && !(o.kind === "stamp" && o.isFrame))
       .filter((o) => {
         const b = objectBounds(o);
         return b.left < right && b.right > left && b.top < bottom && b.bottom > top;
@@ -1107,10 +1107,13 @@ export default function CanvasEditor({
         <Layer ref={mainLayerRef} name={INK_LAYER_NAME}>
           {page.objects.map((obj) => {
             if (obj.hidden) return null;
+            // A frame lies under the whole page: a click meant for the page (or for something
+            // just placed on it) must not pick it up. It is selected from the Layers list.
+            const isPageFrame = obj.kind === "stamp" && Boolean(obj.isFrame);
             const interactive = tool === "select" && !obj.locked;
             const handlers: ObjectHandlers = {
               draggable: interactive,
-              listening: !obj.locked,
+              listening: !obj.locked && (!isPageFrame || selectedIds.includes(obj.id)),
               isSelected: selectedIds.includes(obj.id),
               onSelect: (e) => {
                 if (tool !== "select" || obj.locked) return;

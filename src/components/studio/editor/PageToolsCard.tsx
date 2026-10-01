@@ -35,13 +35,16 @@ export interface PageToolsCardProps {
   trace: TraceImage | undefined;
   onTraceChange: (trace: TraceImage | undefined) => void;
   onColorPreview: () => void;
+  defaultLineWidth: number;
+  onSetLineWidth: (width: number, allPages: boolean) => void;
 }
 
 /** Page numbers for the whole book, and this page's tracing reference. */
-export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace, onTraceChange, onColorPreview }: PageToolsCardProps) {
+export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace, onTraceChange, onColorPreview, defaultLineWidth, onSetLineWidth }: PageToolsCardProps) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lineWidth, setLineWidth] = useState(Math.max(2, Math.min(12, defaultLineWidth)));
   const modes: [PageNumberMode, string][] = [
     ["off", t("Off")],
     ["center", t("Centre")],
@@ -87,6 +90,20 @@ export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace,
           ))}
         </div>
         <p className="text-helper text-ink-muted">{t("On every page of the book; they follow when pages move.")}</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5 border-t border-hairline pt-3">
+        <MetaLabel>{t("Even line thickness")}</MetaLabel>
+        <Slider label={t("Thickness")} valueLabel={`${lineWidth} pt`} min={2} max={12} step={0.5} value={lineWidth} onChange={setLineWidth} />
+        <div className="flex gap-1.5">
+          <Button variant="secondary" size="sm" onClick={() => onSetLineWidth(lineWidth, false)}>
+            {t("This page")}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onSetLineWidth(lineWidth, true)}>
+            {t("Whole book")}
+          </Button>
+        </div>
+        <p className="text-helper text-ink-muted">{t("Sets every pen line and shape outline to one thickness. Pictures are not changed.")}</p>
       </div>
 
       <div className="flex flex-col gap-1.5 border-t border-hairline pt-3">
