@@ -772,4 +772,12 @@ export const EL: Record<string, string> = {
   "Whole book": "Όλο το βιβλίο",
   "Sets every pen line and shape outline to one thickness. Pictures are not changed.": "Φέρνει κάθε γραμμή στυλό και περίγραμμα σχήματος στο ίδιο πάχος. Οι εικόνες δεν αλλάζουν.",
   "5 more like this page": "5 ακόμα σαν αυτή τη σελίδα",
+  "Tracing the lines…": "Ανιχνεύω τις γραμμές…",
+  "No dark lines found in this picture.": "Δεν βρέθηκαν σκούρες γραμμές σε αυτή την εικόνα.",
+  "Lines sharpened: the picture is now vector and prints crisp at any size.": "Οι γραμμές οξύνθηκαν: η εικόνα είναι πλέον διανυσματική και τυπώνεται καθαρά σε κάθε μέγεθος.",
+  "This picture could not be traced.": "Δεν μπόρεσα να ανιχνεύσω αυτή την εικόνα.",
+  "Click a line to remove it up to where other lines cross it": "Κλικ σε μια γραμμή για να σβηστεί μέχρι εκεί που τη διασταυρώνουν άλλες",
+  "Whole pieces": "Ολόκληρα κομμάτια",
+  "Sharpen lines (vectorize)": "Όξυνση γραμμών (vectorize)",
+  "Bend": "Καμπύλωση",
 };

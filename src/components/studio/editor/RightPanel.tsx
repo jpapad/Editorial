@@ -33,6 +33,7 @@ import Button from "@/components/studio/ui/Button";
 import ColorSwatch from "@/components/studio/ui/ColorSwatch";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Toggle from "@/components/studio/ui/Toggle";
+import Slider from "@/components/studio/ui/Slider";
 import AssetPicker from "@/components/studio/editor/AssetPicker";
 import { BACKGROUND_PATTERNS, svgToDataUri } from "@/components/editor/backgroundPatterns";
 import { FRAMES, frameDataUri } from "@/components/editor/frameLibrary";
@@ -223,6 +224,7 @@ function SelectionCard(props: RightPanelProps & { selected: PageObject[] }) {
               </option>
             ))}
           </select>
+          <Slider label={t("Bend")} valueLabel={`${texts[0].arc ?? 0}°`} min={-180} max={180} step={10} value={texts[0].arc ?? 0} onChange={(arc) => props.onUpdateSelectedText({ arc: arc || undefined })} />
           <Toggle checked={texts.every((x) => x.outline)} onChange={(outline) => props.onUpdateSelectedText({ outline })} label={t("Outline letters (colorable)")} />
           <div className="flex gap-1">
             {(["left", "center", "right"] as const).map((align) => (

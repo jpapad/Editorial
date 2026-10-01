@@ -82,6 +82,7 @@ export interface TextData extends Placeable {
   fill: string;
   isDragging: boolean;
   outline?: boolean; // hollow "colorable" letters: white fill with a `fill`-colored outline
+  arc?: number; // degrees the line of text is bent: > 0 arches up, < 0 sags (absent/0 = straight)
   dashed?: boolean; // tracing letters: a dashed outline only (worksheets)
 }
 

@@ -18,7 +18,8 @@ import BookPreviewModal from "@/components/editor/BookPreviewModal";
 import PreflightBlockingModal, { type FlaggedPage, type PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
 import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from "@/components/editor/pageTemplates";
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
-import { moveStrokes } from "@/components/editor/strokeTools";
+import { eraseSegment, moveStrokes } from "@/components/editor/strokeTools";
+import { vectorize } from "@/components/studio/editor/vectorize";
 import { captureInk, captureRegion, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
 import { deleteMyStamp, listMyStamps, placeMyStamp, saveMyStamp, toMyStamp, type MyStamp } from "@/utils/myStamps";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
@@ -230,6 +231,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [smoothing, setSmoothing] = useState(0.3);
   const [lineStyle, setLineStyle] = useState<LineStyle | undefined>(undefined);
   const [selectedLineIds, setSelectedLineIds] = useState<string[]>([]);
+  const [segmentErase, setSegmentErase] = useState(false);
   const [myStamps, setMyStamps] = useState<MyStamp[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [symmetry, setSymmetry] = useState<SymmetryMode>("off");
@@ -462,6 +464,50 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   function handleAddLines(lines: LineData[]) {
     pushHistory();
     updateActivePage({ lines: [...activePage.lines, ...lines] });
+  }
+
+  // ---------- Vectorize / segment eraser ----------
+
+  /** Redraws the selected picture as vector outlines: same look, sharp at any print size. */
+  async function handleVectorize() {
+    const stamp = selectedObjects[0];
+    if (selectedObjects.length !== 1 || stamp.kind !== "stamp") return;
+    setNotice(t("Tracing the lines…"));
+    try {
+      const img = new window.Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("unreadable"));
+        img.src = stamp.src;
+      });
+      const longest = Math.max(img.naturalWidth, img.naturalHeight) || 1024;
+      const k = Math.min(1800, Math.max(900, longest)) / longest;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round((img.naturalWidth || 1024) * k);
+      canvas.height = Math.round((img.naturalHeight || 1024) * k);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no canvas");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const threshold = stamp.filter === "lineArt" ? 255 - (stamp.threshold ?? 0.5) * 255 : 128;
+      const result = vectorize({ width: pixels.width, height: pixels.height, data: pixels.data }, { threshold });
+      if (result.paths === 0) {
+        setNotice(t("No dark lines found in this picture."));
+        return;
+      }
+      pushHistory();
+      patchActiveObject(stamp.id, { src: `data:image/svg+xml;utf8,${encodeURIComponent(result.svg)}`, filter: "none" });
+      setNotice(t("Lines sharpened: the picture is now vector and prints crisp at any size."));
+    } catch {
+      setNotice(t("This picture could not be traced."));
+    }
+  }
+
+  function handleEraseSegment(lineId: string, x: number, y: number) {
+    const next = eraseSegment(activePage.lines, lineId, x, y);
+    if (next === activePage.lines) return;
+    pushHistory();
+    updateActivePage({ lines: next });
   }
 
   // ---------- My stamps ----------
@@ -1303,6 +1349,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         return;
       }
       if (mod || e.altKey) return;
+      // A focused slider uses the arrow keys itself — they must not also nudge the selection.
+      if (e.key.startsWith("Arrow") && e.target instanceof HTMLInputElement && e.target.type === "range") return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
@@ -1429,6 +1477,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
               onSmoothingChange={setSmoothing}
               lineStyle={lineStyle}
               onLineStyleChange={setLineStyle}
+              segmentErase={segmentErase}
+              onSegmentEraseChange={setSegmentErase}
+              onEraseSegment={handleEraseSegment}
               selectedLineIds={pickedLineIds}
               onSelectLines={handleSelectLines}
               onMoveLines={handleMoveLines}
@@ -1452,6 +1503,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     repeated={!editingCover && selectedObjects.every((o) => o.repeatId)}
                     onToggleRepeat={handleToggleRepeat}
                     onSaveStamp={() => void handleSaveMyStamp()}
+                    onVectorize={selectedObjects.length === 1 && selectedObjects[0].kind === "stamp" && !selectedObjects[0].isFrame ? () => void handleVectorize() : undefined}
                     onGroup={handleGroup}
                     onUngroup={handleUngroup}
                     onDelete={handleDeleteSelected}

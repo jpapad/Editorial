@@ -72,6 +72,9 @@ export interface CanvasAreaProps {
   onMoveLines?: (ids: string[], dx: number, dy: number) => void;
   onDeleteLines?: () => void;
   onDuplicateLines?: () => void;
+  segmentErase?: boolean;
+  onSegmentEraseChange?: (on: boolean) => void;
+  onEraseSegment?: (lineId: string, x: number, y: number) => void;
   lineStyle?: LineStyle;
   onLineStyleChange?: (style: LineStyle | undefined) => void;
   gapMarkers?: GapMarker[] | null;
@@ -267,6 +270,8 @@ export default function CanvasArea(props: CanvasAreaProps) {
               showGuides={props.showGuides ?? false}
               symmetry={symmetry}
               lineStyle={props.lineStyle}
+              segmentErase={props.segmentErase}
+              onEraseSegment={props.onEraseSegment}
               selectedLineIds={props.selectedLineIds}
               onSelectLines={props.onSelectLines}
               onMoveLines={props.onMoveLines}
@@ -411,6 +416,19 @@ export default function CanvasArea(props: CanvasAreaProps) {
             ))}
           </div>
           <Slider layout="inline" min={1} max={40} step={1} value={strokeWidth} onChange={onStrokeWidthChange} valueLabel={`${strokeWidth}PX`} />
+          {tool === "eraser" && props.onSegmentEraseChange && (
+            <>
+              <button
+                type="button"
+                aria-pressed={props.segmentErase ?? false}
+                title={t("Click a line to remove it up to where other lines cross it")}
+                onClick={() => props.onSegmentEraseChange?.(!props.segmentErase)}
+                className={cn("h-8 whitespace-nowrap rounded-pill px-3 text-helper font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent", props.segmentErase ? "bg-ink text-on-ink" : "text-ink-secondary hover:bg-inset-alt")}
+              >
+                {t("Whole pieces")}
+              </button>
+            </>
+          )}
           {tool === "curve" ? (
             <>
               <span className="h-5 w-px bg-hairline" />

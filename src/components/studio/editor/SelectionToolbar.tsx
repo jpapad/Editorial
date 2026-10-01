@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkPlus, Copy, CopyMinus, CopyPlus, FlipHorizontal2, Group, Lock, Trash2, Ungroup } from "lucide-react";
+import { BookmarkPlus, PenLine, Copy, CopyMinus, CopyPlus, FlipHorizontal2, Group, Lock, Trash2, Ungroup } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useT } from "@/lib/i18n";
 import type { Bounds } from "@/utils/objectGeometry";
@@ -20,6 +20,8 @@ export interface SelectionToolbarProps {
   repeated: boolean;
   onToggleRepeat: () => void;
   onSaveStamp: () => void;
+  /** Present when the selection is one picture that can be turned into sharp vector lines. */
+  onVectorize?: () => void;
   onGroup: () => void;
   onUngroup: () => void;
   onDelete: () => void;
@@ -34,7 +36,7 @@ const BAR_H = 44;
  * selection hugs the top edge): the actions you reach for most, next to the
  * thing they act on. Everything here is also in the right panel.
  */
-export default function SelectionToolbar({ bounds, scale, count, canGroup, canUngroup, onDuplicate, onMirror, onLock, repeated, onToggleRepeat, onSaveStamp, onGroup, onUngroup, onDelete }: SelectionToolbarProps) {
+export default function SelectionToolbar({ bounds, scale, count, canGroup, canUngroup, onDuplicate, onMirror, onLock, repeated, onToggleRepeat, onSaveStamp, onVectorize, onGroup, onUngroup, onDelete }: SelectionToolbarProps) {
   const t = useT();
   const centerX = ((bounds.left + bounds.right) / 2) * scale;
   const above = bounds.top * scale - GAP_PX - BAR_H;
@@ -76,6 +78,11 @@ export default function SelectionToolbar({ bounds, scale, count, canGroup, canUn
       <button type="button" aria-label={repeated ? t("Remove from all pages") : t("Repeat on all pages")} title={repeated ? t("Remove from all pages") : t("Repeat on all pages")} onClick={onToggleRepeat} className={cn(button, repeated && "bg-accent-tint text-accent")}>
         {repeated ? <CopyMinus size={16} /> : <CopyPlus size={16} />}
       </button>
+      {onVectorize && (
+        <button type="button" aria-label={t("Sharpen lines (vectorize)")} title={t("Sharpen lines (vectorize)")} onClick={onVectorize} className={button}>
+          <PenLine size={16} />
+        </button>
+      )}
       <button type="button" aria-label={t("Save to my stamps")} title={t("Save to my stamps")} onClick={onSaveStamp} className={button}>
         <BookmarkPlus size={16} />
       </button>

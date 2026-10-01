@@ -212,3 +212,98 @@ export function moveStrokes(lines: LineData[], ids: string[], dx: number, dy: nu
   const set = new Set(ids);
   return lines.map((l) => (set.has(l.id) ? { ...l, points: l.points.map((v, i) => v + (i % 2 === 0 ? dx : dy)) } : l));
 }
+
+// ---------- Segment eraser ----------
+
+/** Where segment a→b crosses c→d, as the fraction along a→b (null if they don't cross). */
+function crossing(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): number | null {
+  const den = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+  if (den === 0) return null;
+  const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / den;
+  const u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? t : null;
+}
+
+/**
+ * Removes the piece of one pen stroke that lies under (x, y), up to the
+ * nearest place on each side where another pen stroke crosses it — the
+ * overshoot past a corner, the bit of line inside another shape. With no
+ * crossing on a side the stroke goes to its end, so an uncrossed stroke
+ * is removed whole. What's left of it stays as one or two strokes.
+ */
+export function eraseSegment(lines: LineData[], id: string, x: number, y: number): LineData[] {
+  const target = lines.find((l) => l.id === id);
+  if (!target || target.tool !== "pen" || target.points.length < 4) return lines;
+  const p = target.points;
+  const segs = p.length / 2 - 1;
+
+  // Cut positions along the stroke, as "segment index + fraction".
+  const cuts: number[] = [];
+  for (const other of lines) {
+    if (other === target || other.tool !== "pen") continue;
+    const q = other.points;
+    for (let i = 0; i < segs; i++) {
+      for (let j = 0; j + 3 < q.length; j += 2) {
+        const t = crossing(p[i * 2], p[i * 2 + 1], p[i * 2 + 2], p[i * 2 + 3], q[j], q[j + 1], q[j + 2], q[j + 3]);
+        if (t !== null) cuts.push(i + t);
+      }
+    }
+  }
+
+  // Where the click falls along the stroke.
+  let at = 0;
+  let best = Infinity;
+  for (let i = 0; i < segs; i++) {
+    const [ax, ay, bx, by] = [p[i * 2], p[i * 2 + 1], p[i * 2 + 2], p[i * 2 + 3]];
+    const len2 = (bx - ax) ** 2 + (by - ay) ** 2;
+    const t = len2 ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / len2)) : 0;
+    const d = Math.hypot(x - (ax + (bx - ax) * t), y - (ay + (by - ay) * t));
+    if (d < best) {
+      best = d;
+      at = i + t;
+    }
+  }
+
+  const lower = Math.max(-1, ...cuts.filter((c) => c <= at));
+  const upper = Math.min(Infinity, ...cuts.filter((c) => c > at));
+  const pointAt = (pos: number): [number, number] => {
+    const i = Math.min(segs - 1, Math.floor(pos));
+    const t = pos - i;
+    return [p[i * 2] + (p[i * 2 + 2] - p[i * 2]) * t, p[i * 2 + 1] + (p[i * 2 + 3] - p[i * 2 + 1]) * t];
+  };
+  const pieces: number[][] = [];
+  if (lower >= 0) {
+    const head = p.slice(0, (Math.floor(lower) + 1) * 2);
+    head.push(...pointAt(lower));
+    pieces.push(head);
+  }
+  if (upper !== Infinity) pieces.push([...pointAt(upper), ...p.slice((Math.floor(upper) + 1) * 2)]);
+
+  const length = (pts: number[]) => {
+    let len = 0;
+    for (let i = 2; i + 1 < pts.length; i += 2) len += Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
+    return len;
+  };
+  const kept = pieces.filter((pts) => pts.length >= 4 && length(pts) > 1).map((points, i) => ({ ...target, id: i === 0 ? target.id : `${target.id}-b`, points }));
+  return lines.flatMap((l) => (l === target ? kept : [l]));
+}
+
+// ---------- Text on a curve ----------
+
+/**
+ * SVG path a line of text follows when bent by `arc` degrees: positive
+ * arches up like a rainbow, negative sags like a smile. The arc is as long
+ * as `width`, so the text keeps its size; the path's top sits at y = 0.
+ */
+export function arcPath(width: number, arc: number): string {
+  const theta = (Math.min(340, Math.abs(arc)) * Math.PI) / 180;
+  if (theta < 0.01) return `M0 0L${width} 0`;
+  const r = width / theta;
+  const half = r * Math.sin(theta / 2);
+  const sag = r * (1 - Math.cos(theta / 2));
+  const large = theta > Math.PI ? 1 : 0;
+  const x0 = width / 2 - half;
+  const x1 = width / 2 + half;
+  const f = (v: number) => Math.round(v * 100) / 100;
+  return arc > 0 ? `M${f(x0)} ${f(sag)}A${f(r)} ${f(r)} 0 ${large} 1 ${f(x1)} ${f(sag)}` : `M${f(x0)} 0A${f(r)} ${f(r)} 0 ${large} 0 ${f(x1)} 0`;
+}

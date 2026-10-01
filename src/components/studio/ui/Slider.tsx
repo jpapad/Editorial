@@ -23,13 +23,14 @@ export interface SliderProps {
   className?: string;
 }
 
-function Track({ percent, min, max, step, value, onChange }: { percent: number; min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+function Track({ percent, min, max, step, value, onChange, label }: { percent: number; min: number; max: number; step: number; value: number; onChange: (v: number) => void; label?: string }) {
   return (
     <div className="relative flex h-4 items-center">
       <div className="absolute inset-x-0 h-1 rounded-pill bg-inset" />
       <div className="absolute h-1 rounded-pill bg-accent" style={{ width: `${percent}%` }} />
       <input
         type="range"
+        aria-label={label}
         min={min}
         max={max}
         step={step}
@@ -63,7 +64,7 @@ export default function Slider({ label, valueLabel, min, max, step = 1, value, o
     return (
       <div className={cn("flex items-center gap-2", className)}>
         <div className="w-24">
-          <Track percent={percent} min={min} max={max} step={step} value={value} onChange={onChange} />
+          <Track label={label} percent={percent} min={min} max={max} step={step} value={value} onChange={onChange} />
         </div>
         {valueLabel && <MetaLabel tone="ink">{valueLabel}</MetaLabel>}
       </div>
@@ -78,7 +79,7 @@ export default function Slider({ label, valueLabel, min, max, step = 1, value, o
           {valueLabel && <MetaLabel tone="ink">{valueLabel}</MetaLabel>}
         </div>
       )}
-      <Track percent={percent} min={min} max={max} step={step} value={value} onChange={onChange} />
+      <Track label={label} percent={percent} min={min} max={max} step={step} value={value} onChange={onChange} />
     </div>
   );
 }

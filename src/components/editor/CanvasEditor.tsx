@@ -11,6 +11,7 @@ import {
   Circle,
   Group,
   Text as KonvaText,
+  TextPath,
   Image as KonvaImage,
   Transformer,
 } from "react-konva";
@@ -22,7 +23,7 @@ import type { BookPage, DrawingTool, FillStyle, LineData, LineStyle, ObjectChang
 import { patternPixels } from "@/components/studio/editor/fillPatterns";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 import { isOpenStroke, isPolygonShape, polygonPoints } from "@/components/editor/shapeGeometry";
-import { curveThrough, lineDash, moveStrokes, smoothStroke, stabilize, strokeAt, strokeBounds, strokesInRect, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
+import { arcPath, curveThrough, lineDash, moveStrokes, smoothStroke, stabilize, strokeAt, strokeBounds, strokesInRect, symmetricCopies, symmetryAxes } from "@/components/editor/strokeTools";
 import { snapBox, snapTargets, type SnapResult } from "@/utils/snapping";
 import type { EditorMode } from "@/components/studio/types";
 import { floodFill, samplePixelColor, type PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
@@ -211,6 +212,9 @@ interface CanvasEditorProps {
   onMoveLines?: (ids: string[], dx: number, dy: number) => void;
   /** Dragged objects line up with the page centre, the margins and each other (hold Alt to switch off). */
   snap?: boolean;
+  /** Eraser in "whole pieces" mode: a click removes the stroke under it up to the nearest crossings. */
+  segmentErase?: boolean;
+  onEraseSegment?: (lineId: string, x: number, y: number) => void;
   /** One pen/eraser gesture — the stroke plus its symmetry copies, committed as a single undo step. */
   onAddLines: (lines: LineData[]) => void;
   onPlaceObject: (placement: PendingPlacement, x: number, y: number) => void;
@@ -366,14 +370,18 @@ function TextNode({
   hidden: boolean;
 }) {
   const selected = selectionShadow(isSelected);
+  // Bent text follows an arc as long as the text box is wide; everything else is shared with straight text.
+  const Shape = (obj.arc ? TextPath : KonvaText) as typeof KonvaText;
+  // The arc is at least as long as the text itself (which, straight, may have wrapped onto several lines), kept centred on the box.
+  const arcLength = Math.max(obj.width, obj.text.length * obj.fontSize * 0.62);
+  const layout = obj.arc ? { data: arcPath(arcLength, obj.arc), align: "center", textBaseline: "middle", offsetX: (arcLength - obj.width) / 2 } : { align: obj.align, width: obj.width };
   return (
-    <KonvaText
+    <Shape
       ref={(node) => registerNode(obj.id, node)}
       text={obj.text}
       fontFamily={obj.fontFamily}
       fontSize={obj.fontSize}
-      align={obj.align}
-      width={obj.width}
+      {...layout}
       // Outline text = hollow letters a child can color in; dashed = letters to trace over.
       fill={obj.dashed ? "transparent" : obj.outline ? "#ffffff" : obj.fill}
       stroke={obj.outline || obj.dashed ? obj.fill : undefined}
@@ -526,6 +534,8 @@ export default function CanvasEditor({
   onSelectLines,
   onMoveLines,
   snap = true,
+  segmentErase = false,
+  onEraseSegment,
   activeColor = "#000000",
   fillStyle = "solid",
   onSampleColor,
@@ -860,6 +870,12 @@ export default function CanvasEditor({
 
     if (tool === "curve") {
       addCurvePoint(pos.x, pos.y);
+      return;
+    }
+
+    if (tool === "eraser" && segmentErase) {
+      const id = strokeAt(page.lines, pos.x, pos.y, 8 / scale);
+      if (id) onEraseSegment?.(id, pos.x, pos.y);
       return;
     }
 
