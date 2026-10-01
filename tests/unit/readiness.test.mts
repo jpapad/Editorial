@@ -4,7 +4,9 @@ import type { BookPage } from "../../src/types/editor";
 let fails = 0;
 const ok = (c: boolean, m: string) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) fails++; };
 const space = { width: 612, height: 792, bleed: 0 };
-const line = (w: number, x = 200) => ({ id: "l" + Math.random(), tool: "pen" as const, strokeWidth: w, points: [x, 200, x + 100, 300] });
+// Every line is a little different, so no two test pages repeat each other (that has its own check).
+let drawn = 0;
+const line = (w: number, x = 200) => ({ id: "l" + Math.random(), tool: "pen" as const, strokeWidth: w, points: [x, 200 + (drawn += 4), x + 100, 300 + drawn] });
 const page = (i: number, extra: Partial<BookPage> = {}): BookPage => ({ id: "p" + i, pageNumber: i + 1, space, lines: [line(6)], objects: [], ...extra });
 const book = (n: number, f?: (i: number) => Partial<BookPage>) => Array.from({ length: n }, (_, i) => page(i, f?.(i)));
 
