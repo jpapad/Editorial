@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { FlipHorizontal2, Grid3x3, Hash, Palette, Puzzle, Route, Search, Spline, Type, X } from "lucide-react";
+import { Calculator, Contrast, FlipHorizontal2, Grid2x2, Grid3x3, Hash, LayoutGrid, Loader2, Palette, PencilLine, Puzzle, Route, Search, Spline, Type, X } from "lucide-react";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Slider from "@/components/studio/ui/Slider";
+import Toggle from "@/components/studio/ui/Toggle";
 import { cn } from "@/utils/cn";
 import {
   connectDotsFromPage,
@@ -20,12 +21,14 @@ import {
 } from "@/components/editor/worksheets";
 import { crosswordPages, finishDrawingPage, normalizeWord, wordSearchPages, type CrosswordEntry } from "@/components/editor/puzzles";
 import { colorByNumberPage } from "@/components/editor/colorByNumber";
+import { countingPage, gridCopyPage, PICTURE_SHAPES, shadowMatchPage, SUDOKU_LEVELS, sudokuPages, wordTracingPages, type CountingKind, type ShadowItem, type SudokuLevel, type SudokuSize } from "@/components/editor/activities";
+import { silhouetteDataUrl } from "@/lib/silhouette";
 import { findRegions, NUMBER_COLORS, numberRegions } from "@/components/studio/editor/regions";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import type { BookPage, PageSpace } from "@/types/editor";
 import { useLanguage, useT } from "@/lib/i18n";
 
-type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish" | "cbn";
+type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish" | "cbn" | "sudoku" | "shadows" | "gridcopy" | "words" | "counting";
 
 const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] = [
   { value: "letters", label: "Letter tracing", hint: "One page per letter", Icon: Type },
@@ -36,6 +39,11 @@ const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] =
   { value: "wordsearch", label: "Word search", hint: "Your words hidden in a letter grid, with answers", Icon: Grid3x3 },
   { value: "crossword", label: "Crossword", hint: "Your words and clues, with answers", Icon: Puzzle },
   { value: "finish", label: "Finish the picture", hint: "Half of the current page, to draw the other half", Icon: FlipHorizontal2 },
+  { value: "sudoku", label: "Sudoku", hint: "4×4 or 6×6, with numbers or pictures, and answers", Icon: Grid2x2 },
+  { value: "shadows", label: "Find the shadow", hint: "Match each picture to its shadow", Icon: Contrast },
+  { value: "gridcopy", label: "Draw in the grid", hint: "The current page under a grid, with an empty grid to copy it into", Icon: LayoutGrid },
+  { value: "words", label: "Word tracing", hint: "Whole words to color, trace and write", Icon: PencilLine },
+  { value: "counting", label: "Counting", hint: "Count the shapes, or add two groups", Icon: Calculator },
   { value: "cbn", label: "Color by number", hint: "A copy of the current page with a number in every area and a color key", Icon: Palette },
 ];
 
@@ -70,6 +78,8 @@ export interface WorksheetDialogProps {
   currentPage: BookPage;
   /** The current page's ink as pixels (what the paint bucket sees) — for color by number. */
   captureInk?: () => PixelBuffer | null;
+  /** The current page as a PNG data URL — for "draw in the grid". */
+  capturePage?: () => string | null;
   onAdd: (pages: BookPage[]) => void;
   onClose: () => void;
 }
@@ -77,7 +87,7 @@ export interface WorksheetDialogProps {
 const MAX_PAGES = 40;
 
 /** Builds worksheet pages (see worksheets.ts) and hands them to the editor to append. */
-export default function WorksheetDialog({ space, currentPage, captureInk, onAdd, onClose }: WorksheetDialogProps) {
+export default function WorksheetDialog({ space, currentPage, captureInk, capturePage, onAdd, onClose }: WorksheetDialogProps) {
   const t = useT();
   const { lang } = useLanguage();
   const [words, setWords] = useState(SAMPLE_WORDS[lang] ?? SAMPLE_WORDS.en);
@@ -88,6 +98,18 @@ export default function WorksheetDialog({ space, currentPage, captureInk, onAdd,
   const [to, setTo] = useState(5);
   const [design, setDesign] = useState<DotsDesign | "mine">("star");
   const [colorCount, setColorCount] = useState(5);
+  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(4);
+  const [sudokuLevel, setSudokuLevel] = useState<SudokuLevel>("easy");
+  const [sudokuPictures, setSudokuPictures] = useState(false);
+  const [sudokuCount, setSudokuCount] = useState(2);
+  const [gridCells, setGridCells] = useState(6);
+  const [traceWords, setTraceWords] = useState(SAMPLE_WORDS[lang] ?? SAMPLE_WORDS.en);
+  const [countingKind, setCountingKind] = useState<CountingKind>("count");
+  const [countingMax, setCountingMax] = useState(6);
+  const [countingPages, setCountingPages] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const pagePictures = currentPage.objects.filter((o) => o.kind === "stamp" && !o.isFrame && !o.hidden);
+  const traceList = traceWords.split(/[\n,;]+/).map((w) => w.trim()).filter(Boolean).slice(0, 40);
   const [dotCount, setDotCount] = useState(25);
   const [level, setLevel] = useState<MazeLevel>("easy");
   const [mazeCount, setMazeCount] = useState(3);
@@ -101,13 +123,16 @@ export default function WorksheetDialog({ space, currentPage, captureInk, onAdd,
   const pageCount =
     kind === "letters" ? letterList.length
     : kind === "numbers" ? numberCount
-    : kind === "dots" || kind === "finish" || kind === "cbn" ? 1
+    : kind === "dots" || kind === "finish" || kind === "cbn" || kind === "shadows" || kind === "gridcopy" ? 1
+    : kind === "sudoku" ? sudokuCount * 2
+    : kind === "words" ? Math.ceil(traceList.length / 4)
+    : kind === "counting" ? countingPages
     : kind === "maze" ? mazeCount
     : kind === "wordsearch" ? (wordList.length ? 2 : 0)
     : kind === "crossword" ? (clueList.length >= 2 ? 2 : 0)
     : 2;
 
-  function build() {
+  async function build() {
     setError(null);
     const seed = crypto.getRandomValues(new Uint32Array(1))[0] % 1e9;
     let pages: BookPage[] = [];
@@ -120,6 +145,33 @@ export default function WorksheetDialog({ space, currentPage, captureInk, onAdd,
         return;
       }
       pages = [page];
+    } else if (kind === "sudoku") {
+      pages = Array.from({ length: sudokuCount }, (_, i) => sudokuPages(space, sudokuSize, sudokuLevel, sudokuPictures, seed + i, t)).flatMap((s) => [s.puzzle, s.answers]);
+    } else if (kind === "shadows") {
+      let items: ShadowItem[] = PICTURE_SHAPES.slice(0, 5).map((shapeKind) => ({ kind: "shape", shapeKind }));
+      if (pagePictures.length >= 3) {
+        setBusy(true);
+        try {
+          items = await Promise.all(pagePictures.slice(0, 6).map(async (o) => ({ kind: "picture" as const, src: (o as { src: string }).src, ...(await silhouetteDataUrl((o as { src: string }).src)) })));
+        } catch {
+          // A picture that can't be read: fall back to the built-in shapes.
+        }
+        setBusy(false);
+      }
+      const page = shadowMatchPage(space, items, seed, t);
+      if (!page) return;
+      pages = [page];
+    } else if (kind === "gridcopy") {
+      const src = capturePage?.();
+      if (!src || (currentPage.objects.length === 0 && currentPage.lines.length === 0)) {
+        setError(t("The current page is empty. Draw or place a picture first."));
+        return;
+      }
+      pages = [gridCopyPage(space, { src, width: space.width, height: space.height }, gridCells, t)];
+    } else if (kind === "words") {
+      pages = wordTracingPages(space, traceList);
+    } else if (kind === "counting") {
+      pages = Array.from({ length: countingPages }, (_, i) => countingPage(space, countingKind, countingMax, seed + i, t));
     } else if (kind === "cbn") {
       const ink = captureInk?.();
       const page = ink ? colorByNumberPage(currentPage, numberRegions(findRegions(ink), colorCount, seed), t) : null;
@@ -157,6 +209,7 @@ export default function WorksheetDialog({ space, currentPage, captureInk, onAdd,
     onClose();
   }
 
+  const chip = (on: boolean) => cn("rounded-pill border px-3 py-1 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", on ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt");
   const input = "h-9 rounded-row-sm border border-hairline bg-panel px-2.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent";
 
   return (
@@ -292,6 +345,57 @@ export default function WorksheetDialog({ space, currentPage, captureInk, onAdd,
           </label>
         )}
 
+        {kind === "sudoku" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {([4, 6] as const).map((n) => (
+                <button key={n} type="button" aria-pressed={sudokuSize === n} onClick={() => setSudokuSize(n)} className={chip(sudokuSize === n)}>
+                  {n}×{n}
+                </button>
+              ))}
+              <span className="mx-1 w-px self-stretch bg-hairline" />
+              {SUDOKU_LEVELS.map((l) => (
+                <button key={l.value} type="button" aria-pressed={sudokuLevel === l.value} onClick={() => setSudokuLevel(l.value)} className={chip(sudokuLevel === l.value)}>
+                  {t(l.label)}
+                </button>
+              ))}
+            </div>
+            <Toggle checked={sudokuPictures} onChange={setSudokuPictures} label={t("Pictures instead of numbers")} />
+            <Slider label={t("Puzzles")} valueLabel={String(sudokuCount)} min={1} max={10} step={1} value={sudokuCount} onChange={setSudokuCount} />
+          </div>
+        )}
+
+        {kind === "shadows" && (
+          <p className="text-body text-ink-secondary">
+            {pagePictures.length >= 3 ? t("Uses the {n} pictures on the page you're on.", { n: Math.min(6, pagePictures.length) }) : t("Uses simple shapes. To use your own pictures, open a page with at least 3 pictures on it.")}
+          </p>
+        )}
+
+        {kind === "gridcopy" && <Slider label={t("Squares across")} valueLabel={String(gridCells)} min={3} max={12} step={1} value={gridCells} onChange={setGridCells} />}
+
+        {kind === "words" && (
+          <label className="flex flex-col gap-1">
+            <MetaLabel>{t("Words — one per line")}</MetaLabel>
+            <textarea value={traceWords} onChange={(e) => setTraceWords(e.target.value)} rows={6} className={cn(input, "h-auto resize-y py-2")} />
+            <span className="text-helper text-ink-muted">{t("4 words per page, written as you type them.")}</span>
+          </label>
+        )}
+
+        {kind === "counting" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-1.5">
+              <button type="button" aria-pressed={countingKind === "count"} onClick={() => setCountingKind("count")} className={chip(countingKind === "count")}>
+                {t("Count")}
+              </button>
+              <button type="button" aria-pressed={countingKind === "add"} onClick={() => setCountingKind("add")} className={chip(countingKind === "add")}>
+                {t("Add")}
+              </button>
+            </div>
+            <Slider label={t("Up to")} valueLabel={String(countingMax)} min={3} max={10} step={1} value={countingMax} onChange={setCountingMax} />
+            <Slider label={t("Pages")} valueLabel={String(countingPages)} min={1} max={10} step={1} value={countingPages} onChange={setCountingPages} />
+          </div>
+        )}
+
         {kind === "cbn" && (
           <div className="flex flex-col gap-3">
             <Slider label={t("Colors")} valueLabel={String(colorCount)} min={3} max={NUMBER_COLORS.length} step={1} value={colorCount} onChange={setColorCount} />
@@ -316,7 +420,7 @@ export default function WorksheetDialog({ space, currentPage, captureInk, onAdd,
           <Button variant="ghost" onClick={onClose}>
             {t("Cancel")}
           </Button>
-          <Button variant="primary" onClick={build} disabled={pageCount === 0}>
+          <Button variant="primary" onClick={() => void build()} disabled={pageCount === 0 || busy} icon={busy ? <Loader2 size={14} className="animate-spin" /> : undefined}>
             {pageCount === 1 ? t("Add 1 page") : t("Add {n} pages", { n: pageCount })}
           </Button>
         </div>
