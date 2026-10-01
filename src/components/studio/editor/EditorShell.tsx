@@ -28,6 +28,8 @@ import { applyCommandActions, parseCommandResult, summarizePage, type CommandPic
 import { generateLineArtPicture } from "@/lib/lineArt";
 import { bookReadiness } from "@/utils/readiness";
 import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
+import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
+import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PageToolsCard from "@/components/studio/editor/PageToolsCard";
 import { applyPageNumbers, pageNumberMode, removeRepeats, repeatOnAllPages, syncPageNumbers, type PageNumberMode } from "@/utils/pageNumbers";
 import ListingKitModal from "@/components/studio/editor/ListingKitModal";
@@ -243,6 +245,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showListing, setShowListing] = useState(false);
   const [showPublishTemplate, setShowPublishTemplate] = useState(false);
   const [showWorksheets, setShowWorksheets] = useState(false);
+  const [colorPreviewInk, setColorPreviewInk] = useState<PixelBuffer | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [comments, setComments] = useState<PageComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
@@ -1460,6 +1463,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                 <PageToolsCard
                   pageNumbers={pageNumberMode(pages)}
                   onPageNumbersChange={handlePageNumbers}
+                  onColorPreview={() => setColorPreviewInk(stageRef.current ? captureInk(stageRef.current) : null)}
                   trace={activePage.traceImage}
                   onTraceChange={(traceImage) => {
                     pushHistory();
@@ -1479,7 +1483,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
       {showShare && <ShareDialog bookId={bookId} onClose={() => setShowShare(false)} />}
 
-      {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
+      {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
+      {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
       {showPublishTemplate && <PublishTemplateDialog title={title} pages={pages} trimSize={trimSizeId} bleed={bleed} onClose={() => setShowPublishTemplate(false)} />}

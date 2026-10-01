@@ -190,6 +190,119 @@ export function connectDotsPage(space: PageSpace, design: DotsDesign, dotCount: 
   return blank(space, objects);
 }
 
+/** Total length of a flattened polyline. */
+function pathLength(pts: number[]): number {
+  let len = 0;
+  for (let i = 2; i + 1 < pts.length; i += 2) len += Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
+  return len;
+}
+
+/**
+ * One continuous path out of a page's pen strokes: starts from the longest
+ * stroke and keeps attaching whichever stroke begins (or ends) nearest to
+ * either end of the path, while one is within `reach`. Strokes drawn apart
+ * from the main outline (eyes, details) are left out.
+ */
+export function chainStrokes(strokes: number[][], reach: number): number[] {
+  const rest = strokes.filter((s) => s.length >= 4).sort((a, b) => pathLength(b) - pathLength(a));
+  if (rest.length === 0) return [];
+  let chain = [...rest.shift()!];
+  const reversed = (s: number[]) => {
+    const out: number[] = [];
+    for (let i = s.length - 2; i >= 0; i -= 2) out.push(s[i], s[i + 1]);
+    return out;
+  };
+  for (;;) {
+    let best: { index: number; d: number; atEnd: boolean; flip: boolean } | null = null;
+    const [sx, sy] = chain;
+    const ex = chain[chain.length - 2];
+    const ey = chain[chain.length - 1];
+    rest.forEach((s, index) => {
+      const head: [number, number] = [s[0], s[1]];
+      const tail: [number, number] = [s[s.length - 2], s[s.length - 1]];
+      const options = [
+        { d: Math.hypot(head[0] - ex, head[1] - ey), atEnd: true, flip: false },
+        { d: Math.hypot(tail[0] - ex, tail[1] - ey), atEnd: true, flip: true },
+        { d: Math.hypot(tail[0] - sx, tail[1] - sy), atEnd: false, flip: false },
+        { d: Math.hypot(head[0] - sx, head[1] - sy), atEnd: false, flip: true },
+      ];
+      for (const o of options) if (o.d <= reach && (!best || o.d < best.d)) best = { index, ...o };
+    });
+    if (!best) break;
+    const pick = best as { index: number; d: number; atEnd: boolean; flip: boolean };
+    const stroke = pick.flip ? reversed(rest[pick.index]) : rest[pick.index];
+    chain = pick.atEnd ? [...chain, ...stroke] : [...stroke, ...chain];
+    rest.splice(pick.index, 1);
+  }
+  return chain;
+}
+
+/** `count` points evenly spaced along a polyline (both ends included). */
+export function resamplePath(pts: number[], count: number): [number, number][] {
+  const total = pathLength(pts);
+  if (total === 0 || count < 2) return [];
+  const out: [number, number][] = [[pts[0], pts[1]]];
+  const step = total / (count - 1);
+  let walked = 0;
+  let next = step;
+  for (let i = 2; i + 1 < pts.length && out.length < count - 1; i += 2) {
+    const seg = Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
+    while (seg > 0 && walked + seg >= next && out.length < count - 1) {
+      const t = (next - walked) / seg;
+      out.push([pts[i - 2] + (pts[i] - pts[i - 2]) * t, pts[i - 1] + (pts[i + 1] - pts[i - 1]) * t]);
+      next += step;
+    }
+    walked += seg;
+  }
+  out.push([pts[pts.length - 2], pts[pts.length - 1]]);
+  return out;
+}
+
+/**
+ * Connect-the-dots from the user's own drawing: the page's pen outline
+ * (see chainStrokes) becomes numbered dots, scaled to fill the page.
+ * Null when there is no stroke long enough to make a picture of.
+ */
+export function connectDotsFromPage(source: BookPage, space: PageSpace, dotCount: number, tx: TFunction = identityT): BookPage | null {
+  const strokes = source.lines.filter((l) => l.tool === "pen" && !l.style).map((l) => l.points);
+  const path = chainStrokes(strokes, 30);
+  if (path.length < 4 || pathLength(path) < 120) return null;
+  let dots = resamplePath(path, dotCount);
+  // A closed outline ends where it began: one dot there, not two on top of each other.
+  const first = dots[0];
+  const lastDot = dots[dots.length - 1];
+  if (Math.hypot(first[0] - lastDot[0], first[1] - lastDot[1]) < 12) dots = dots.slice(0, -1);
+
+  const xs = dots.map((d) => d[0]);
+  const ys = dots.map((d) => d[1]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const w = Math.max(1, Math.max(...xs) - minX);
+  const h = Math.max(1, Math.max(...ys) - minY);
+  const { safe } = geometryFromSpace(space);
+  const width = safe.right - safe.left;
+  const titleH = 70;
+  const pad = 24; // room for the numbers outside the outline
+  const availW = width - pad * 2;
+  const availH = safe.bottom - safe.top - titleH - pad * 2;
+  const k = Math.min(availW / w, availH / h);
+  const left = safe.left + pad + (availW - w * k) / 2;
+  const top = safe.top + titleH + pad + (availH - h * k) / 2;
+  const cx = left + (w * k) / 2;
+  const cy = top + (h * k) / 2;
+
+  const objects: PageObject[] = [text({ text: tx("Connect the dots!"), x: safe.left, y: safe.top, width, fontSize: 40, outline: true, fontFamily: KID_FONT })];
+  dots.forEach(([px, py], i) => {
+    const x = left + (px - minX) * k;
+    const y = top + (py - minY) * k;
+    const r = i === 0 ? 6 : 4;
+    objects.push(shape({ shapeKind: "circle", x: x - r, y: y - r, width: r * 2, height: r * 2, fill: INK, stroke: INK, strokeWidth: 1 }));
+    const m = Math.hypot(x - cx, y - cy) || 1;
+    objects.push(text({ text: String(i + 1), x: x + ((x - cx) / m) * 14 - 15, y: y + ((y - cy) / m) * 14 - 7, width: 30, height: 14, fontSize: 11, fontFamily: "Arial, Helvetica, sans-serif", align: "center" }));
+  });
+  return blank(space, objects);
+}
+
 // ---------- Maze ----------
 
 export type MazeLevel = "easy" | "medium" | "hard";

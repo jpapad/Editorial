@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImageUp, Trash2 } from "lucide-react";
+import { ImageUp, Palette, Trash2 } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -34,10 +34,11 @@ export interface PageToolsCardProps {
   onPageNumbersChange: (mode: PageNumberMode) => void;
   trace: TraceImage | undefined;
   onTraceChange: (trace: TraceImage | undefined) => void;
+  onColorPreview: () => void;
 }
 
 /** Page numbers for the whole book, and this page's tracing reference. */
-export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace, onTraceChange }: PageToolsCardProps) {
+export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace, onTraceChange, onColorPreview }: PageToolsCardProps) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,13 @@ export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace,
   return (
     <Card className="flex shrink-0 flex-col gap-3 p-4">
       <div className="flex flex-col gap-1.5">
+        <Button variant="secondary" size="sm" icon={<Palette size={13} />} onClick={onColorPreview}>
+          {t("Preview colored in")}
+        </Button>
+        <p className="text-helper text-ink-muted">{t("See this page as it might look once a child has colored it.")}</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5 border-t border-hairline pt-3">
         <MetaLabel>{t("Page numbers")}</MetaLabel>
         <div role="radiogroup" aria-label={t("Page numbers")} className="flex gap-1">
           {modes.map(([value, label]) => (

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { FlipHorizontal2, Grid3x3, Hash, Puzzle, Route, Search, Spline, Type, X } from "lucide-react";
+import { FlipHorizontal2, Grid3x3, Hash, Palette, Puzzle, Route, Search, Spline, Type, X } from "lucide-react";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Slider from "@/components/studio/ui/Slider";
 import { cn } from "@/utils/cn";
 import {
+  connectDotsFromPage,
   connectDotsPage,
   DOTS_DESIGNS,
   letterTracingPage,
@@ -18,10 +19,13 @@ import {
   type MazeLevel,
 } from "@/components/editor/worksheets";
 import { crosswordPages, finishDrawingPage, normalizeWord, wordSearchPages, type CrosswordEntry } from "@/components/editor/puzzles";
+import { colorByNumberPage } from "@/components/editor/colorByNumber";
+import { findRegions, NUMBER_COLORS, numberRegions } from "@/components/studio/editor/regions";
+import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import type { BookPage, PageSpace } from "@/types/editor";
 import { useLanguage, useT } from "@/lib/i18n";
 
-type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish";
+type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish" | "cbn";
 
 const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] = [
   { value: "letters", label: "Letter tracing", hint: "One page per letter", Icon: Type },
@@ -32,6 +36,7 @@ const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] =
   { value: "wordsearch", label: "Word search", hint: "Your words hidden in a letter grid, with answers", Icon: Grid3x3 },
   { value: "crossword", label: "Crossword", hint: "Your words and clues, with answers", Icon: Puzzle },
   { value: "finish", label: "Finish the picture", hint: "Half of the current page, to draw the other half", Icon: FlipHorizontal2 },
+  { value: "cbn", label: "Color by number", hint: "A copy of the current page with a number in every area and a color key", Icon: Palette },
 ];
 
 const SAMPLE_WORDS: Record<string, string> = {
@@ -63,6 +68,8 @@ const PRESETS = [
 export interface WorksheetDialogProps {
   space: PageSpace;
   currentPage: BookPage;
+  /** The current page's ink as pixels (what the paint bucket sees) — for color by number. */
+  captureInk?: () => PixelBuffer | null;
   onAdd: (pages: BookPage[]) => void;
   onClose: () => void;
 }
@@ -70,7 +77,7 @@ export interface WorksheetDialogProps {
 const MAX_PAGES = 40;
 
 /** Builds worksheet pages (see worksheets.ts) and hands them to the editor to append. */
-export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: WorksheetDialogProps) {
+export default function WorksheetDialog({ space, currentPage, captureInk, onAdd, onClose }: WorksheetDialogProps) {
   const t = useT();
   const { lang } = useLanguage();
   const [words, setWords] = useState(SAMPLE_WORDS[lang] ?? SAMPLE_WORDS.en);
@@ -79,7 +86,8 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
   const [letters, setLetters] = useState("ABC");
   const [from, setFrom] = useState(1);
   const [to, setTo] = useState(5);
-  const [design, setDesign] = useState<DotsDesign>("star");
+  const [design, setDesign] = useState<DotsDesign | "mine">("star");
+  const [colorCount, setColorCount] = useState(5);
   const [dotCount, setDotCount] = useState(25);
   const [level, setLevel] = useState<MazeLevel>("easy");
   const [mazeCount, setMazeCount] = useState(3);
@@ -93,7 +101,7 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
   const pageCount =
     kind === "letters" ? letterList.length
     : kind === "numbers" ? numberCount
-    : kind === "dots" || kind === "finish" ? 1
+    : kind === "dots" || kind === "finish" || kind === "cbn" ? 1
     : kind === "maze" ? mazeCount
     : kind === "wordsearch" ? (wordList.length ? 2 : 0)
     : kind === "crossword" ? (clueList.length >= 2 ? 2 : 0)
@@ -105,7 +113,22 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
     let pages: BookPage[] = [];
     if (kind === "letters") pages = letterList.map((l) => letterTracingPage(space, l));
     else if (kind === "numbers") pages = Array.from({ length: numberCount }, (_, i) => numberTracingPage(space, from + i));
-    else if (kind === "dots") pages = [connectDotsPage(space, design, dotCount, t)];
+    else if (kind === "dots") {
+      const page = design === "mine" ? connectDotsFromPage(currentPage, space, dotCount, t) : connectDotsPage(space, design, dotCount, t);
+      if (!page) {
+        setError(t("The current page has no pen outline to turn into dots. Draw the outline with the pen first."));
+        return;
+      }
+      pages = [page];
+    } else if (kind === "cbn") {
+      const ink = captureInk?.();
+      const page = ink ? colorByNumberPage(currentPage, numberRegions(findRegions(ink), colorCount, seed), t) : null;
+      if (!page) {
+        setError(t("The current page has no closed areas big enough for a number. Draw closed shapes first (the gap check helps)."));
+        return;
+      }
+      pages = [page];
+    }
     else if (kind === "maze") pages = Array.from({ length: mazeCount }, (_, i) => mazePage(space, level, seed + i, t));
     else if (kind === "wordsearch" || kind === "crossword") {
       const result = kind === "wordsearch" ? wordSearchPages(space, wordList, seed, t) : crosswordPages(space, clueList, seed, t);
@@ -155,7 +178,7 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
           </button>
         </div>
 
-        <div role="radiogroup" aria-label={t("Worksheet type")} className="grid grid-cols-4 gap-2">
+        <div role="radiogroup" aria-label={t("Worksheet type")} className="grid grid-cols-3 gap-2">
           {KINDS.map(({ value, label, hint, Icon }) => (
             <button
               key={value}
@@ -165,11 +188,11 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
               title={t(hint)}
               onClick={() => setKind(value)}
               className={cn(
-                "flex flex-col items-center gap-1.5 rounded-row border p-2.5 text-center text-helper font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "flex items-center gap-2 rounded-row border px-2.5 py-2 text-left text-helper font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent",
                 kind === value ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt"
               )}
             >
-              <Icon size={20} />
+              <Icon size={18} className="shrink-0" />
               {t(label)}
             </button>
           ))}
@@ -208,7 +231,7 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
         {kind === "dots" && (
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-1.5">
-              {DOTS_DESIGNS.map((d) => (
+              {[...DOTS_DESIGNS, { value: "mine" as const, label: "My drawing" }].map((d) => (
                 <button
                   key={d.value}
                   type="button"
@@ -220,6 +243,7 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
                 </button>
               ))}
             </div>
+            {design === "mine" && <p className="text-helper text-ink-muted">{t("Follows the pen outline of the page you're on. Details drawn apart from the outline are left out.")}</p>}
             <Slider label={t("Number of dots")} valueLabel={String(dotCount)} min={10} max={60} step={1} value={dotCount} onChange={setDotCount} />
           </div>
         )}
@@ -266,6 +290,20 @@ export default function WorksheetDialog({ space, currentPage, onAdd, onClose }: 
             <textarea value={clues} onChange={(e) => setClues(e.target.value)} rows={7} className={cn(input, "h-auto resize-y py-2")} />
             <span className="text-helper text-ink-muted">{t("{n} words. Words that can't cross the others are left out.", { n: clueList.length })}</span>
           </label>
+        )}
+
+        {kind === "cbn" && (
+          <div className="flex flex-col gap-3">
+            <Slider label={t("Colors")} valueLabel={String(colorCount)} min={3} max={NUMBER_COLORS.length} step={1} value={colorCount} onChange={setColorCount} />
+            <div className="flex flex-wrap gap-1.5" aria-hidden>
+              {NUMBER_COLORS.slice(0, colorCount).map((c, i) => (
+                <span key={c.hex} className="flex items-center gap-1.5 rounded-pill border border-hairline px-2 py-0.5 text-helper text-ink-secondary">
+                  <span className="h-3 w-3 rounded-pill" style={{ background: c.hex }} />
+                  {i + 1} {t(c.name)}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
 
         {kind === "finish" && (
