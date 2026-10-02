@@ -40,6 +40,8 @@ import { fitOnSheet, fullSheet, samplePages } from "@/utils/printables";
 import { applyName, nameSlots } from "@/utils/personalize";
 import { usePageLooks } from "@/lib/usePageLooks";
 import { applyCoverLayout, coverPictureFrom, type CoverStyle } from "@/utils/coverTemplates";
+import { externalize } from "@/utils/imageStore";
+import { uploadBookImage } from "@/lib/imageUploader";
 import VersionHistoryDialog from "@/components/studio/editor/VersionHistoryDialog";
 import MockupDialog from "@/components/studio/editor/MockupDialog";
 import { bookSignature, listVersions, saveVersion, snapshotDue } from "@/utils/versions";
@@ -228,6 +230,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const space: PageSpace = interiorSpace(trimSizeId, bleed);
   const [pages, setPages] = useState<BookPage[]>(initialBook && initialBook.pages.length > 0 ? initialBook.pages : [createPageFromTemplate(1, space)]);
   const [coverDesign, setCoverDesign] = useState<CoverDesign | null>(initialBook?.cover ?? null);
+  // Pictures already uploaded this session: embedded data → its link.
+  const uploadedImagesRef = useRef(new Map<string, string>());
   const [bookStatus, setBookStatus] = useState<BookStatus>(initialBook?.status ?? "draft");
   const [activePageId, setActivePageId] = useState(pages[0].id);
   const [mode, setMode] = useState<EditorMode>(() => {
@@ -326,9 +330,10 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   useEffect(() => {
     if (!bookId || sessionLoading || !user || reviewMode) return;
     const timer = setTimeout(() => {
-      saveBook({ id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: coverDesign, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }).catch((err) =>
-        window.alert(err instanceof Error ? err.message : t("Could not save this book."))
-      );
+      // Big pictures are uploaded once and saved as links (imageStore.ts); whatever can't be uploaded is saved embedded, as before.
+      externalize(pages, coverDesign, uploadBookImage, uploadedImagesRef.current)
+        .then((stored) => saveBook({ id: bookId, title, pages: stored.pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: stored.cover, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }))
+        .catch((err) => window.alert(err instanceof Error ? err.message : t("Could not save this book.")));
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, user, reviewMode, t]);
@@ -493,6 +498,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     setNotice(t("Tracing the lines…"));
     try {
       const img = new window.Image();
+      img.crossOrigin = "anonymous"; // a picture stored as a link must still be readable pixel by pixel
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = () => reject(new Error("unreadable"));

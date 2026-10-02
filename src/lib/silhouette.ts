@@ -42,6 +42,7 @@ const MAX_PX = 360;
 /** Browser-only: loads the picture and returns its shadow as a PNG data URL, with the picture's aspect ratio. */
 export async function silhouetteDataUrl(src: string): Promise<{ shadowSrc: string; aspect: number }> {
   const img = new window.Image();
+  img.crossOrigin = "anonymous"; // pictures stored as links must stay readable
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
     img.onerror = () => reject(new Error("unreadable picture"));

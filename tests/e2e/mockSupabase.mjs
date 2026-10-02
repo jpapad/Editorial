@@ -18,6 +18,52 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
     const method = req.method();
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     const single = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
+    // Storage: off unless a test turns it on with db.storage = {} (then uploads are kept there and served back).
+    if (url.pathname.startsWith('/storage/v1/object/public/')) {
+      const file = db.storage?.[url.pathname.replace('/storage/v1/object/public/', '')];
+      return file ? route.fulfill({ status: 200, contentType: file.type, body: file.body, headers: { 'access-control-allow-origin': '*' } }) : json({ message: 'Object not found' }, 404);
+    }
+    if (url.pathname.startsWith('/storage/v1/')) {
+      if (!db.storage) return json({ statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' }, 400);
+      const key = url.pathname.replace('/storage/v1/object/', '');
+      if (db.storage[key]) return json({ statusCode: '409', error: 'Duplicate', message: 'The resource already exists' }, 400);
+      // supabase-js uploads a Blob as multipart form data: keep just the file part.
+      let body = req.postDataBuffer();
+      let type = req.headers()['content-type'] || 'application/octet-stream';
+      const boundary = /boundary=(.+)$/.exec(type)?.[1];
+      if (boundary) {
+        const text = body.toString('latin1');
+        const part = text.indexOf('filename=');
+        const start = text.indexOf('\r\n\r\n', part) + 4;
+        const end = text.indexOf(`\r\n--${boundary}`, start);
+        type = /Content-Type: ([^\r\n]+)/i.exec(text.slice(part, start))?.[1] ?? 'application/octet-stream';
+        body = body.subarray(start, end);
+      }
+      db.storage[key] = { type, body };
+      onWrite?.('storage', key);
+      return json({ Key: key, Id: crypto.randomUUID() });
+    }
+    // The account library (sql/06): absent unless a test provides db.stamps / db.versions.
+    if (url.pathname === '/rest/v1/user_stamps' || url.pathname === '/rest/v1/book_versions') {
+      const name = url.pathname.endsWith('user_stamps') ? 'stamps' : 'versions';
+      if (!db[name]) return json({ message: `relation "public.${name}" does not exist` }, 404);
+      const idFilter = url.searchParams.get('id')?.replace('eq.', '');
+      const bookFilter = url.searchParams.get('book_id')?.replace('eq.', '');
+      if (method === 'GET') {
+        const rows = db[name].filter((r) => (!idFilter || r.id === idFilter) && (!bookFilter || r.book_id === bookFilter)).reverse();
+        return json(single ? rows[0] ?? null : rows);
+      }
+      if (method === 'POST') {
+        const body = JSON.parse(req.postData() || '{}');
+        for (const row of Array.isArray(body) ? body : [body]) {
+          const i = db[name].findIndex((r) => r.id === row.id);
+          if (i >= 0) db[name][i] = { ...db[name][i], ...row }; else db[name].push({ created_at: new Date().toISOString(), ...row });
+        }
+        onWrite?.(name, body);
+        return json([], 201);
+      }
+      if (method === 'DELETE') { db[name] = db[name].filter((r) => r.id !== idFilter); return json([]); }
+    }
     if (url.pathname.startsWith('/auth/v1/user')) return json(TEST_USER);
     if (url.pathname.startsWith('/auth/v1/')) return json({});
     if (url.pathname === '/rest/v1/rpc/is_admin') return json(isAdmin);

@@ -821,7 +821,6 @@ export const EL: Record<string, string> = {
   "1 page repeats an earlier one": "1 σελίδα επαναλαμβάνει προηγούμενη",
   "{n} pages repeat earlier ones": "{n} σελίδες επαναλαμβάνουν προηγούμενες",
   "Could not save a version on this device.": "Δεν μπόρεσα να αποθηκεύσω έκδοση σε αυτή τη συσκευή.",
-  "A version is kept every 10 minutes while you work, on this device only. Restoring one can be undone.": "Κρατιέται μία έκδοση κάθε 10 λεπτά όσο δουλεύεις, μόνο σε αυτή τη συσκευή. Η επαναφορά μπορεί να αναιρεθεί.",
   "Save a version now": "Αποθήκευση έκδοσης τώρα",
   "No versions yet.": "Δεν υπάρχουν εκδόσεις ακόμα.",
   "Versions": "Εκδόσεις",
@@ -906,4 +905,7 @@ export const EL: Record<string, string> = {
   "Spanish": "Ισπανικά",
   "French": "Γαλλικά",
   "Italian": "Ιταλικά",
+  "This version could not be loaded.": "Δεν μπόρεσα να φορτώσω αυτή την έκδοση.",
+  "from your account": "από τον λογαριασμό σου",
+  "A version is kept every 10 minutes while you work — on this device, and the latest few with your account when you are signed in. Restoring one can be undone.": "Κρατιέται μία έκδοση κάθε 10 λεπτά όσο δουλεύεις — σε αυτή τη συσκευή, και οι πιο πρόσφατες στον λογαριασμό σου όταν είσαι συνδεδεμένος. Η επαναφορά μπορεί να αναιρεθεί.",
 };

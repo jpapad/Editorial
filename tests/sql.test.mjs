@@ -90,6 +90,26 @@ check((await as(alice, "select count(*)::int n from public.book_templates"))[0].
 await as(admin, "delete from public.book_templates");
 check((await as(alice, "select count(*)::int n from public.book_templates"))[0].n === 0, "supervisor can remove any template");
 
+// ---- 06_user_library: my stamps and book versions belong to their owner
+await as(alice, `insert into public.user_stamps (id, name, preview, objects, width, height) values ('mine-1', 'Star', 'data:x', '[]', 10, 10)`);
+check((await as(alice, "select count(*)::int n from public.user_stamps"))[0].n === 1 && (await as(bob, "select count(*)::int n from public.user_stamps"))[0].n === 0, "my stamps: only their owner sees them");
+check((await as(admin, "select count(*)::int n from public.user_stamps"))[0].n === 0, "…not even a supervisor");
+check(await fails(bob, `insert into public.user_stamps (user_id, id, preview, objects, width, height) values ('${alice}', 'forged', 'x', '[]', 1, 1)`), "can't save a stamp into someone else's library");
+await as(bob, `insert into public.user_stamps (id, preview, objects, width, height) values ('mine-1', 'x', '[]', 1, 1)`);
+check((await as(bob, "select count(*)::int n from public.user_stamps"))[0].n === 1, "two users may use the same stamp id");
+await as(bob, "delete from public.user_stamps");
+check((await as(alice, "select count(*)::int n from public.user_stamps"))[0].n === 1, "deleting your stamps leaves other people's alone");
+check(await fails(null, "select count(*) from public.user_stamps"), "anonymous visitors can't read stamps");
+
+const aliceBook = (await as(alice, "select id from public.books limit 1"))[0].id;
+await as(alice, `insert into public.book_versions (id, book_id, title, page_count, signature, pages) values ('v1', '${aliceBook}', 'Alice book', 2, 'sig', '[]')`);
+check((await as(alice, "select count(*)::int n from public.book_versions"))[0].n === 1 && (await as(bob, "select count(*)::int n from public.book_versions"))[0].n === 0, "versions: only their owner sees them");
+check(await fails(bob, `insert into public.book_versions (id, book_id, pages) values ('v2', '${aliceBook}', '[]')`), "can't attach a version to someone else's book");
+await db.exec(`insert into public.books (id, user_id, title) values ('44444444-4444-4444-8444-444444444444', '${alice}', 'Temp')`);
+await as(alice, `insert into public.book_versions (id, book_id, pages) values ('v3', '44444444-4444-4444-8444-444444444444', '[]')`);
+await db.exec(`delete from public.books where id = '44444444-4444-4444-8444-444444444444'`);
+check((await as(alice, "select count(*)::int n from public.book_versions"))[0].n === 1, "deleting a book removes its versions");
+
 const stats = (await as(admin, "select public.admin_stats() r"))[0].r;
 check(stats.users === 3 && stats.daily.length === 30, "admin_stats", `users ${stats.users}, ${stats.daily.length} days`);
 

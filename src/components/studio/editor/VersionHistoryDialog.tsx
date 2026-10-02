@@ -5,7 +5,7 @@ import { History, Save, Trash2, X } from "lucide-react";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { useLanguage, useT } from "@/lib/i18n";
-import { deleteVersion, listVersions, saveVersion, type BookVersion } from "@/utils/versions";
+import { deleteVersion, listVersions, loadVersionPages, saveVersion, type BookVersion } from "@/utils/versions";
 import type { BookPage } from "@/types/editor";
 
 export interface VersionHistoryDialogProps {
@@ -57,7 +57,7 @@ export default function VersionHistoryDialog({ bookId, title, pages, onRestore, 
             <X size={16} />
           </button>
         </div>
-        <p className="text-helper text-ink-muted">{t("A version is kept every 10 minutes while you work, on this device only. Restoring one can be undone.")}</p>
+        <p className="text-helper text-ink-muted">{t("A version is kept every 10 minutes while you work — on this device, and the latest few with your account when you are signed in. Restoring one can be undone.")}</p>
         <Button variant="secondary" size="sm" icon={<Save size={13} />} onClick={() => void saveNow()}>
           {t("Save a version now")}
         </Button>
@@ -72,14 +72,18 @@ export default function VersionHistoryDialog({ bookId, title, pages, onRestore, 
                   <MetaLabel>
                     {v.pageCount === 1 ? t("1 page") : t("{n} pages", { n: v.pageCount })}
                     {v.manual ? ` · ${t("saved by you")}` : ""}
+                    {v.pages ? "" : ` · ${t("from your account")}`}
                   </MetaLabel>
                 </span>
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => {
-                    onRestore(v.pages);
-                    onClose();
+                    void loadVersionPages(v).then((saved) => {
+                      if (!saved) return setError(t("This version could not be loaded."));
+                      onRestore(saved);
+                      onClose();
+                    });
                   }}
                 >
                   {t("Restore")}

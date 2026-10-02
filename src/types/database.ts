@@ -126,6 +126,19 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      // sql/06_user_library.sql
+      user_stamps: {
+        Row: UserStampRow;
+        Insert: Omit<UserStampRow, "user_id" | "created_at"> & { user_id?: string };
+        Update: Partial<Omit<UserStampRow, "user_id" | "id">>;
+        Relationships: [];
+      };
+      book_versions: {
+        Row: BookVersionRow;
+        Insert: Omit<BookVersionRow, "user_id"> & { user_id?: string };
+        Update: never;
+        Relationships: [];
+      };
       page_comments: {
         Row: PageCommentRow;
         // author_id/author_email/resolved/created_at are set by a trigger.
@@ -149,4 +162,27 @@ export type Database = {
       admin_stats: { Args: Record<string, never>; Returns: AdminStats };
     };
   };
+};
+
+export type UserStampRow = {
+  user_id: string;
+  id: string;
+  name: string;
+  preview: string;
+  objects: import("@/types/editor").PageObject[];
+  width: number;
+  height: number;
+  created_at: string;
+};
+
+export type BookVersionRow = {
+  user_id: string;
+  id: string;
+  book_id: string;
+  at: string;
+  title: string;
+  page_count: number;
+  signature: string;
+  manual: boolean;
+  pages: import("@/types/editor").BookPage[];
 };
