@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, X } from "lucide-react";
+import { Check, Copy, Loader2, Sparkles, X } from "lucide-react";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
 import { AUDIENCE_OPTIONS, buildListingKit, DESCRIPTION_MAX, KEYWORD_MAX, TITLE_SUBTITLE_MAX, type Audience, type ListingInput } from "@/utils/listingKit";
-import { useT } from "@/lib/i18n";
+import { aiErrorText, useLanguage, useT } from "@/lib/i18n";
+import type { ListingIdeas } from "@/services/bookTexts";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const t = useT();
@@ -38,6 +39,32 @@ export default function ListingKitModal({ input, onClose }: { input: Omit<Listin
   const [theme, setTheme] = useState("");
   const [audience, setAudience] = useState<Audience>("kids");
   const kit = buildListingKit({ ...input, theme, audience });
+  const { lang } = useLanguage();
+  const [ideas, setIdeas] = useState<ListingIdeas | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const keywords = ideas?.keywords ?? kit.keywords;
+
+  /** Asks the text model for keywords, categories and a subtitle that fit this book. */
+  async function suggest() {
+    setAsking(true);
+    setAiError(null);
+    try {
+      const who = AUDIENCE_OPTIONS.find((a) => a.value === audience);
+      const response = await fetch("/api/listing-ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: input.title, theme, audience: who ? `${who.value}, ${who.ages}` : audience, subjects: kit.stats.captions, pageCount: kit.stats.pages, lang }),
+      });
+      const body = (await response.json().catch(() => null)) as { ideas?: ListingIdeas; error?: string } | null;
+      if (!response.ok || !body?.ideas) throw new Error(aiErrorText(t, response.status, body?.error ?? t("Could not get suggestions")));
+      setIdeas(body.ideas);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : t("Could not get suggestions"));
+    } finally {
+      setAsking(false);
+    }
+  }
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => closeRef.current?.focus(), []);
 
@@ -114,11 +141,18 @@ export default function ListingKitModal({ input, onClose }: { input: Omit<Listin
 
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <MetaLabel>{t("Keywords ({n} of 7 slots)", { n: kit.keywords.length })}</MetaLabel>
-            <CopyButton text={kit.keywords.join("\n")} label={t("all keywords")} />
+            <MetaLabel>{t("Keywords ({n} of 7 slots)", { n: keywords.length })}</MetaLabel>
+            <span className="flex items-center gap-1">
+              <button type="button" onClick={() => void suggest()} disabled={asking} className="flex h-7 items-center gap-1 rounded-pill px-2 text-helper font-medium text-spark outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60">
+                {asking ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                {ideas ? t("Suggest again") : t("Suggest with AI")}
+              </button>
+              <CopyButton text={keywords.join("\n")} label={t("all keywords")} />
+            </span>
           </div>
+          {aiError && <p className="text-helper text-error">{aiError}</p>}
           <ol className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-            {kit.keywords.map((k, i) => (
+            {keywords.map((k, i) => (
               <li key={k} className="flex items-center justify-between gap-2 rounded-row-sm bg-inset-alt py-1 pl-3 pr-1 text-body text-ink">
                 <span className="truncate">
                   <span className="mr-1.5 font-pw-mono text-mono text-ink-muted">{i + 1}</span>
@@ -131,12 +165,37 @@ export default function ListingKitModal({ input, onClose }: { input: Omit<Listin
               </li>
             ))}
           </ol>
-          {kit.keywords.length < 7 && (
+          {!ideas && kit.keywords.length < 7 && (
             <p className="text-helper text-ink-muted">
               {theme.trim() ? t("Captions on your pages (e.g. from an AI page series) add more specific keywords.") : t("Add a theme for more specific keywords.")} {t("Empty slots are better than filler.")}
             </p>
           )}
         </section>
+
+        {ideas && (ideas.categories.length > 0 || ideas.subtitle) && (
+          <section className="flex flex-col gap-1.5">
+            <MetaLabel>{t("AI suggestions")}</MetaLabel>
+            {ideas.subtitle && (
+              <div className="flex items-center justify-between gap-2 rounded-row-sm bg-inset-alt py-1 pl-3 pr-1 text-body text-ink">
+                <span className="min-w-0">
+                  <span className="mr-1.5 text-helper text-ink-muted">{t("Subtitle")}</span>
+                  {ideas.subtitle}
+                </span>
+                <CopyButton text={ideas.subtitle} label={t("suggested subtitle")} />
+              </div>
+            )}
+            {ideas.categories.map((c, i) => (
+              <div key={c} className="flex items-center justify-between gap-2 rounded-row-sm bg-inset-alt py-1 pl-3 pr-1 text-body text-ink">
+                <span className="min-w-0">
+                  <span className="mr-1.5 text-helper text-ink-muted">{t("Category {n}", { n: i + 1 })}</span>
+                  {c}
+                </span>
+                <CopyButton text={c} label={t("category {n}", { n: i + 1 })} />
+              </div>
+            ))}
+            <p className="text-helper text-ink-muted">{t("Suggestions, not data: check each category exists in KDP's list, and search Amazon for the keywords before relying on them.")}</p>
+          </section>
+        )}
       </div>
     </div>
   );

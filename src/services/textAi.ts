@@ -3,7 +3,9 @@
 // forces one. Pictures are always made by the image providers
 // (services/aiGenerator.ts) — Claude doesn't generate images.
 
-import { claudeEditorCommand, claudePlanBook } from "@/services/claudeText";
+import { claudeEditorCommand, claudeListingIdeas, claudePlanBook, claudeTranslate } from "@/services/claudeText";
+import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parseTranslations, type ListingIdeas, type ListingIdeasInput, type TranslateCode } from "@/services/bookTexts";
+import { openAiJson } from "@/services/openAiJson";
 import { planBook as openAiPlanBook, type BookPlan } from "@/services/bookPlanner";
 import { runEditorCommand as openAiEditorCommand } from "@/services/editorCommandAi";
 import type { CommandResult, PageSummary } from "@/utils/editorCommand";
@@ -35,4 +37,16 @@ export async function editorCommandWithAi(command: string, summary: PageSummary,
   const provider = textProvider();
   if (!provider) throw new NoTextProviderError();
   return provider === "anthropic" ? claudeEditorCommand(command, summary, lang) : openAiEditorCommand(command, summary, lang);
+}
+
+export async function listingIdeasWithAi(input: ListingIdeasInput): Promise<ListingIdeas> {
+  const provider = textProvider();
+  if (!provider) throw new NoTextProviderError();
+  return provider === "anthropic" ? claudeListingIdeas(input) : parseListingIdeas(await openAiJson(buildListingIdeasPrompt(input), "listing request", 1200));
+}
+
+export async function translateWithAi(texts: string[], target: TranslateCode): Promise<string[]> {
+  const provider = textProvider();
+  if (!provider) throw new NoTextProviderError();
+  return provider === "anthropic" ? claudeTranslate(texts, target) : parseTranslations(await openAiJson(buildTranslatePrompt(texts, target), "translation request", 8000), texts);
 }

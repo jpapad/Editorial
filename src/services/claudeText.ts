@@ -3,6 +3,7 @@
 // reply match our JSON schema; parseBookPlan / parseCommandResult still
 // validate and bound it, exactly as for the OpenAI path.
 
+import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parseTranslations, type ListingIdeas, type ListingIdeasInput, type TranslateCode } from "@/services/bookTexts";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildBookPlanPrompt, MAX_PLAN_PAGES, parseBookPlan, type BookPlan } from "@/services/bookPlanner";
 import { buildCommandPrompt } from "@/services/editorCommandAi";
@@ -85,6 +86,17 @@ const COMMAND_SCHEMA = obj({
     },
   },
 });
+
+const LISTING_SCHEMA = obj({ keywords: { type: "array", items: str }, categories: { type: "array", items: str }, subtitle: str });
+const TRANSLATIONS_SCHEMA = obj({ translations: { type: "array", items: str } });
+
+export async function claudeListingIdeas(input: ListingIdeasInput): Promise<ListingIdeas> {
+  return parseListingIdeas(await claudeJson(buildListingIdeasPrompt(input), LISTING_SCHEMA, "medium"));
+}
+
+export async function claudeTranslate(texts: string[], target: TranslateCode): Promise<string[]> {
+  return parseTranslations(await claudeJson(buildTranslatePrompt(texts, target), TRANSLATIONS_SCHEMA, "low"), texts);
+}
 
 export async function claudePlanBook(description: string, lang: "el" | "en"): Promise<BookPlan> {
   return parseBookPlan(await claudeJson(buildBookPlanPrompt(description, lang), BOOK_PLAN_SCHEMA, "medium"));

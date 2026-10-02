@@ -34,6 +34,7 @@ import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
 import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
+import TranslateBookDialog from "@/components/studio/editor/TranslateBookDialog";
 import PersonalizeDialog from "@/components/studio/editor/PersonalizeDialog";
 import { fitOnSheet, fullSheet, samplePages } from "@/utils/printables";
 import { applyName, nameSlots } from "@/utils/personalize";
@@ -78,7 +79,7 @@ import type {
   TextData,
 } from "@/types/editor";
 import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPage } from "@/utils/pdfExport";
-import { downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
+import { createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import { clampObjectsToMargin, pagesNeededForMultipleOf4, runEditorPreflightCheck, thickenThinStrokes, type EditorPreflightIssue } from "@/utils/editorPreflight";
 import { alignDeltas, distributeDeltas, flippedHorizontally, flippedVertically, objectBounds, unionBounds, type AlignEdge } from "@/utils/objectGeometry";
 import { DEFAULT_TRIM_SIZE_ID, trimShortLabel } from "@/utils/trimSizes";
@@ -268,6 +269,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showVersions, setShowVersions] = useState(false);
   const [showPrintAtHome, setShowPrintAtHome] = useState(false);
   const [showPersonalize, setShowPersonalize] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
   const pageLooks = usePageLooks(pages);
   // undefined = closed; null = open, pages still rendering.
   const [mockupImages, setMockupImages] = useState<string[] | null | undefined>(undefined);
@@ -767,6 +769,15 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       await exportPagesToPdf([...(intro ? [fullSheet(intro, sheet)] : []), ...images.map((src) => fitOnSheet(src, space, sheet))], `${slugify(title)}-${scope === "sample" ? "test-print" : "printable"}-${sheet}.pdf`);
     }
     logExport("export_pdf");
+  }
+
+  /** Saves the translated pages as a new book beside this one, and opens it. */
+  async function handleTranslated(translated: BookPage[], translatedCover: BookPage | null, target: string) {
+    const book = await createBook(`${title} (${target.toUpperCase()})`, translated, trimSizeId);
+    await saveBook({ ...book, bleed, paper, cover: translatedCover ? { page: translatedCover, spineWidth: fittedCover.spineWidth } : null });
+    // A full load, not router.push: the editor keeps one book's state for its lifetime, so another book needs a fresh one.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign(`/studio/editor?book=${book.id}`);
   }
 
   function handleApplyName(name: string) {
@@ -1726,7 +1737,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     updateActivePage({ traceImage });
                   }}
                 />
-                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPersonalize={() => setShowPersonalize(true)} />
+                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPersonalize={() => setShowPersonalize(true)} onOpenTranslate={() => setShowTranslate(true)} />
               </>
             ) : null
           }
@@ -1748,6 +1759,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         </div>
       )}
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
+      {showTranslate && <TranslateBookDialog pages={pages} coverPage={coverDesign ? fittedCover.page : null} onTranslated={handleTranslated} onClose={() => setShowTranslate(false)} />}
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}
