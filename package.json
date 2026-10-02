@@ -13,7 +13,8 @@
     "test:unit": "node tests/run-unit.mjs",
     "test:e2e": "node tests/e2e/run.mjs",
     "test:sql": "node tests/sql.test.mjs",
-    "build:ds": "node scripts/build-ds.mjs"
+    "build:ds": "node scripts/build-ds.mjs",
+    "check:supabase": "node scripts/check-supabase.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",

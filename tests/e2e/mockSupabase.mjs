@@ -25,6 +25,7 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
     }
     if (url.pathname.startsWith('/storage/v1/')) {
       if (!db.storage) return json({ statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' }, 400);
+      if (method === 'DELETE') { for (const name of JSON.parse(req.postData() || '{}').prefixes ?? []) delete db.storage[`${url.pathname.replace('/storage/v1/object/', '')}/${name}`]; return json([]); }
       const key = url.pathname.replace('/storage/v1/object/', '');
       if (db.storage[key]) return json({ statusCode: '409', error: 'Duplicate', message: 'The resource already exists' }, 400);
       // supabase-js uploads a Blob as multipart form data: keep just the file part.
@@ -42,6 +43,22 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       db.storage[key] = { type, body };
       onWrite?.('storage', key);
       return json({ Key: key, Id: crypto.randomUUID() });
+    }
+    // The media library (sql/08): absent unless a test provides db.media.
+    if (url.pathname === '/rest/v1/user_media') {
+      if (!db.media) return json({ message: 'relation "public.user_media" does not exist' }, 404);
+      const mediaId = url.searchParams.get('id')?.replace('eq.', '');
+      if (method === 'GET') return json([...db.media].reverse());
+      if (method === 'POST') {
+        const row = JSON.parse(req.postData() || '{}');
+        const existing = db.media.find((m) => m.path === row.path);
+        // on conflict do nothing: a duplicate returns no row.
+        if (existing) return json(single ? null : [], single ? 200 : 201);
+        const made = { id: crypto.randomUUID(), user_id: TEST_USER.id, created_at: new Date().toISOString(), ...row };
+        db.media.push(made); onWrite?.('media', made);
+        return json(single ? made : [made], 201);
+      }
+      if (method === 'DELETE') { db.media = db.media.filter((m) => m.id !== mediaId); return json([]); }
     }
     // The account library (sql/06): absent unless a test provides db.stamps / db.versions.
     if (url.pathname === '/rest/v1/user_stamps' || url.pathname === '/rest/v1/book_versions') {

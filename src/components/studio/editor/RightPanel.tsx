@@ -42,6 +42,7 @@ import { cn } from "@/utils/cn";
 import { useT, type TFunction } from "@/lib/i18n";
 import type { AlignEdge } from "@/utils/objectGeometry";
 import type { MyStamp } from "@/utils/myStamps";
+import type { MediaItem, MediaSource } from "@/utils/mediaLibrary";
 import type { EditorMode } from "@/components/studio/types";
 import type { BookPage, DrawingTool, FillStyle, ObjectChanges, PageObject, ShapeKind, StampFilter, TextData } from "@/types/editor";
 import FillStylePicker from "@/components/studio/editor/FillStylePicker";
@@ -86,7 +87,9 @@ export interface RightPanelProps {
   onToggleObjectFlag: (id: string, flag: "locked" | "hidden") => void;
   onMoveObject: (id: string, toIndex: number) => void;
   onUpdateSelectedText: (changes: ObjectChanges) => void;
-  onPickStamp: (src: string, options?: { naturalSize?: { width: number; height: number }; filter?: StampFilter; threshold?: number }) => void;
+  onPickStamp: (src: string, options?: { naturalSize?: { width: number; height: number }; filter?: StampFilter; threshold?: number }, media?: { name?: string; source: MediaSource }) => void;
+  media?: MediaItem[] | null;
+  onDeleteMedia?: (item: MediaItem) => void;
   onAddShape: (shapeKind: ShapeKind) => void;
   onAddText: (fontFamily: string, fontSize: number, fill?: string) => void;
   myStamps?: MyStamp[];
@@ -455,7 +458,7 @@ export default function RightPanel(props: RightPanelProps) {
 
       {showAssetPicker && (
         <div className="shrink-0">
-          <AssetPicker tool={tool as "stamp" | "shape" | "text"} onPickStamp={props.onPickStamp} onAddShape={props.onAddShape} onAddText={props.onAddText} myStamps={props.myStamps} onPlaceMyStamp={props.onPlaceMyStamp} onDeleteMyStamp={props.onDeleteMyStamp} />
+          <AssetPicker tool={tool as "stamp" | "shape" | "text"} onPickStamp={props.onPickStamp} onAddShape={props.onAddShape} onAddText={props.onAddText} myStamps={props.myStamps} onPlaceMyStamp={props.onPlaceMyStamp} onDeleteMyStamp={props.onDeleteMyStamp} media={props.media} onDeleteMedia={props.onDeleteMedia} />
         </div>
       )}
 

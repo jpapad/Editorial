@@ -133,6 +133,13 @@ export type Database = {
         Update: Partial<Omit<UserStampRow, "user_id" | "id">>;
         Relationships: [];
       };
+      // sql/08_user_media.sql
+      user_media: {
+        Row: UserMediaRow;
+        Insert: Omit<UserMediaRow, "id" | "user_id" | "created_at"> & { user_id?: string };
+        Update: Partial<Pick<UserMediaRow, "name">>;
+        Relationships: [];
+      };
       book_versions: {
         Row: BookVersionRow;
         Insert: Omit<BookVersionRow, "user_id"> & { user_id?: string };
@@ -185,4 +192,17 @@ export type BookVersionRow = {
   signature: string;
   manual: boolean;
   pages: import("@/types/editor").BookPage[];
+};
+
+export type UserMediaRow = {
+  id: string;
+  user_id: string;
+  path: string;
+  url: string;
+  name: string;
+  mime: string;
+  width: number;
+  height: number;
+  source: "upload" | "ai";
+  created_at: string;
 };

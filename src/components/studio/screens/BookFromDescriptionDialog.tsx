@@ -9,6 +9,7 @@ import { cn } from "@/utils/cn";
 import { aiErrorText, useLanguage, useT } from "@/lib/i18n";
 import { useAiUsage } from "@/lib/aiUsage";
 import { generateLineArtPicture } from "@/lib/lineArt";
+import { addMedia } from "@/lib/mediaStore";
 import { pageFromImage } from "@/utils/imagePages";
 import { interiorSpace } from "@/utils/pageGeometry";
 import { DEFAULT_TRIM_SIZE_ID } from "@/utils/trimSizes";
@@ -103,6 +104,8 @@ export default function BookFromDescriptionDialog({ initialDescription = "", onC
       const subject = plan.pages.find((p) => p.label === queue[i].label)?.subject ?? queue[i].label;
       try {
         const { src, size } = await generateLineArtPicture(subject, plan.theme, t);
+        // Into the media library too, so the picture can be reused in other books.
+        void addMedia(src, { name: queue[i].label, source: "ai", width: size.width, height: size.height });
         pages.push({ ...pageFromImage(src, size, space, captions ? queue[i].label : undefined), pageNumber: pages.length + 1 });
         update(i, { status: "done" });
       } catch (err) {

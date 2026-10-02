@@ -110,6 +110,16 @@ await as(alice, `insert into public.book_versions (id, book_id, pages) values ('
 await db.exec(`delete from public.books where id = '44444444-4444-4444-8444-444444444444'`);
 check((await as(alice, "select count(*)::int n from public.book_versions"))[0].n === 1, "deleting a book removes its versions");
 
+// ---- 08_user_media: the media catalogue is private, and only for files in your own folder
+await as(alice, `insert into public.user_media (path, url, name) values ('${alice}/abc.png', 'https://x/abc.png', 'Cow')`);
+check((await as(alice, "select count(*)::int n from public.user_media"))[0].n === 1 && (await as(bob, "select count(*)::int n from public.user_media"))[0].n === 0 && (await as(admin, "select count(*)::int n from public.user_media"))[0].n === 0, "media: only its owner sees it");
+check(await fails(bob, `insert into public.user_media (path, url) values ('${alice}/abc.png', 'https://x/abc.png')`), "can't catalogue a file from someone else's folder");
+check(await fails(bob, `insert into public.user_media (user_id, path, url) values ('${alice}', '${alice}/z.png', 'u')`), "can't add to someone else's library");
+check(await fails(alice, `insert into public.user_media (path, url) values ('${alice}/abc.png', 'https://x/abc.png')`), "the same picture can't be listed twice");
+check(await fails(alice, `insert into public.user_media (path, url, source) values ('${alice}/q.png', 'u', 'stolen')`), "source is 'upload' or 'ai' only");
+await as(bob, "delete from public.user_media");
+check((await as(alice, "select count(*)::int n from public.user_media"))[0].n === 1, "others can't delete your pictures");
+
 const stats = (await as(admin, "select public.admin_stats() r"))[0].r;
 check(stats.users === 3 && stats.daily.length === 30, "admin_stats", `users ${stats.users}, ${stats.daily.length} days`);
 

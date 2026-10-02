@@ -42,6 +42,8 @@ import { usePageLooks } from "@/lib/usePageLooks";
 import { applyCoverLayout, coverPictureFrom, type CoverStyle } from "@/utils/coverTemplates";
 import { externalize } from "@/utils/imageStore";
 import { uploadBookImage } from "@/lib/imageUploader";
+import { addMedia, deleteMedia, listMedia } from "@/lib/mediaStore";
+import { isLibraryWorthy, type MediaItem, type MediaSource } from "@/utils/mediaLibrary";
 import VersionHistoryDialog from "@/components/studio/editor/VersionHistoryDialog";
 import MockupDialog from "@/components/studio/editor/MockupDialog";
 import { bookSignature, listVersions, saveVersion, snapshotDue } from "@/utils/versions";
@@ -248,6 +250,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [selectedLineIds, setSelectedLineIds] = useState<string[]>([]);
   const [segmentErase, setSegmentErase] = useState(false);
   const [myStamps, setMyStamps] = useState<MyStamp[]>([]);
+  const [media, setMedia] = useState<MediaItem[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [symmetry, setSymmetry] = useState<SymmetryMode>("off");
   const [showGrid, setShowGrid] = useState(false);
@@ -599,9 +602,31 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     applyChanges(new Map(updates.map((u) => [u.id, u.changes])));
   }
 
-  function handlePickStamp(src: string, options?: { naturalSize?: { width: number; height: number }; filter?: StampFilter; threshold?: number }) {
+  function handlePickStamp(src: string, options?: { naturalSize?: { width: number; height: number }; filter?: StampFilter; threshold?: number }, from?: { name?: string; source: MediaSource }) {
     setPendingPlacement({ kind: "stamp", src, ...options });
     setTool("stamp");
+    // A picture that isn't one of the built-in stamps: an upload when the caller says so, otherwise made by AI.
+    rememberMedia(src, from?.source ?? "ai", from?.name, options?.naturalSize);
+  }
+
+  // ---------- Media library ----------
+
+  useEffect(() => {
+    void listMedia().then(setMedia);
+  }, [user]);
+
+  /** Keeps a picture in the user's media library (file in Storage + catalogue entry). Quietly does nothing when there is no library. */
+  function rememberMedia(src: string, source: MediaSource, name?: string, size?: { width: number; height: number }) {
+    if (!isLibraryWorthy(src)) return;
+    void addMedia(src, { name, source, width: size?.width, height: size?.height }).then((item) => {
+      if (item) setMedia((prev) => (prev && !prev.some((m) => m.id === item.id) ? [item, ...prev] : prev));
+    });
+  }
+
+  async function handleDeleteMedia(item: MediaItem) {
+    if (!window.confirm(t("Delete “{name}” from your pictures? Pages that use it will lose the picture.", { name: item.name }))) return;
+    if (await deleteMedia(item)) setMedia((prev) => prev && prev.filter((m) => m.id !== item.id));
+    else setNotice(t("Could not delete this picture."));
   }
 
   function handleAddShape(shapeKind: ShapeKind) {
@@ -1144,6 +1169,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
   function handlePlaceFullPage(src: string, size: ImageSize) {
     const stamp = fullPageStamp(src, size, activeGeo);
+    rememberMedia(src, "ai", undefined, size);
     pushHistory();
     setActiveObjects([...activePage.objects, stamp]);
     setTool("select");
@@ -1158,6 +1184,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   /** Called as each series page finishes — functional update, since the series runs across many renders. */
   function handleAppendImagePage(src: string, size: ImageSize, caption?: string) {
     const page = pageFromImage(src, size, space, caption);
+    rememberMedia(src, "ai", caption, size);
     setPages((prev) => renumber([...prev, ...withRepeats([page], prev)]));
     setActivePageId(page.id);
     setSelectedIds([]);
@@ -1688,6 +1715,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onPickStamp={handlePickStamp}
           onAddShape={handleAddShape}
           onAddText={handleAddText}
+          media={media}
+          onDeleteMedia={(item) => void handleDeleteMedia(item)}
           myStamps={myStamps}
           onPlaceMyStamp={handlePlaceMyStamp}
           onDeleteMyStamp={(id) => void deleteMyStamp(id).then(setMyStamps)}
@@ -1770,7 +1799,16 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}
       {mockupImages !== undefined && <MockupDialog images={mockupImages} fileName={slugify(title)} title={title} points={[pages.filter((p) => !p.isBlankBack).length === 1 ? t("1 page to color") : t("{n} pages to color", { n: pages.filter((p) => !p.isBlankBack).length }), t(AGE_GROUPS.find((g) => g.value === ageGroup)?.label ?? "Ages 3–5"), pages.some((p) => p.isBlankBack) ? t("Single-sided pages") : t("Big, bold lines"), trimShortLabel(trimSizeId)]} onClose={() => setMockupImages(undefined)} />}
-      {showImport && <ImportImagesDialog space={space} onAdd={handleAppendPages} onClose={() => setShowImport(false)} />}
+      {showImport && (
+        <ImportImagesDialog
+          space={space}
+          onAdd={(added) => {
+            for (const pg of added) for (const o of pg.objects) if (o.kind === "stamp") rememberMedia(o.src, "upload", undefined, { width: o.width, height: o.height });
+            handleAppendPages(added);
+          }}
+          onClose={() => setShowImport(false)}
+        />
+      )}
       {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} capturePage={() => (stageRef.current ? captureStage(stageRef.current, 2) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
