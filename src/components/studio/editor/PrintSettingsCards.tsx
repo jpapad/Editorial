@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Download, History, Images, LayoutTemplate, Loader2, ShoppingBag, Type } from "lucide-react";
+import { BookOpen, Download, History, Images, Printer, UserRound, LayoutTemplate, Loader2, ShoppingBag, Type } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -21,6 +21,8 @@ export function BookPrintCard({
   onShareTemplate,
   onOpenMockups,
   onOpenVersions,
+  onOpenPrintAtHome,
+  onOpenPersonalize,
 }: {
   trimLabel: string;
   bleed: boolean;
@@ -30,6 +32,8 @@ export function BookPrintCard({
   onShareTemplate: () => void;
   onOpenMockups: () => void;
   onOpenVersions: () => void;
+  onOpenPrintAtHome: () => void;
+  onOpenPersonalize: () => void;
 }) {
   const t = useT();
   return (
@@ -54,6 +58,12 @@ export function BookPrintCard({
       </Button>
       <Button variant="secondary" size="sm" icon={<Images size={13} />} onClick={onOpenMockups}>
         {t("Listing mockups")}
+      </Button>
+      <Button variant="secondary" size="sm" icon={<Printer size={13} />} onClick={onOpenPrintAtHome}>
+        {t("Print at home")}
+      </Button>
+      <Button variant="ghost" size="sm" icon={<UserRound size={13} />} onClick={onOpenPersonalize}>
+        {t("Personalize for a child")}
       </Button>
       <Button variant="ghost" size="sm" icon={<History size={13} />} onClick={onOpenVersions}>
         {t("Version history")}

@@ -10,7 +10,7 @@ import type { BookPage } from "@/types/editor";
 /** Amazon KDP's minimum page count for a paperback. */
 export const KDP_MIN_PAGES = 24;
 
-export type ReadinessCheck = "min-pages" | "page-count" | "thin-strokes" | "margin" | "empty-pages" | "duplicates";
+export type ReadinessCheck = "min-pages" | "page-count" | "thin-strokes" | "margin" | "empty-pages" | "duplicates" | "look-alikes" | "style";
 export type ReadinessLevel = "ready" | "almost" | "work";
 
 export interface ReadinessItem {
@@ -93,7 +93,13 @@ export function duplicatePages(pages: BookPage[]): string[] {
   return out;
 }
 
-export function bookReadiness(pages: BookPage[]): Readiness {
+/** Findings that need the pages' rendered previews (lib/usePageLooks.ts) — absent where only the data is at hand. */
+export interface LookHints {
+  similar: string[];
+  offStyle: string[];
+}
+
+export function bookReadiness(pages: BookPage[], looks?: LookHints): Readiness {
   const preflight = runEditorPreflightCheck(pages);
   const issue = (code: string) => preflight.find((i) => i.code === code);
   const thin = issue("THIN_STROKE");
@@ -109,6 +115,14 @@ export function bookReadiness(pages: BookPage[]): Readiness {
     { id: "empty-pages", ok: empty.length === 0, count: empty.length, pageIds: empty, penalty: cap(empty.length, 5, 20) },
     { id: "duplicates", ok: duplicates.length === 0, count: duplicates.length, pageIds: duplicates, penalty: cap(duplicates.length, 5, 20) },
   ];
+  if (looks) {
+    // An exact repeat is already counted above — don't charge for it twice.
+    const similar = looks.similar.filter((id) => !duplicates.includes(id));
+    items.push(
+      { id: "look-alikes", ok: similar.length === 0, count: similar.length, pageIds: similar, penalty: cap(similar.length, 3, 12) },
+      { id: "style", ok: looks.offStyle.length === 0, count: looks.offStyle.length, pageIds: looks.offStyle, penalty: cap(looks.offStyle.length, 2, 8) }
+    );
+  }
   const score = pages.length === 0 ? 0 : Math.max(0, 100 - items.reduce((sum, i) => sum + i.penalty, 0));
   const level: ReadinessLevel = score >= 90 ? "ready" : score >= 70 ? "almost" : "work";
   return { score, level, items };

@@ -33,6 +33,11 @@ import { bookReadiness } from "@/utils/readiness";
 import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
 import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
+import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
+import PersonalizeDialog from "@/components/studio/editor/PersonalizeDialog";
+import { fitOnSheet, fullSheet, samplePages } from "@/utils/printables";
+import { applyName, nameSlots } from "@/utils/personalize";
+import { usePageLooks } from "@/lib/usePageLooks";
 import VersionHistoryDialog from "@/components/studio/editor/VersionHistoryDialog";
 import MockupDialog from "@/components/studio/editor/MockupDialog";
 import { bookSignature, listVersions, saveVersion, snapshotDue } from "@/utils/versions";
@@ -259,6 +264,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showWorksheets, setShowWorksheets] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
+  const [showPrintAtHome, setShowPrintAtHome] = useState(false);
+  const [showPersonalize, setShowPersonalize] = useState(false);
+  const pageLooks = usePageLooks(pages);
   // undefined = closed; null = open, pages still rendering.
   const [mockupImages, setMockupImages] = useState<string[] | null | undefined>(undefined);
   const [colorPreviewInk, setColorPreviewInk] = useState<PixelBuffer | null>(null);
@@ -745,6 +753,34 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     } else {
       setPages((prev) => repeatOnAllPages(prev, activePage.id, selectedIds));
     }
+  }
+
+  // ---------- Print at home / personalise ----------
+
+  async function handlePrintAtHome({ sheets, scope, instructions }: PrintAtHomeRequest) {
+    const picked = scope === "sample" ? samplePages(pages, activePage.id) : pages;
+    const images = await renderAllPages(scope === "sample" ? 3 : EXPORT_PIXEL_RATIO, picked.length ? picked : pages.slice(0, 1));
+    for (const sheet of sheets) {
+      const intro = instructions[sheet];
+      await exportPagesToPdf([...(intro ? [fullSheet(intro, sheet)] : []), ...images.map((src) => fitOnSheet(src, space, sheet))], `${slugify(title)}-${scope === "sample" ? "test-print" : "printable"}-${sheet}.pdf`);
+    }
+    logExport("export_pdf");
+  }
+
+  function handleApplyName(name: string) {
+    pushHistory();
+    setPages((prev) => applyName(prev, name));
+  }
+
+  /** "{name}" as big hollow letters in the middle of the current page — the first placeholder, to move and restyle. */
+  function handleAddNameSlot() {
+    pushHistory();
+    const { safe } = activeGeo;
+    const width = safe.right - safe.left - 60;
+    const slot: TextData = { kind: "text", id: makeId("text"), text: "{name}", fontFamily: FONT_OPTIONS[0].value, fontSize: 48, align: "center", fill: "#111827", isDragging: false, outline: true, x: safe.left + 30, y: (safe.top + safe.bottom) / 2 - 34, width, height: 68, rotation: 0, scaleX: 1, scaleY: 1 };
+    setActiveObjects([...activePage.objects, slot]);
+    setTool("select");
+    setSelectedIds([slot.id]);
   }
 
   // ---------- Mockups / version history ----------
@@ -1641,7 +1677,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           leadCard={
             mode === "draw" || mode === "color" ? (
               <ReadinessCard
-                readiness={bookReadiness(pages)}
+                readiness={bookReadiness(pages, pageLooks)}
                 fixes={{ "page-count": fixPageCount, "thin-strokes": fixThinStrokes, margin: fixMargins }}
                 onGoToPage={(id) => pages.some((p) => p.id === id) && handleSelectPage(id)}
               />
@@ -1674,7 +1710,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     updateActivePage({ traceImage });
                   }}
                 />
-                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} />
+                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPersonalize={() => setShowPersonalize(true)} />
               </>
             ) : null
           }
@@ -1696,6 +1732,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         </div>
       )}
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
+      {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
+      {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}
       {mockupImages !== undefined && <MockupDialog images={mockupImages} fileName={slugify(title)} onClose={() => setMockupImages(undefined)} />}
       {showImport && <ImportImagesDialog space={space} onAdd={handleAppendPages} onClose={() => setShowImport(false)} />}

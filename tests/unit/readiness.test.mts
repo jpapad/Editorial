@@ -6,7 +6,7 @@ const ok = (c: boolean, m: string) => { console.log((c ? "PASS " : "FAIL ") + m)
 const space = { width: 612, height: 792, bleed: 0 };
 // Every line is a little different, so no two test pages repeat each other (that has its own check).
 let drawn = 0;
-const line = (w: number, x = 200) => ({ id: "l" + Math.random(), tool: "pen" as const, strokeWidth: w, points: [x, 200 + (drawn += 4), x + 100, 300 + drawn] });
+const line = (w: number, x = 200) => ({ id: "l" + Math.random(), tool: "pen" as const, strokeWidth: w, points: [x, 200 + (drawn += 4), x + 50, 240 + drawn, x + 100, 300 + drawn] }); // 3 points: a drawn stroke, not a ruled line
 const page = (i: number, extra: Partial<BookPage> = {}): BookPage => ({ id: "p" + i, pageNumber: i + 1, space, lines: [line(6)], objects: [], ...extra });
 const book = (n: number, f?: (i: number) => Partial<BookPage>) => Array.from({ length: n }, (_, i) => page(i, f?.(i)));
 

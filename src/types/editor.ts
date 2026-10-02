@@ -82,6 +82,7 @@ export interface TextData extends Placeable {
   fill: string;
   isDragging: boolean;
   outline?: boolean; // hollow "colorable" letters: white fill with a `fill`-colored outline
+  template?: string; // the wording with its {name} placeholder, kept so the book can be personalised again (utils/personalize.ts)
   arc?: number; // degrees the line of text is bent: > 0 arches up, < 0 sags (absent/0 = straight)
   dashed?: boolean; // tracing letters: a dashed outline only (worksheets)
 }
@@ -119,7 +120,7 @@ export interface BookPage {
   thumbnailDataUrl?: string; // Low-res snapshot of the full rendered page (ink + fills + objects), captured on page-switch/export — real preview art for Library/Assemble instead of the striped placeholder
 }
 
-export type PageTemplate = "blank" | "storybook" | "border-frame" | "belongs-to" | "color-test" | "copyright";
+export type PageTemplate = "blank" | "storybook" | "border-frame" | "belongs-to" | "color-test" | "copyright" | "certificate" | "stickers";
 
 /** Mirror drawing for the pen/eraser: every stroke is repeated across the page's center axes or rotated around its center. */
 export type SymmetryMode = "off" | "mirror-x" | "mirror-y" | "quad" | "radial-6" | "radial-8";

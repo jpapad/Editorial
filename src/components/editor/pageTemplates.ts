@@ -138,9 +138,59 @@ export const PAGE_TEMPLATE_OPTIONS: { id: PageTemplate; label: string; descripti
   { id: "belongs-to", label: "This Book Belongs To", description: "Name page with colorable lettering" },
   { id: "color-test", label: "Color Test Page", description: "Swatches to try markers and crayons" },
   { id: "copyright", label: "Copyright & ISBN", description: "Front-matter page with rights and ISBN" },
+  { id: "certificate", label: "Certificate", description: "“Colored every page!” — for the last page" },
+  { id: "stickers", label: "Reward Stickers", description: "Twelve stickers to color and cut out" },
 ];
 
 /** `tx` translates the words printed on the page (default: English). */
+// A certificate for the last page: "… finished this book!", a line for the
+// name and one for the date, in a frame.
+function createCertificatePage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry, tx: TFunction): BookPage {
+  const frame = createFrameStamp("stars", geo);
+  const left = geo.safe.left + 30;
+  const width = geo.safe.right - geo.safe.left - 60;
+  const top = geo.safe.top + (geo.safe.bottom - geo.safe.top) * 0.14;
+  const plain = "Arial, Helvetica, sans-serif";
+  return page(id, pageNumber, space, [
+    ...(frame ? [frame] : []),
+    text({ text: tx("Certificate"), x: left, y: top, width, fontSize: 58, outline: true }),
+    shape({ shapeKind: "star", x: left + width / 2 - 55, y: top + 100, width: 110, height: 110, fill: "#ffffff", stroke: "#111827", strokeWidth: 5 }),
+    text({ text: tx("This certifies that"), x: left, y: top + 240, width, fontSize: 22, fontFamily: plain }),
+    rule(left + 40, top + 345, width - 80),
+    text({ text: tx("colored every page of this book!"), x: left, y: top + 372, width, fontSize: 22, fontFamily: plain }),
+    text({ text: tx("Date"), x: left, y: top + 470, width: 60, fontSize: 16, align: "left", fontFamily: plain }),
+    rule(left + 60, top + 490, width / 2 - 70),
+  ]);
+}
+
+// Reward stickers to cut out (or print on sticker paper): a grid of dashed
+// circles, each with a shape inside to color.
+function createStickerPage(id: string, pageNumber: number, space: PageSpace, geo: PageGeometry, tx: TFunction): BookPage {
+  const { safe } = geo;
+  const width = safe.right - safe.left;
+  const titleH = 84;
+  const cols = 3;
+  const rows = 4;
+  const cell = Math.min(width / cols, (safe.bottom - safe.top - titleH) / rows);
+  const d = cell * 0.86;
+  const kinds = ["star", "heart", "circle", "hexagon", "triangle"] as const;
+  const objects: BookPage["objects"] = [text({ text: tx("My stickers"), x: safe.left, y: safe.top + 6, width, fontSize: 44, outline: true })];
+  const lines: BookPage["lines"] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cx = safe.left + (width - cols * cell) / 2 + c * cell + cell / 2;
+      const cy = safe.top + titleH + r * cell + cell / 2;
+      // The cut line: a dashed circle, as a closed pen stroke so it can be restyled.
+      const ring: number[] = [];
+      for (let a = 0; a <= 48; a++) ring.push(cx + (d / 2) * Math.cos((a / 48) * Math.PI * 2), cy + (d / 2) * Math.sin((a / 48) * Math.PI * 2));
+      lines.push({ id: makeId("line"), tool: "pen", strokeWidth: 3, style: "dashed", points: ring });
+      const s = d * 0.5;
+      objects.push(shape({ shapeKind: kinds[(r * cols + c) % kinds.length], x: cx - s / 2, y: cy - s / 2, width: s, height: s, fill: "#ffffff", stroke: "#111827", strokeWidth: 4 }));
+    }
+  }
+  return { ...page(id, pageNumber, space, objects), lines };
+}
+
 export function createPageFromTemplate(pageNumber: number, space: PageSpace, template: PageTemplate = "blank", tx: TFunction = identityT): BookPage {
   const id = makeId("page");
   const geo = geometryFromSpace(space);
@@ -157,6 +207,10 @@ export function createPageFromTemplate(pageNumber: number, space: PageSpace, tem
       return createColorTestPage(id, pageNumber, space, geo, tx);
     case "copyright":
       return createCopyrightPage(id, pageNumber, space, geo, tx);
+    case "certificate":
+      return createCertificatePage(id, pageNumber, space, geo, tx);
+    case "stickers":
+      return createStickerPage(id, pageNumber, space, geo, tx);
     default:
       return page(id, pageNumber, space);
   }

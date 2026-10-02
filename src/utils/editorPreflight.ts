@@ -66,11 +66,21 @@ function checkPageCount(pages: BookPage[]): EditorPreflightIssue[] {
   ];
 }
 
+/**
+ * A ruled line — two points, dead straight — is drawn thin on purpose: the
+ * grid of a sudoku, a copy-grid, a handwriting row. Hand-drawn strokes
+ * always have many points. Rules are neither flagged nor thickened.
+ */
+function isRule(line: { points: number[] }): boolean {
+  return line.points.length <= 4;
+}
+const isFaint = (l: { tool: string; strokeWidth: number; points: number[] }) => l.tool === "pen" && l.strokeWidth < THIN_STROKE_THRESHOLD && !isRule(l);
+
 /** Pen strokes thinner than THIN_STROKE_THRESHOLD — see its own comment on why this is a heuristic, not a sourced spec. */
 function checkThinStrokes(pages: BookPage[]): EditorPreflightIssue[] {
-  const flaggedPageIds = pages.filter((p) => p.lines.some((l) => l.tool === "pen" && l.strokeWidth < THIN_STROKE_THRESHOLD)).map((p) => p.id);
+  const flaggedPageIds = pages.filter((p) => p.lines.some(isFaint)).map((p) => p.id);
   if (flaggedPageIds.length === 0) return [];
-  const lineCount = pages.reduce((sum, p) => sum + p.lines.filter((l) => l.tool === "pen" && l.strokeWidth < THIN_STROKE_THRESHOLD).length, 0);
+  const lineCount = pages.reduce((sum, p) => sum + p.lines.filter(isFaint).length, 0);
   return [
     {
       id: "thin-strokes",
@@ -121,7 +131,7 @@ export function pagesNeededForMultipleOf4(count: number): number {
 export function thickenThinStrokes(pages: BookPage[]): BookPage[] {
   return pages.map((p) => ({
     ...p,
-    lines: p.lines.map((l) => (l.tool === "pen" && l.strokeWidth < THIN_STROKE_THRESHOLD ? { ...l, strokeWidth: THIN_STROKE_THRESHOLD } : l)),
+    lines: p.lines.map((l) => (isFaint(l) ? { ...l, strokeWidth: THIN_STROKE_THRESHOLD } : l)),
   }));
 }
 
