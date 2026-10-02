@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, BookOpen, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowUp, BookOpen, BookPlus, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload } from "lucide-react";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
@@ -17,6 +17,7 @@ import { trimShortLabel } from "@/utils/trimSizes";
 import { bookReadiness } from "@/utils/readiness";
 import { ReadinessRing, readinessLabel } from "@/components/studio/editor/ReadinessCard";
 import { supabase } from "@/lib/supabase/client";
+import { nextVolumePages, nextVolumeTitle } from "@/utils/volumes";
 import { createBook, deleteBook, duplicateBook, listBooks, readProjectFromFile, saveBook, type StoredBook } from "@/utils/storage";
 
 const NAV_ITEMS = ["All books", "Drafts", "Published", "Templates"] as const;
@@ -122,6 +123,20 @@ export default function LibraryScreen() {
       refresh();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : t("Could not duplicate this book."));
+    }
+  }
+
+  /** A new book shaped like this one — front matter, frames, numbering and cover kept, pictures cleared — in the same collection. */
+  async function handleNextVolume(e: React.MouseEvent, book: StoredBook) {
+    e.stopPropagation();
+    try {
+      const next = await createBook(nextVolumeTitle(book.title), nextVolumePages(book.pages), book.trimSize);
+      await saveBook({ ...next, collection: book.collection ?? book.title, bleed: book.bleed, paper: book.paper, cover: book.cover ? structuredClone(book.cover) : book.cover });
+      // The first volume joins the series too, so the two sit together.
+      if (!book.collection) await saveBook({ ...book, collection: book.title });
+      refresh();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : t("Could not start the next volume."));
     }
   }
 
@@ -363,6 +378,9 @@ export default function LibraryScreen() {
                     </button>
                     <button type="button" onClick={(e) => handleDuplicate(e, book)} aria-label={t("Duplicate {title}", { title: book.title })} title={t("Duplicate")} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-muted outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent hover:text-accent">
                       <Copy size={15} />
+                    </button>
+                    <button type="button" onClick={(e) => handleNextVolume(e, book)} aria-label={t("Start the next volume of {title}", { title: book.title })} title={t("Next volume: same layout, new pictures")} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-muted outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent hover:text-accent">
+                      <BookPlus size={15} />
                     </button>
                     <button type="button" onClick={(e) => handleDelete(e, book)} aria-label={t("Delete {title}", { title: book.title })} title={t("Delete")} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-muted outline-none transition-colors duration-150 hover:bg-inset motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-accent hover:text-error">
                       <Trash2 size={15} />

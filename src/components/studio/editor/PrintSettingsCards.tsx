@@ -8,6 +8,8 @@ import Toggle from "@/components/studio/ui/Toggle";
 import { MIN_PAGES, PAPER_OPTIONS, SPINE_TEXT_MIN_PAGES, type CoverLayout } from "@/utils/coverGeometry";
 import type { PaperType } from "@/types/editor";
 import { useT } from "@/lib/i18n";
+import { useState } from "react";
+import { COVER_STYLES, type CoverStyle } from "@/utils/coverTemplates";
 
 const fmtIn = (pt: number) => `${(pt / 72).toFixed(3)} in`;
 
@@ -85,6 +87,10 @@ export interface CoverCardProps {
   onAddSpineText: () => void;
   onExportCover: () => void;
   exporting: boolean;
+  /** Lays the title, subtitle, author and a picture from the book out on the cover. */
+  onApplyLayout: (style: CoverStyle, subtitle: string, author: string) => void;
+  /** Whether the book has a picture to put on the cover. */
+  hasPicture: boolean;
 }
 
 /** Cover mode's settings: the spine math (page count × paper), background, spine title, cover PDF. */
@@ -92,6 +98,9 @@ export function CoverCard(props: CoverCardProps) {
   const { layout, pageCount } = props;
   const tooFew = pageCount < MIN_PAGES;
   const t = useT();
+  const [subtitle, setSubtitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const field = "h-8 rounded-row-sm border border-hairline bg-panel px-2 text-body text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent";
   return (
     <Card className="flex shrink-0 flex-col gap-3 p-4">
       <div className="flex items-center gap-2">
@@ -111,7 +120,23 @@ export function CoverCard(props: CoverCardProps) {
       </dl>
       {tooFew && <p className="rounded-row-sm bg-warning/15 px-2.5 py-2 text-helper text-ink-secondary">{t("KDP paperbacks need at least {n} pages — the spine is sized for {n} until you add more.", { n: MIN_PAGES })}</p>}
 
-      <label className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1.5 border-t border-hairline pt-3">
+        <MetaLabel>{t("Ready-made layouts")}</MetaLabel>
+        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} maxLength={90} placeholder={t("Subtitle (optional)")} aria-label={t("Subtitle (optional)")} className={field} />
+        <input value={author} onChange={(e) => setAuthor(e.target.value)} maxLength={60} placeholder={t("Author (optional)")} aria-label={t("Author (optional)")} className={field} />
+        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={t("Ready-made layouts")}>
+          {COVER_STYLES.map((s) => (
+            <Button key={s.value} variant="secondary" size="sm" onClick={() => props.onApplyLayout(s.value, subtitle, author)}>
+              {t(s.label)}
+            </Button>
+          ))}
+        </div>
+        <p className="text-helper text-ink-muted">
+          {props.hasPicture ? t("Uses the book's title and its first picture. Everything stays editable; choosing another layout replaces this one.") : t("Uses the book's title. Add a picture to a page to have it on the cover too.")}
+        </p>
+      </div>
+
+      <label className="flex flex-col gap-1 border-t border-hairline pt-3">
         <MetaLabel>{t("Paper")}</MetaLabel>
         <select
           value={props.paper}

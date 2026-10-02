@@ -39,7 +39,9 @@ interface Placeable {
   locked?: boolean; // can't be selected/moved on the canvas — only from the Layers list
   hidden?: boolean; // not rendered, so not exported either
   groupId?: string; // objects sharing a groupId select and move together
-  role?: "pageNumber"; // the automatic page number (utils/pageNumbers.ts) — re-stamped when pages move
+  // "pageNumber": the automatic page number (utils/pageNumbers.ts), re-stamped when pages move.
+  // "coverLayout": placed by a ready-made cover layout (utils/coverTemplates.ts), swapped out when another is chosen.
+  role?: "pageNumber" | "coverLayout";
   repeatId?: string; // copies of one element repeated on every page share this (utils/pageNumbers.ts)
 }
 

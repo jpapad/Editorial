@@ -30,6 +30,7 @@ const DYNAMIC = [
   "src/components/editor/strokeTools.ts",
   "src/components/editor/worksheets.ts",
   "src/components/studio/editor/regions.ts",
+  "src/utils/coverTemplates.ts",
   "src/components/studio/editor/CanvasArea.tsx",
   "src/components/studio/editor/fillPatterns.ts",
   "src/components/studio/editor/keyboard.ts",

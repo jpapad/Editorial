@@ -38,6 +38,7 @@ import PersonalizeDialog from "@/components/studio/editor/PersonalizeDialog";
 import { fitOnSheet, fullSheet, samplePages } from "@/utils/printables";
 import { applyName, nameSlots } from "@/utils/personalize";
 import { usePageLooks } from "@/lib/usePageLooks";
+import { applyCoverLayout, coverPictureFrom, type CoverStyle } from "@/utils/coverTemplates";
 import VersionHistoryDialog from "@/components/studio/editor/VersionHistoryDialog";
 import MockupDialog from "@/components/studio/editor/MockupDialog";
 import { bookSignature, listVersions, saveVersion, snapshotDue } from "@/utils/versions";
@@ -50,6 +51,7 @@ import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
 import ShareDialog from "@/components/studio/editor/ShareDialog";
 import { convertPages, geometryFromSpace, interiorSpace, needsConversion } from "@/utils/pageGeometry";
 import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
+import { AGE_GROUPS } from "@/components/studio/editor/ageCheck";
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
 import { checkAge, type AgeCheckResult, type AgeGroup } from "@/components/studio/editor/ageCheck";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
@@ -1063,6 +1065,18 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   }
 
   /** The book title, rotated to read top-to-bottom down the spine (the US/UK convention). */
+  function handleApplyCoverLayout(style: CoverStyle, subtitle: string, author: string) {
+    pushHistory();
+    const drawn = pages.filter((p) => !p.isBlankBack).length;
+    const content = { title, subtitle, author, blurb: drawn === 1 ? t("1 page to color") : t("{n} pages to color", { n: drawn }), picture: coverPictureFrom(pages) };
+    setCoverDesign((prev) => {
+      const base = prev ? refitCover(prev, cover) : fittedCover;
+      // The title band layout prints white on dark; the others sit on the cover's own background.
+      return { ...base, page: applyCoverLayout(base.page, cover, style, content) };
+    });
+    setSelectedIds([]);
+  }
+
   function handleAddSpineText() {
     if (!cover.spineTextAllowed) return;
     const s = cover.spineRect;
@@ -1695,6 +1709,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                 onAddSpineText={handleAddSpineText}
                 onExportCover={() => void handleExportCover()}
                 exporting={isExportingCover}
+                onApplyLayout={handleApplyCoverLayout}
+                hasPicture={Boolean(coverPictureFrom(pages))}
               />
             ) : mode === "draw" ? (
               <>
@@ -1735,7 +1751,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}
-      {mockupImages !== undefined && <MockupDialog images={mockupImages} fileName={slugify(title)} onClose={() => setMockupImages(undefined)} />}
+      {mockupImages !== undefined && <MockupDialog images={mockupImages} fileName={slugify(title)} title={title} points={[pages.filter((p) => !p.isBlankBack).length === 1 ? t("1 page to color") : t("{n} pages to color", { n: pages.filter((p) => !p.isBlankBack).length }), t(AGE_GROUPS.find((g) => g.value === ageGroup)?.label ?? "Ages 3–5"), pages.some((p) => p.isBlankBack) ? t("Single-sided pages") : t("Big, bold lines"), trimShortLabel(trimSizeId)]} onClose={() => setMockupImages(undefined)} />}
       {showImport && <ImportImagesDialog space={space} onAdd={handleAppendPages} onClose={() => setShowImport(false)} />}
       {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} capturePage={() => (stageRef.current ? captureStage(stageRef.current, 2) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
 

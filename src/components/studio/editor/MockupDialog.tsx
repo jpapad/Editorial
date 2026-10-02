@@ -7,8 +7,8 @@ import { cn } from "@/utils/cn";
 import { useT } from "@/lib/i18n";
 import { colorPreview } from "@/components/studio/editor/regions";
 
-type Scene = "book" | "flatlay" | "fan";
-const SCENES: Scene[] = ["book", "flatlay", "fan"];
+type Scene = "book" | "flatlay" | "fan" | "features";
+const SCENES: Scene[] = ["book", "flatlay", "fan", "features"];
 const BACKGROUNDS = ["#f6e7d8", "#dfeaf5", "#e4efdc", "#f3dfe6", "#2b2d42"];
 const CRAYONS = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"];
 const SIZE = 1600;
@@ -126,7 +126,48 @@ function book(ctx: CanvasRenderingContext2D, cover: Art, dark: boolean) {
   ctx.restore();
 }
 
-function draw(canvas: HTMLCanvasElement, scene: Scene, background: string, pages: HTMLImageElement[], seed: number) {
+/** A coloured page beside the book's selling points, each on its own pill — the "what you get" picture of a listing. */
+function features(ctx: CanvasRenderingContext2D, art: Art, heading: string, points: string[], dark: boolean) {
+  ctx.fillStyle = dark ? "#ffffff" : "#1b1c22";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // Shrink the heading until it fits the width.
+  let size = 92;
+  do {
+    ctx.font = `800 ${size}px "Fredoka", "Comic Sans MS", Arial, sans-serif`;
+    size -= 4;
+  } while (ctx.measureText(heading).width > SIZE - 200 && size > 36);
+  ctx.fillText(heading, SIZE / 2, 170);
+  sheet(ctx, art, SIZE * 0.31, SIZE * 0.6, SIZE * 0.6, -5);
+  const list = points.map((p) => p.trim()).filter(Boolean).slice(0, 4);
+  const pillH = 150;
+  const gap = 44;
+  const left = SIZE * 0.58;
+  const width = SIZE * 0.36;
+  const top = SIZE * 0.6 - (list.length * pillH + (list.length - 1) * gap) / 2;
+  list.forEach((point, i) => {
+    const y = top + i * (pillH + gap);
+    const color = CRAYONS[[0, 2, 4, 5][i]]; // red, yellow, blue, purple
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.18)";
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 10;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(left, y, width, pillH, pillH / 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = color === "#fdd835" ? "#1b1c22" : "#ffffff"; // the yellow pill takes dark text
+    let fs = 54;
+    do {
+      ctx.font = `700 ${fs}px "Fredoka", "Comic Sans MS", Arial, sans-serif`;
+      fs -= 3;
+    } while (ctx.measureText(point).width > width - 70 && fs > 22);
+    ctx.fillText(point, left + width / 2, y + pillH / 2 + 2);
+  });
+}
+
+function draw(canvas: HTMLCanvasElement, scene: Scene, background: string, pages: HTMLImageElement[], seed: number, heading: string, points: string[]) {
   const ctx = canvas.getContext("2d");
   if (!ctx || pages.length === 0) return;
   canvas.width = canvas.height = SIZE;
@@ -141,7 +182,8 @@ function draw(canvas: HTMLCanvasElement, scene: Scene, background: string, pages
   ctx.fillRect(0, 0, SIZE, SIZE);
 
   const at = (i: number) => pages[Math.min(i, pages.length - 1)];
-  if (scene === "book") book(ctx, at(0), dark);
+  if (scene === "features") features(ctx, colored(at(0), seed), heading, points, dark);
+  else if (scene === "book") book(ctx, at(0), dark);
   else if (scene === "flatlay") {
     sheet(ctx, at(2), SIZE * 0.36, SIZE * 0.47, SIZE * 0.62, -9);
     sheet(ctx, colored(at(1), seed), SIZE * 0.6, SIZE * 0.53, SIZE * 0.66, 6);
@@ -158,13 +200,14 @@ function draw(canvas: HTMLCanvasElement, scene: Scene, background: string, pages
  * a flat lay with crayons and a half-coloured page, and a fan of pages.
  * `images` are page renders in book order (the first is used as the cover).
  */
-export default function MockupDialog({ images, fileName, onClose }: { images: string[] | null; fileName: string; onClose: () => void }) {
+export default function MockupDialog({ images, fileName, title, points: initialPoints, onClose }: { images: string[] | null; fileName: string; title: string; points: string[]; onClose: () => void }) {
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [pages, setPages] = useState<HTMLImageElement[] | null>(null);
   const [scene, setScene] = useState<Scene>("book");
   const [background, setBackground] = useState(BACKGROUNDS[0]);
   const [failed, setFailed] = useState(false);
+  const [points, setPoints] = useState(initialPoints);
 
   useEffect(() => {
     if (!images) return;
@@ -179,8 +222,8 @@ export default function MockupDialog({ images, fileName, onClose }: { images: st
   }, [images]);
 
   useEffect(() => {
-    if (canvasRef.current && pages) draw(canvasRef.current, scene, background, pages, 3);
-  }, [pages, scene, background]);
+    if (canvasRef.current && pages) draw(canvasRef.current, scene, background, pages, 3, title, points);
+  }, [pages, scene, background, title, points]);
 
   function download() {
     const canvas = canvasRef.current;
@@ -191,7 +234,7 @@ export default function MockupDialog({ images, fileName, onClose }: { images: st
     link.click();
   }
 
-  const label: Record<Scene, string> = { book: t("Standing book"), flatlay: t("On the table, with crayons"), fan: t("Three pages") };
+  const label: Record<Scene, string> = { book: t("Standing book"), flatlay: t("On the table, with crayons"), fan: t("Three pages"), features: t("What you get") };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6" onClick={onClose}>
@@ -201,7 +244,7 @@ export default function MockupDialog({ images, fileName, onClose }: { images: st
         aria-labelledby="mk-title"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
-        className="flex max-h-full w-[560px] max-w-full flex-col gap-3 rounded-panel bg-panel p-5 shadow-panel"
+        className="flex max-h-full w-[640px] max-w-full flex-col gap-3 rounded-panel bg-panel p-5 shadow-panel"
       >
         <div className="flex items-center justify-between">
           <p id="mk-title" className="text-modal-title font-semibold tracking-[-0.02em] text-ink">
@@ -219,7 +262,7 @@ export default function MockupDialog({ images, fileName, onClose }: { images: st
               role="radio"
               aria-checked={scene === s}
               onClick={() => setScene(s)}
-              className={cn("flex-1 rounded-pill border px-2 py-1 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", scene === s ? "border-accent bg-accent-tint font-semibold text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt")}
+              className={cn("flex-1 whitespace-nowrap rounded-pill border px-1.5 py-1 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", scene === s ? "border-accent bg-accent-tint font-semibold text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt")}
             >
               {label[s]}
             </button>
@@ -234,6 +277,20 @@ export default function MockupDialog({ images, fileName, onClose }: { images: st
           )}
           {failed && <span className="absolute text-body text-error">{t("The pages could not be rendered.")}</span>}
         </div>
+        {scene === "features" && (
+          <div className="grid grid-cols-2 gap-1.5">
+            {points.map((point, i) => (
+              <input
+                key={i}
+                value={point}
+                maxLength={28}
+                aria-label={t("Selling point {n}", { n: i + 1 })}
+                onChange={(e) => setPoints((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}
+                className="h-8 rounded-row-sm border border-hairline bg-panel px-2 text-helper text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              />
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <div className="flex gap-1.5" role="group" aria-label={t("Background color")}>
             {BACKGROUNDS.map((c) => (
