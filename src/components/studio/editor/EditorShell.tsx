@@ -34,6 +34,9 @@ import { fullPageStamp, pageFromImage } from "@/utils/imagePages";
 import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
+import DigitalPackDialog from "@/components/studio/editor/DigitalPackDialog";
+import { licenseText, packStem, readmeText, trimCrop, type PackOptions } from "@/utils/digitalPack";
+import { buildZip, dataUrlBytes, downloadBytes, pageFileName, type ZipEntry } from "@/utils/zip";
 import TranslateBookDialog from "@/components/studio/editor/TranslateBookDialog";
 import PersonalizeDialog from "@/components/studio/editor/PersonalizeDialog";
 import { fitOnSheet, fullSheet, samplePages } from "@/utils/printables";
@@ -82,7 +85,7 @@ import type {
   SymmetryMode,
   TextData,
 } from "@/types/editor";
-import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPage } from "@/utils/pdfExport";
+import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPage, renderPdf } from "@/utils/pdfExport";
 import { createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import { clampObjectsToMargin, pagesNeededForMultipleOf4, runEditorPreflightCheck, thickenThinStrokes, type EditorPreflightIssue } from "@/utils/editorPreflight";
 import { alignDeltas, distributeDeltas, flippedHorizontally, flippedVertically, objectBounds, unionBounds, type AlignEdge } from "@/utils/objectGeometry";
@@ -122,6 +125,22 @@ function slugify(title: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   return slug || "coloring-book-project";
+}
+
+/** Cuts `crop` (canvas pixels) out of a PNG data URL — the bleed band off a page picture. */
+async function cropImage(src: string, crop: { x: number; y: number; width: number; height: number }): Promise<string> {
+  const img = new window.Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("unreadable"));
+    img.src = src;
+  });
+  if (crop.x === 0 && crop.y === 0 && crop.width >= img.naturalWidth && crop.height >= img.naturalHeight) return src;
+  const canvas = document.createElement("canvas");
+  canvas.width = crop.width;
+  canvas.height = crop.height;
+  canvas.getContext("2d")?.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+  return canvas.toDataURL("image/png");
 }
 
 function coverGuides(layout: CoverLayout, t: TFunction): GuideSpec {
@@ -275,6 +294,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showImport, setShowImport] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [showPrintAtHome, setShowPrintAtHome] = useState(false);
+  const [showPack, setShowPack] = useState(false);
   const [showPersonalize, setShowPersonalize] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const pageLooks = usePageLooks(pages);
@@ -799,6 +819,32 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       const intro = instructions[sheet];
       await exportPagesToPdf([...(intro ? [fullSheet(intro, sheet)] : []), ...images.map((src) => fitOnSheet(src, space, sheet))], `${slugify(title)}-${scope === "sample" ? "test-print" : "printable"}-${sheet}.pdf`);
     }
+    logExport("export_pdf");
+  }
+
+  /** The printables pack: PNG per page (trim only), a PDF per paper size, LICENSE and READ-ME — one ZIP. */
+  async function handleDigitalPack(options: PackOptions, progress: (text: string) => void) {
+    const picked = pages.filter((p) => !p.isBlankBack);
+    const images = await renderAllPages(EXPORT_PIXEL_RATIO, picked.length ? picked : pages);
+    const stem = packStem(title);
+    const entries: ZipEntry[] = [];
+    if (options.pngs) {
+      const crop = trimCrop(space, EXPORT_PIXEL_RATIO);
+      for (const [i, src] of images.entries()) {
+        progress(t("Saving page {n} of {total}…", { n: i + 1, total: images.length }));
+        entries.push({ name: `${stem}/pages/${pageFileName(i, images.length)}`, data: dataUrlBytes(await cropImage(src, crop)) });
+      }
+    }
+    for (const sheet of options.sheets) {
+      progress(t("Making the {size} PDF…", { size: sheet === "a4" ? "A4" : "US Letter" }));
+      const pdf = await renderPdf(images.map((src) => fitOnSheet(src, space, sheet)), `${stem}-${sheet}`);
+      entries.push({ name: `${stem}/${stem}-${sheet === "a4" ? "A4" : "US-Letter"}.pdf`, data: new Uint8Array(await pdf.arrayBuffer()) });
+    }
+    const encoder = new TextEncoder();
+    entries.push({ name: `${stem}/LICENSE.txt`, data: encoder.encode(licenseText(options.license, title, options.seller, new Date().getFullYear(), t)) });
+    entries.push({ name: `${stem}/READ-ME.txt`, data: encoder.encode(readmeText(title, options, images.length, t)) });
+    progress(t("Packing the ZIP…"));
+    downloadBytes(buildZip(entries), `${stem}-printables.zip`);
     logExport("export_pdf");
   }
 
@@ -1772,7 +1818,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     updateActivePage({ traceImage });
                   }}
                 />
-                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPersonalize={() => setShowPersonalize(true)} onOpenTranslate={() => setShowTranslate(true)} />
+                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPack={() => setShowPack(true)} onOpenPersonalize={() => setShowPersonalize(true)} onOpenTranslate={() => setShowTranslate(true)} />
               </>
             ) : null
           }
@@ -1796,6 +1842,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
       {showTranslate && <TranslateBookDialog pages={pages} coverPage={coverDesign ? fittedCover.page : null} onTranslated={handleTranslated} onClose={() => setShowTranslate(false)} />}
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
+      {showPack && <DigitalPackDialog pageCount={pages.filter((p) => !p.isBlankBack).length} onExport={handleDigitalPack} onClose={() => setShowPack(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}
       {mockupImages !== undefined && <MockupDialog images={mockupImages} fileName={slugify(title)} title={title} points={[pages.filter((p) => !p.isBlankBack).length === 1 ? t("1 page to color") : t("{n} pages to color", { n: pages.filter((p) => !p.isBlankBack).length }), t(AGE_GROUPS.find((g) => g.value === ageGroup)?.label ?? "Ages 3–5"), pages.some((p) => p.isBlankBack) ? t("Single-sided pages") : t("Big, bold lines"), trimShortLabel(trimSizeId)]} onClose={() => setMockupImages(undefined)} />}

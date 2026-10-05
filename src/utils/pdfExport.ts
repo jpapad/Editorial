@@ -24,7 +24,17 @@ export const EXPORT_PIXEL_RATIO = 300 / 72;
 export async function exportPagesToPdf(pages: ExportPage[], fileName = "my-coloring-book.pdf") {
   if (pages.length === 0) return;
 
-  const title = fileName.replace(/\.pdf$/i, "");
+  const blob = await renderPdf(pages, fileName.replace(/\.pdf$/i, ""));
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** The PDF itself, without downloading it — for packs that put several files in one ZIP. */
+export async function renderPdf(pages: ExportPage[], title: string): Promise<Blob> {
   const response = await fetch("/api/export-editor-pdf", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -35,14 +45,7 @@ export async function exportPagesToPdf(pages: ExportPage[], fileName = "my-color
     const body = await response.json().catch(() => null);
     throw new Error((body as { error?: string } | null)?.error ?? `Export failed (${response.status})`);
   }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
+  return response.blob();
 }
 
 /**
