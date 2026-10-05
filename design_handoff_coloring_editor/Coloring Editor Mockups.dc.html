@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e9ebee;font-family:Archivo,Helvetica,sans-serif}
+a{color:#3357d4}a:hover{color:#1f3ca8}
+.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(0,0,0,.09);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#16191d;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 Archivo,sans-serif;color:#16191d}
+.dv-opts{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#16191d;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 Archivo,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#101316;border:1px solid rgba(0,0,0,.14);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.14);overflow:hidden}
+.dv-opt:target .dv-oid{background:#3357d4;color:#fff}
+.dv-next{margin:24px 0 0;font:12px/1.5 Archivo,sans-serif;color:rgba(0,0,0,.5)}
+</style></helmet>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Απόφαση συστήματος: φωτεινό shell από το <a class="dv-oid" href="#2b">2b</a> παντού, σκούρο μόνο γύρω από τον καμβά · + οθόνη τελικού χρήστη, καταστάσεις, ελληνικά</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Coloring view — τελικός χρήστης, tablet, χωρίς panels</div>
+<div class="dv-card" style="width:1000px;background:#dfe2e7;padding:22px;box-sizing:border-box">
+  <div style="border-radius:34px;background:#15181d;padding:16px;box-shadow:0 18px 44px rgba(0,0,0,.28)">
+    <div style="position:relative;height:606px;border-radius:22px;background:#f2f0ec;overflow:hidden">
+      <div style="position:absolute;left:0;right:0;top:0;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:12px"><div style="width:26px;height:26px;border-radius:999px;background:rgba(16,20,26,.07);display:flex;align-items:center;justify-content:center"><div style="width:9px;height:9px;border-left:2px solid #40485a;border-bottom:2px solid #40485a;transform:rotate(45deg);margin-left:-3px"></div></div><div style="font:500 12px Archivo,sans-serif;color:#40485a">Sleepy Fox · Forest Friends</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><div style="padding:6px 13px;border-radius:999px;background:rgba(16,20,26,.06);font:500 11px Archivo,sans-serif;color:#40485a">Quiet mode</div><div style="padding:6px 13px;border-radius:999px;background:#3357d4;font:600 11px Archivo,sans-serif;color:#fff">Save</div></div>
+      </div>
+      <div style="position:absolute;inset:46px 0 104px;display:flex;align-items:center;justify-content:center;padding:14px">
+        <div style="width:376px;height:428px;background:#fff;border-radius:6px;box-shadow:0 14px 36px rgba(16,20,26,.14);padding:18px;box-sizing:border-box">
+          <div style="height:100%;background:repeating-linear-gradient(135deg,#ecebe7 0 7px,#fafaf8 7px 14px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:14px;box-sizing:border-box"><div style="font:500 10px 'JetBrains Mono',monospace;color:#8f9299;letter-spacing:.08em;background:#fff;padding:4px 9px;border-radius:999px">LINE ART · TAP TO FILL</div></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:14px;padding:11px 18px;border-radius:999px;background:#fff;box-shadow:0 2px 6px rgba(16,20,26,.08),0 14px 34px rgba(16,20,26,.12)">
+          <div style="display:flex;gap:9px">
+            <div style="width:38px;height:38px;border-radius:999px;background:#e4b7a0;box-shadow:0 0 0 3px #fff,0 0 0 5px #3357d4"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#8fae8b"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#cfa77e"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#7b8fa8"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#d9cf9e"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#b98a8a"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#42505f"></div>
+            <div style="width:38px;height:38px;border-radius:999px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font:300 18px Archivo,sans-serif;color:#7b838f">+</div>
+          </div>
+          <div style="width:1px;height:26px;background:#e6e9ee"></div>
+          <div style="display:flex;gap:6px">
+            <div style="width:44px;height:44px;border-radius:999px;background:#10141a;display:flex;align-items:center;justify-content:center"><div style="width:16px;height:16px;border-radius:50%;background:#fff"></div></div>
+            <div style="width:44px;height:44px;border-radius:999px;background:#f2f4f7;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border:2px solid #5d6673"></div></div>
+            <div style="width:44px;height:44px;border-radius:999px;background:#f2f4f7;display:flex;align-items:center;justify-content:center"><div style="width:13px;height:13px;border-left:2px solid #5d6673;border-top:2px solid #5d6673;transform:rotate(-45deg)"></div></div>
+          </div>
+        </div>
+        <div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.08em">ΣΕΛΙΔΑ 7 ΑΠΟ 24 · ΣΥΡΕ ΓΙΑ ΕΠΟΜΕΝΗ</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Import σκαναρισμένου σχεδίου → line art</div>
+<div class="dv-card" style="width:780px;background:#f1f2f5">
+  <div style="height:520px;box-sizing:border-box;display:flex;flex-direction:column">
+    <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font:600 15px Archivo,sans-serif;color:#10141a">Μετατροπή σε line art</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">FOX_SKETCH.JPG · 2480 × 3508 · 300 DPI</div></div>
+      <div style="display:flex;gap:9px"><div style="padding:8px 15px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);font:500 11.5px Archivo,sans-serif;color:#10141a">Άκυρο</div><div style="padding:8px 16px;border-radius:999px;background:#3357d4;font:600 11.5px Archivo,sans-serif;color:#fff">Προσθήκη στο βιβλίο</div></div>
+    </div>
+    <div style="flex:1;min-height:0;display:flex;gap:14px;padding:0 20px 18px">
+      <div style="flex:1;display:flex;gap:12px;min-width:0">
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px"><div style="flex:1;border-radius:12px;background:#e7e4df;box-shadow:inset 0 0 0 1px rgba(16,20,26,.05)"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280;text-align:center">ΠΡΩΤΟΤΥΠΟ</div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px"><div style="flex:1;border-radius:12px;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#fff 6px 12px);box-shadow:0 0 0 2px #3357d4"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#3357d4;text-align:center">ΑΠΟΤΕΛΕΣΜΑ</div></div>
+      </div>
+      <div style="width:232px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);padding:15px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:15px">
+        <div>
+          <div style="display:flex;justify-content:space-between;font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em;margin-bottom:9px"><span>ΚΑΤΩΦΛΙ</span><span style="color:#10141a">0.42</span></div>
+          <div style="height:4px;background:#e6e9ee;border-radius:3px;position:relative"><div style="position:absolute;height:4px;width:42%;background:#3357d4;border-radius:3px"></div><div style="position:absolute;left:39%;top:-4px;width:12px;height:12px;border-radius:50%;background:#10141a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em;margin-bottom:9px"><span>ΠΑΧΟΣ ΓΡΑΜΜΗΣ</span><span style="color:#10141a">2.8 PT</span></div>
+          <div style="height:4px;background:#e6e9ee;border-radius:3px;position:relative"><div style="position:absolute;height:4px;width:64%;background:#3357d4;border-radius:3px"></div><div style="position:absolute;left:61%;top:-4px;width:12px;height:12px;border-radius:50%;background:#10141a"></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:18px;border-radius:999px;background:#3357d4;position:relative"><div style="position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff"></div></div><div style="font:400 11.5px Archivo,sans-serif;color:#10141a">Καθαρισμός κόκκου</div></div>
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:18px;border-radius:999px;background:#3357d4;position:relative"><div style="position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff"></div></div><div style="font:400 11.5px Archivo,sans-serif;color:#10141a">Κλείσιμο ανοιχτών σχημάτων</div></div>
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:18px;border-radius:999px;background:#e6e9ee;position:relative"><div style="position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(16,20,26,.08)"></div></div><div style="font:400 11.5px Archivo,sans-serif;color:#6b7280">Διατήρηση σκίασης</div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em;margin-bottom:9px"><span>ΔΙΑΤΗΡΗΣΗ ΛΕΠΤΟΜΕΡΕΙΑΣ</span><span style="color:#10141a">72%</span></div>
+          <div style="height:4px;background:#e6e9ee;border-radius:3px;position:relative"><div style="position:absolute;height:4px;width:72%;background:#3357d4;border-radius:3px"></div><div style="position:absolute;left:69%;top:-4px;width:12px;height:12px;border-radius:50%;background:#10141a"></div></div>
+          <div style="font:400 10px/1.45 Archivo,sans-serif;color:#6b7280;margin-top:8px">Χαμηλότερο = πιο καθαρές, πιο παιδικές γραμμές.</div>
+        </div>
+        <div style="padding:11px 12px;border-radius:12px;background:#e8edfb;font:400 10.5px/1.5 Archivo,sans-serif;color:#40485a">Το «κλείσιμο σχημάτων» επιτρέπει το γέμισμα με ένα tap. Συνιστάται για παιδικές σελίδες.</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>AI σε εξέλιξη</div>
+<div class="dv-card" style="width:460px;background:#f1f2f5">
+  <div style="height:440px;padding:18px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px">
+    <div style="display:flex;align-items:center;justify-content:space-between"><div style="font:600 14px Archivo,sans-serif;color:#10141a">Δημιουργία 4 επιλογών</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280">~20 ΔΕΥΤ.</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;flex:1">
+      <div style="border-radius:12px;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#fff 6px 12px);box-shadow:0 1px 3px rgba(16,20,26,.07)"></div>
+      <div style="border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07)"></div>
+      <div style="border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px"><div style="width:64%;height:4px;border-radius:3px;background:#e6e9ee;position:relative"><div style="position:absolute;height:4px;width:58%;border-radius:3px;background:#3357d4"></div></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280">ΓΡΑΜΜΕΣ 58%</div></div>
+      <div style="border-radius:12px;background:#e9ebef;display:flex;align-items:center;justify-content:center;font:400 9px 'JetBrains Mono',monospace;color:#6b7280">ΣΕ ΑΝΑΜΟΝΗ</div>
+    </div>
+    <div style="padding:11px 13px;border-radius:12px;background:#fff;font:400 11px/1.5 Archivo,sans-serif;color:#40485a">Μπορείς να συνεχίσεις να σχεδιάζεις — θα σου πούμε μόλις είναι έτοιμες.</div>
+    <div style="display:flex;gap:9px"><div style="flex:1;padding:9px 0;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);text-align:center;font:500 11.5px Archivo,sans-serif;color:#10141a">Στο παρασκήνιο</div><div style="padding:9px 15px;border-radius:999px;background:#eceef2;font:500 11.5px Archivo,sans-serif;color:#6b7280">Διακοπή</div></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3d"><div class="dv-olabel"><a class="dv-oid" href="#3d">3d</a>AI αποτυχία — με διέξοδο</div>
+<div class="dv-card" style="width:460px;background:#f1f2f5">
+  <div style="height:440px;padding:18px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px">
+    <div style="font:600 14px Archivo,sans-serif;color:#10141a">Δεν μπόρεσα να φτιάξω αυτή τη σελίδα</div>
+    <div style="border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);padding:15px 16px;display:flex;gap:12px">
+      <div style="width:9px;height:9px;border-radius:50%;background:#c4453f;margin-top:5px;flex:none"></div>
+      <div><div style="font:500 11.5px Archivo,sans-serif;color:#10141a">Το prompt ζητά πολλή λεπτομέρεια για βάρος γραμμής «Bold»</div><div style="font:400 10.5px/1.55 Archivo,sans-serif;color:#6b7280;margin-top:5px">Οι χοντρές γραμμές κλείνουν τα μικρά σχήματα. Δοκίμασε λιγότερη λεπτομέρεια ή λεπτότερη γραμμή.</div></div>
+    </div>
+    <div style="padding:13px 15px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07)">
+      <div style="font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em;margin-bottom:9px">ΤΟ PROMPT ΣΟΥ</div>
+      <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#10141a">δάσος με εκατοντάδες φύλλα, λεπτές νεραΐδες, χοντρό περίγραμμα</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;background:#e8edfb"><div style="font:500 11.5px Archivo,sans-serif;color:#10141a;flex:1">Δοκίμασε με «Medium» γραμμή</div><div style="font:600 11px Archivo,sans-serif;color:#3357d4">Εφαρμογή</div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06)"><div style="font:500 11.5px Archivo,sans-serif;color:#10141a;flex:1">Χώρισέ το σε 2 σελίδες</div><div style="font:600 11px Archivo,sans-serif;color:#3357d4">Εφαρμογή</div></div>
+    </div>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:12px"><div style="padding:9px 16px;border-radius:999px;background:#10141a;font:600 11.5px Archivo,sans-serif;color:#fff">Δοκίμασε ξανά</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280">ΔΕΝ ΧΡΕΩΘΗΚΕ CREDIT</div></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3e"><div class="dv-olabel"><a class="dv-oid" href="#3e">3e</a>Preflight με σφάλματα — export μπλοκαρισμένο</div>
+<div class="dv-card" style="width:620px;background:#f1f2f5">
+  <div style="height:480px;padding:18px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <div><div style="font:600 16px Archivo,sans-serif;color:#10141a">Έλεγχος πριν το export</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#c4453f;margin-top:5px">3 ΘΕΜΑΤΑ · 2 ΜΠΛΟΚΑΡΟΥΝ ΤΟ EXPORT</div></div>
+      <div style="padding:9px 16px;border-radius:999px;background:#e9ebef;font:600 11.5px Archivo,sans-serif;color:#9aa1ab">Export</div>
+    </div>
+    <div style="display:flex;gap:14px;flex:1;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:9px;min-width:0">
+        <div style="padding:13px 14px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);display:flex;gap:11px"><div style="width:9px;height:9px;border-radius:50%;background:#c4453f;margin-top:4px;flex:none"></div><div style="min-width:0"><div style="font:500 11.5px Archivo,sans-serif;color:#10141a">Σελίδα 12 — η εικόνα μπαίνει στο bleed</div><div style="font:400 10.5px/1.5 Archivo,sans-serif;color:#6b7280;margin-top:4px">Θα κοπεί στο κόψιμο. Σμίκρυνε 4% ή μετακίνησε 3 mm.</div><div style="font:600 10.5px Archivo,sans-serif;color:#3357d4;margin-top:7px">Διόρθωσε αυτόματα</div></div></div>
+        <div style="padding:13px 14px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);display:flex;gap:11px"><div style="width:9px;height:9px;border-radius:50%;background:#c4453f;margin-top:4px;flex:none"></div><div style="min-width:0"><div style="font:500 11.5px Archivo,sans-serif;color:#10141a">Σύνολο σελίδων: 22</div><div style="font:400 10.5px/1.5 Archivo,sans-serif;color:#6b7280;margin-top:4px">Το saddle stitch θέλει πολλαπλάσιο του 4.</div><div style="font:600 10.5px Archivo,sans-serif;color:#3357d4;margin-top:7px">Πρόσθεσε 2 λευκές</div></div></div>
+        <div style="padding:13px 14px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);display:flex;gap:11px"><div style="width:9px;height:9px;border-radius:50%;background:#e0a13c;margin-top:4px;flex:none"></div><div style="min-width:0"><div style="font:500 11.5px Archivo,sans-serif;color:#10141a">4 γραμμές κάτω από 0.5 pt</div><div style="font:400 10.5px/1.5 Archivo,sans-serif;color:#6b7280;margin-top:4px">Προειδοποίηση — θα τυπωθούν αχνές.</div></div></div>
+      </div>
+      <div style="width:150px;display:flex;flex-direction:column;gap:9px">
+        <div style="font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em">ΣΕΛΙΔΕΣ ΜΕ ΘΕΜΑ</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+          <div style="display:flex;flex-direction:column;gap:5px"><div style="aspect-ratio:3/4;border-radius:7px;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#fff 5px 10px);box-shadow:0 0 0 2px #c4453f"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#c4453f">12 BLEED</div></div>
+          <div style="display:flex;flex-direction:column;gap:5px"><div style="aspect-ratio:3/4;border-radius:7px;background:#fff;box-shadow:0 0 0 2px #e0a13c"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#b5822c">05 ΛΕΠΤΕΣ</div></div>
+        </div>
+        <div style="margin-top:auto;padding:11px 12px;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);font:400 10.5px/1.5 Archivo,sans-serif;color:#40485a">Διόρθωσε και τα δύο μπλοκαριστικά για να ενεργοποιηθεί το export.</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3f"><div class="dv-olabel"><a class="dv-oid" href="#3f">3f</a>Άδεια βιβλιοθήκη — πρώτη χρήση</div>
+<div class="dv-card" style="width:620px;background:#f1f2f5">
+  <div style="height:440px;padding:26px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:18px">
+    <div style="display:flex;gap:10px">
+      <div style="width:64px;height:84px;border-radius:9px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.08);transform:rotate(-6deg)"></div>
+      <div style="width:64px;height:84px;border-radius:9px;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#fff 5px 10px);box-shadow:0 1px 3px rgba(16,20,26,.08)"></div>
+      <div style="width:64px;height:84px;border-radius:9px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.08);transform:rotate(6deg)"></div>
+    </div>
+    <div>
+      <div style="font:600 24px/1.2 Archivo,sans-serif;color:#10141a;letter-spacing:-.02em;max-width:360px">Ας φτιάξουμε το πρώτο σου βιβλίο</div>
+      <div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#6b7280;margin-top:9px;max-width:380px">Ξεκίνα από κάτι έτοιμο ή φέρε το δικό σου σχέδιο. Τα μεγέθη και το export τα ρυθμίζουμε εμείς.</div>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <div style="padding:10px 18px;border-radius:999px;background:#3357d4;font:600 12px Archivo,sans-serif;color:#fff">Νέο βιβλίο</div>
+      <div style="padding:10px 18px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);font:500 12px Archivo,sans-serif;color:#10141a">Από template</div>
+      <div style="padding:10px 18px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);font:500 12px Archivo,sans-serif;color:#10141a">Import σκίτσου</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;padding-top:4px"><div style="width:7px;height:7px;border-radius:50%;background:#3357d4"></div><div style="font:400 11px Archivo,sans-serif;color:#6b7280">Ή δες ένα δείγμα βιβλίου 6 σελίδων</div></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3g"><div class="dv-olabel"><a class="dv-oid" href="#3g">3g</a>Έλεγχος πυκνότητας EN / EL — ίδιο πλάτος panel</div>
+<div class="dv-card" style="width:620px;background:#f1f2f5">
+  <div style="height:440px;padding:18px;box-sizing:border-box;display:flex;gap:14px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+      <div style="font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em">EN · 264 PX</div>
+      <div style="border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);padding:15px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:600 11.5px Archivo,sans-serif;color:#10141a">Print check</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280">3 ITEMS</div></div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:#7a9e7e"></div><div style="font:400 11px Archivo,sans-serif;color:#10141a">300 dpi · ready</div></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:#7a9e7e"></div><div style="font:400 11px Archivo,sans-serif;color:#10141a">Bleed 0.125 in set</div></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:#e0a13c"></div><div style="font:400 11px Archivo,sans-serif;color:#10141a">2 strokes under 0.5 pt</div></div>
+        </div>
+        <div style="padding:10px 12px;border-radius:12px;background:#e8edfb;font:400 10.5px/1.5 Archivo,sans-serif;color:#40485a">Thin lines vanish in print. <span style="color:#3357d4;font-weight:600">Thicken all</span></div>
+      </div>
+      <div style="border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);padding:15px 16px">
+        <div style="display:flex;padding:3px;border-radius:999px;background:#eceef2"><div style="flex:1;padding:6px 0;text-align:center;border-radius:999px;background:#10141a;font:600 11px Archivo,sans-serif;color:#fff">Draw</div><div style="flex:1;padding:6px 0;text-align:center;font:500 11px Archivo,sans-serif;color:#6b7280">Color</div><div style="flex:1;padding:6px 0;text-align:center;font:500 11px Archivo,sans-serif;color:#6b7280">Assemble</div></div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+      <div style="font:500 9px 'JetBrains Mono',monospace;color:#3357d4;letter-spacing:.1em">EL · ΙΔΙΟ ΠΛΑΤΟΣ</div>
+      <div style="border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);padding:15px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><div style="font:600 11.5px Archivo,sans-serif;color:#10141a">Έλεγχος εκτύπωσης</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280;flex:none">3</div></div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:#7a9e7e;flex:none"></div><div style="font:400 11px Archivo,sans-serif;color:#10141a">300 dpi · έτοιμο</div></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:#7a9e7e;flex:none"></div><div style="font:400 11px/1.35 Archivo,sans-serif;color:#10141a">Bleed 3 mm ορισμένο</div></div>
+          <div style="display:flex;align-items:flex-start;gap:9px"><div style="width:7px;height:7px;border-radius:50%;background:#e0a13c;flex:none;margin-top:4px"></div><div style="font:400 11px/1.35 Archivo,sans-serif;color:#10141a">2 γραμμές κάτω από 0.5 pt</div></div>
+        </div>
+        <div style="padding:10px 12px;border-radius:12px;background:#e8edfb;font:400 10.5px/1.5 Archivo,sans-serif;color:#40485a">Οι λεπτές γραμμές χάνονται στην εκτύπωση. <span style="color:#3357d4;font-weight:600">Πάχυνε όλες</span></div>
+      </div>
+      <div style="border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(16,20,26,.07);padding:15px 16px;display:flex;flex-direction:column;gap:9px">
+        <div style="display:flex;padding:3px;border-radius:999px;background:#eceef2"><div style="flex:1;padding:6px 0;text-align:center;border-radius:999px;background:#10141a;font:600 11px Archivo,sans-serif;color:#fff">Σχέδιο</div><div style="flex:1;padding:6px 0;text-align:center;font:500 11px Archivo,sans-serif;color:#6b7280">Χρώμα</div><div style="flex:1;padding:6px 0;text-align:center;font:500 11px Archivo,sans-serif;color:#6b7280">Σελίδες</div></div>
+        <div style="font:400 10px/1.45 Archivo,sans-serif;color:#7b838f">Σύντομες λέξεις: «Σχέδιο / Χρώμα / Σελίδες» χωράνε· «Συναρμολόγηση» δεν χωράει.</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Δοκίμασε: «φέρε όλες τις οθόνες του γύρου 1 στο φωτεινό shell» · «πρόσθεσε onboarding στα ελληνικά» · «στείλε μου line art για να μπει στα placeholders»</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Modernised — floating soft panels, more air, pill controls (riffs on <a class="dv-oid" href="#1a">1a</a>)</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Dark, airy — panels float off the canvas, borders replaced by depth</div>
+<div class="dv-card" style="width:1200px;background:#0b0d10">
+  <div style="position:relative;height:700px;background:radial-gradient(120% 90% at 50% 0%,#15191f 0%,#0b0d10 62%);box-sizing:border-box;padding:18px;display:flex;gap:16px">
+    <div style="position:absolute;left:18px;right:18px;top:18px;height:56px;border-radius:18px;background:rgba(28,33,40,.72);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 10px 30px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:26px;height:26px;border-radius:9px;background:#5b8cff"></div>
+        <div><div style="font:600 13px Archivo,sans-serif;color:#f1f4f8">Forest Friends</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#7c8794;margin-top:2px">PAGE 07 / 24 · 8.5×11 IN</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;padding:3px;border-radius:999px;background:rgba(255,255,255,.06)">
+          <div style="padding:6px 16px;border-radius:999px;background:#f1f4f8;font:600 11.5px Archivo,sans-serif;color:#10141a">Draw</div>
+          <div style="padding:6px 16px;border-radius:999px;font:500 11.5px Archivo,sans-serif;color:#8b96a2">Color</div>
+          <div style="padding:6px 16px;border-radius:999px;font:500 11.5px Archivo,sans-serif;color:#8b96a2">Assemble</div>
+        </div>
+        <div style="padding:8px 16px;border-radius:999px;background:rgba(255,255,255,.07);font:500 11.5px Archivo,sans-serif;color:#e7ebef">Export</div>
+        <div style="padding:8px 17px;border-radius:999px;background:#5b8cff;font:600 11.5px Archivo,sans-serif;color:#08111f">Publish</div>
+      </div>
+    </div>
+
+    <div style="width:64px;margin-top:88px;border-radius:20px;background:rgba(28,33,40,.72);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 10px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;height:fit-content">
+      <div style="width:44px;height:44px;border-radius:14px;background:#5b8cff;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;border:2px solid #08111f"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border:2px solid #9aa5b1"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center"><div style="width:17px;height:3px;background:#9aa5b1;transform:rotate(-45deg)"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:5px;background:#9aa5b1"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;border:2px dashed #9aa5b1"></div></div>
+      <div style="width:26px;height:1px;background:rgba(255,255,255,.08);margin:6px 0"></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(91,140,255,.16);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><div style="width:11px;height:11px;border-radius:50%;border:2px solid #5b8cff"></div><div style="font:500 7px 'JetBrains Mono',monospace;color:#5b8cff">AI</div></div>
+    </div>
+
+    <div style="flex:1;min-width:0;margin-top:88px;display:flex;flex-direction:column;gap:14px">
+      <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="width:392px;height:462px;background:#fdfcfa;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.55);padding:20px;box-sizing:border-box;position:relative">
+          <div style="position:absolute;inset:12px;border:1px dashed rgba(91,140,255,.45);border-radius:4px"></div>
+          <div style="height:100%;background:repeating-linear-gradient(135deg,#ecebe7 0 6px,#f8f7f4 6px 12px);border-radius:3px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:14px;box-sizing:border-box"><div style="font:500 10px 'JetBrains Mono',monospace;color:#8f9299;letter-spacing:.08em;background:#fdfcfa;padding:4px 8px;border-radius:999px">LINE ART · PAGE 07</div></div>
+        </div>
+        <div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:9px 16px;border-radius:999px;background:rgba(28,33,40,.82);box-shadow:0 10px 30px rgba(0,0,0,.4)">
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:84px;height:4px;background:rgba(255,255,255,.12);border-radius:3px;position:relative"><div style="position:absolute;height:4px;width:44px;background:#5b8cff;border-radius:3px"></div><div style="position:absolute;left:39px;top:-4px;width:12px;height:12px;border-radius:50%;background:#f1f4f8"></div></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#f1f4f8">2.4PT</div></div>
+          <div style="width:1px;height:18px;background:rgba(255,255,255,.1)"></div>
+          <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">SMOOTH 68%</div>
+          <div style="width:1px;height:18px;background:rgba(255,255,255,.1)"></div>
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:8px;height:8px;border-radius:50%;background:#5b8cff"></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">SYMMETRY</div></div>
+        </div>
+      </div>
+      <div style="flex:none;height:92px;border-radius:18px;background:rgba(28,33,40,.62);display:flex;align-items:center;gap:10px;padding:0 16px;overflow:hidden;box-sizing:border-box">
+        <div style="font:400 9px 'JetBrains Mono',monospace;color:#7c8794;letter-spacing:.1em">PAGES</div>
+        <div style="width:44px;height:58px;background:#fdfcfa;border-radius:5px"></div>
+        <div style="width:44px;height:58px;background:repeating-linear-gradient(135deg,#ecebe7 0 4px,#f8f7f4 4px 8px);border-radius:5px"></div>
+        <div style="width:44px;height:58px;background:repeating-linear-gradient(135deg,#ecebe7 0 4px,#f8f7f4 4px 8px);border-radius:5px;box-shadow:0 0 0 2px #5b8cff"></div>
+        <div style="width:44px;height:58px;background:repeating-linear-gradient(135deg,#ecebe7 0 4px,#f8f7f4 4px 8px);border-radius:5px"></div>
+        <div style="width:44px;height:58px;background:#fdfcfa;border-radius:5px"></div>
+        <div style="width:44px;height:58px;border-radius:5px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font:300 18px Archivo,sans-serif;color:#9aa5b1">+</div>
+      </div>
+    </div>
+
+    <div style="width:264px;margin-top:88px;display:flex;flex-direction:column;gap:14px">
+      <div style="border-radius:18px;background:rgba(28,33,40,.72);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 10px 30px rgba(0,0,0,.35);padding:15px 16px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px"><div style="font:600 11.5px Archivo,sans-serif;color:#f1f4f8">Layers</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#7c8794">3 VISIBLE</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:rgba(91,140,255,.14)"><div style="width:26px;height:26px;border-radius:8px;background:repeating-linear-gradient(135deg,#ecebe7 0 3px,#f8f7f4 3px 6px)"></div><div style="flex:1;font:500 11.5px Archivo,sans-serif;color:#f1f4f8">Line art</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#5b8cff">LOCK</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px"><div style="width:26px;height:26px;border-radius:8px;background:#cfe0d6"></div><div style="flex:1;font:500 11.5px Archivo,sans-serif;color:#e7ebef">Flat color</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#7c8794">82%</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px"><div style="width:26px;height:26px;border-radius:8px;background:#e8e2d4"></div><div style="flex:1;font:500 11.5px Archivo,sans-serif;color:#e7ebef">Texture</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#7c8794">40%</div></div>
+        </div>
+      </div>
+      <div style="border-radius:18px;background:rgba(28,33,40,.72);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 10px 30px rgba(0,0,0,.35);padding:15px 16px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px"><div style="font:600 11.5px Archivo,sans-serif;color:#f1f4f8">Palette</div><div style="font:400 10px Archivo,sans-serif;color:#5b8cff">Meadow</div></div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px">
+          <div style="aspect-ratio:1;border-radius:999px;background:#e4b7a0;box-shadow:0 0 0 2px #5b8cff,0 0 0 4px rgba(91,140,255,.2)"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#cfa77e"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#8fae8b"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#5d7f6f"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#d9cf9e"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#b98a8a"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#7b8fa8"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#42505f"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#efe6da"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#c9c2b6"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#8c7a6b"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font:300 13px Archivo,sans-serif;color:#9aa5b1">+</div>
+        </div>
+      </div>
+      <div style="border-radius:18px;background:rgba(91,140,255,.1);padding:15px 16px">
+        <div style="font:600 11.5px Archivo,sans-serif;color:#f1f4f8;margin-bottom:9px">Print check</div>
+        <div style="font:400 11px/1.55 Archivo,sans-serif;color:#b9c3cf">2 strokes are under 0.5 pt and will disappear in print.</div>
+        <div style="margin-top:11px;display:inline-block;padding:7px 14px;border-radius:999px;background:#5b8cff;font:600 11px Archivo,sans-serif;color:#08111f">Thicken all</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Light &amp; quiet — same structure, paper-bright shell</div>
+<div class="dv-card" style="width:1200px;background:#f4f5f7">
+  <div style="position:relative;height:700px;background:#f1f2f5;box-sizing:border-box;padding:18px;display:flex;gap:16px">
+    <div style="position:absolute;left:18px;right:18px;top:18px;height:56px;border-radius:18px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 24px rgba(16,20,26,.05);display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:26px;height:26px;border-radius:9px;background:#3357d4"></div>
+        <div><div style="font:600 13px Archivo,sans-serif;color:#10141a">Forest Friends</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280;margin-top:2px">PAGE 07 / 24 · 8.5×11 IN</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;padding:3px;border-radius:999px;background:#eceef2">
+          <div style="padding:6px 16px;border-radius:999px;background:#10141a;font:600 11.5px Archivo,sans-serif;color:#fff">Draw</div>
+          <div style="padding:6px 16px;border-radius:999px;font:500 11.5px Archivo,sans-serif;color:#6b7280">Color</div>
+          <div style="padding:6px 16px;border-radius:999px;font:500 11.5px Archivo,sans-serif;color:#6b7280">Assemble</div>
+        </div>
+        <div style="padding:8px 16px;border-radius:999px;background:#eceef2;font:500 11.5px Archivo,sans-serif;color:#10141a">Export</div>
+        <div style="padding:8px 17px;border-radius:999px;background:#3357d4;font:600 11.5px Archivo,sans-serif;color:#fff">Publish</div>
+      </div>
+    </div>
+
+    <div style="width:64px;margin-top:88px;border-radius:20px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 24px rgba(16,20,26,.05);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;height:fit-content">
+      <div style="width:44px;height:44px;border-radius:14px;background:#3357d4;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;border:2px solid #fff"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:#f2f4f7;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border:2px solid #5d6673"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:#f2f4f7;display:flex;align-items:center;justify-content:center"><div style="width:17px;height:3px;background:#5d6673;transform:rotate(-45deg)"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:#f2f4f7;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:5px;background:#5d6673"></div></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:#f2f4f7;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;border:2px dashed #5d6673"></div></div>
+      <div style="width:26px;height:1px;background:#e6e9ee;margin:6px 0"></div>
+      <div style="width:44px;height:44px;border-radius:14px;background:#e8edfb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><div style="width:11px;height:11px;border-radius:50%;border:2px solid #3357d4"></div><div style="font:500 7px 'JetBrains Mono',monospace;color:#3357d4">AI</div></div>
+    </div>
+
+    <div style="flex:1;min-width:0;margin-top:88px;display:flex;flex-direction:column;gap:14px">
+      <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="width:392px;height:462px;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(16,20,26,.08),0 18px 44px rgba(16,20,26,.1);padding:20px;box-sizing:border-box;position:relative">
+          <div style="position:absolute;inset:12px;border:1px dashed rgba(51,87,212,.4);border-radius:4px"></div>
+          <div style="height:100%;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f8f7f4 6px 12px);border-radius:3px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:14px;box-sizing:border-box"><div style="font:500 10px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.08em;background:#fff;padding:4px 8px;border-radius:999px">LINE ART · PAGE 07</div></div>
+        </div>
+        <div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:9px 16px;border-radius:999px;background:#fff;box-shadow:0 2px 6px rgba(16,20,26,.08),0 12px 30px rgba(16,20,26,.09)">
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:84px;height:4px;background:#e6e9ee;border-radius:3px;position:relative"><div style="position:absolute;height:4px;width:44px;background:#3357d4;border-radius:3px"></div><div style="position:absolute;left:39px;top:-4px;width:12px;height:12px;border-radius:50%;background:#10141a"></div></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#10141a">2.4PT</div></div>
+          <div style="width:1px;height:18px;background:#e6e9ee"></div>
+          <div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280">SMOOTH 68%</div>
+          <div style="width:1px;height:18px;background:#e6e9ee"></div>
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:8px;height:8px;border-radius:50%;background:#3357d4"></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280">SYMMETRY</div></div>
+        </div>
+      </div>
+      <div style="flex:none;height:92px;border-radius:18px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);display:flex;align-items:center;gap:10px;padding:0 16px;overflow:hidden;box-sizing:border-box">
+        <div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em">PAGES</div>
+        <div style="width:44px;height:58px;background:#f8f7f4;border-radius:5px;box-shadow:0 0 0 1px #e6e9ee"></div>
+        <div style="width:44px;height:58px;background:repeating-linear-gradient(135deg,#eceae6 0 4px,#f8f7f4 4px 8px);border-radius:5px"></div>
+        <div style="width:44px;height:58px;background:repeating-linear-gradient(135deg,#eceae6 0 4px,#f8f7f4 4px 8px);border-radius:5px;box-shadow:0 0 0 2px #3357d4"></div>
+        <div style="width:44px;height:58px;background:repeating-linear-gradient(135deg,#eceae6 0 4px,#f8f7f4 4px 8px);border-radius:5px"></div>
+        <div style="width:44px;height:58px;background:#f8f7f4;border-radius:5px;box-shadow:0 0 0 1px #e6e9ee"></div>
+        <div style="width:44px;height:58px;border-radius:5px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font:300 18px Archivo,sans-serif;color:#7b838f">+</div>
+      </div>
+    </div>
+
+    <div style="width:264px;margin-top:88px;display:flex;flex-direction:column;gap:14px">
+      <div style="border-radius:18px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 24px rgba(16,20,26,.05);padding:15px 16px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px"><div style="font:600 11.5px Archivo,sans-serif;color:#10141a">Layers</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280">3 VISIBLE</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:#e8edfb"><div style="width:26px;height:26px;border-radius:8px;background:repeating-linear-gradient(135deg,#eceae6 0 3px,#f8f7f4 3px 6px)"></div><div style="flex:1;font:500 11.5px Archivo,sans-serif;color:#10141a">Line art</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#3357d4">LOCK</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px"><div style="width:26px;height:26px;border-radius:8px;background:#cfe0d6"></div><div style="flex:1;font:500 11.5px Archivo,sans-serif;color:#10141a">Flat color</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280">82%</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px"><div style="width:26px;height:26px;border-radius:8px;background:#e8e2d4"></div><div style="flex:1;font:500 11.5px Archivo,sans-serif;color:#10141a">Texture</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#6b7280">40%</div></div>
+        </div>
+      </div>
+      <div style="border-radius:18px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 24px rgba(16,20,26,.05);padding:15px 16px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px"><div style="font:600 11.5px Archivo,sans-serif;color:#10141a">Palette</div><div style="font:400 10px Archivo,sans-serif;color:#3357d4">Meadow</div></div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px">
+          <div style="aspect-ratio:1;border-radius:999px;background:#e4b7a0;box-shadow:0 0 0 2px #3357d4,0 0 0 4px rgba(51,87,212,.16)"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#cfa77e"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#8fae8b"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#5d7f6f"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#d9cf9e"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#b98a8a"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#7b8fa8"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#42505f"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#efe6da;box-shadow:0 0 0 1px #e6e9ee"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#c9c2b6"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#8c7a6b"></div>
+          <div style="aspect-ratio:1;border-radius:999px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font:300 13px Archivo,sans-serif;color:#7b838f">+</div>
+        </div>
+      </div>
+      <div style="border-radius:18px;background:#e8edfb;padding:15px 16px">
+        <div style="font:600 11.5px Archivo,sans-serif;color:#10141a;margin-bottom:9px">Print check</div>
+        <div style="font:400 11px/1.55 Archivo,sans-serif;color:#40485a">2 strokes are under 0.5 pt and will disappear in print.</div>
+        <div style="margin-top:11px;display:inline-block;padding:7px 14px;border-radius:999px;background:#3357d4;font:600 11px Archivo,sans-serif;color:#fff">Thicken all</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Library, modernised — big type, soft cards (replaces <a class="dv-oid" href="#1d">1d</a>)</div>
+<div class="dv-card" style="width:940px;background:#f1f2f5">
+  <div style="display:flex;height:632px;background:#f1f2f5">
+    <div style="width:196px;padding:20px 14px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px"><div style="width:24px;height:24px;border-radius:8px;background:#3357d4"></div><div style="font:600 13px Archivo,sans-serif;color:#10141a">Pagewright</div></div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="padding:9px 12px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);font:600 11.5px Archivo,sans-serif;color:#10141a">All books</div>
+        <div style="padding:9px 12px;font:500 11.5px Archivo,sans-serif;color:#6b7280">Drafts</div>
+        <div style="padding:9px 12px;font:500 11.5px Archivo,sans-serif;color:#6b7280">Published</div>
+        <div style="padding:9px 12px;font:500 11.5px Archivo,sans-serif;color:#6b7280">Loose pages</div>
+        <div style="padding:9px 12px;font:500 11.5px Archivo,sans-serif;color:#6b7280">Templates</div>
+      </div>
+      <div style="font:500 9px 'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.1em;margin:22px 0 10px 12px">COLLECTIONS</div>
+      <div style="display:flex;flex-direction:column;gap:9px;padding-left:12px">
+        <div style="font:400 11.5px Archivo,sans-serif;color:#6b7280">Classroom · Grade 2</div>
+        <div style="font:400 11.5px Archivo,sans-serif;color:#6b7280">Botanical series</div>
+        <div style="font:400 11.5px Archivo,sans-serif;color:#6b7280">Client work</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:0;padding:20px 22px 20px 6px;box-sizing:border-box">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px">
+        <div><div style="font:600 26px/1.1 Archivo,sans-serif;color:#10141a;letter-spacing:-.02em">All books</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6b7280;margin-top:7px">12 BOOKS · 318 PAGES</div></div>
+        <div style="display:flex;gap:9px"><div style="padding:9px 15px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06);font:500 11.5px Archivo,sans-serif;color:#10141a">Import art</div><div style="padding:9px 16px;border-radius:999px;background:#3357d4;font:600 11.5px Archivo,sans-serif;color:#fff">New book</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+        <div style="padding:10px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 22px rgba(16,20,26,.05)"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f8f7f4 6px 12px);border-radius:10px;position:relative"><div style="position:absolute;left:8px;top:8px;padding:4px 8px;border-radius:999px;background:#3357d4;font:600 8px 'JetBrains Mono',monospace;color:#fff">DRAFT</div></div><div style="padding:11px 4px 3px"><div style="font:600 12.5px Archivo,sans-serif;color:#10141a">Forest Friends</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">24 PAGES · 2D AGO</div></div></div>
+        <div style="padding:10px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 22px rgba(16,20,26,.05)"><div style="aspect-ratio:3/4;background:#f8f7f4;border-radius:10px"></div><div style="padding:11px 4px 3px"><div style="font:600 12.5px Archivo,sans-serif;color:#10141a">Tide Pools</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">36 PAGES · PUBLISHED</div></div></div>
+        <div style="padding:10px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 22px rgba(16,20,26,.05)"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f8f7f4 6px 12px);border-radius:10px"></div><div style="padding:11px 4px 3px"><div style="font:600 12.5px Archivo,sans-serif;color:#10141a">Big Machines</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">18 PAGES · 1W AGO</div></div></div>
+        <div style="padding:10px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 22px rgba(16,20,26,.05)"><div style="aspect-ratio:3/4;background:#f8f7f4;border-radius:10px"></div><div style="padding:11px 4px 3px"><div style="font:600 12.5px Archivo,sans-serif;color:#10141a">Mandala Basics</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">40 PAGES · PUBLISHED</div></div></div>
+        <div style="padding:10px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 22px rgba(16,20,26,.05)"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f8f7f4 6px 12px);border-radius:10px"></div><div style="padding:11px 4px 3px"><div style="font:600 12.5px Archivo,sans-serif;color:#10141a">Farm Days</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">12 PAGES · 3W AGO</div></div></div>
+        <div style="padding:10px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(16,20,26,.06),0 8px 22px rgba(16,20,26,.05)"><div style="aspect-ratio:3/4;background:#f8f7f4;border-radius:10px"></div><div style="padding:11px 4px 3px"><div style="font:600 12.5px Archivo,sans-serif;color:#10141a">Night Sky</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6b7280;margin-top:4px">28 PAGES · PUBLISHED</div></div></div>
+        <div style="padding:10px;border-radius:16px;border:1px dashed #cfd5de;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px"><div style="font:300 24px Archivo,sans-serif;color:#7b838f">+</div><div style="font:500 9px 'JetBrains Mono',monospace;color:#6b7280">NEW BOOK</div></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "apply <a class="dv-oid" href="#2b">2b</a>'s light shell to every screen" · "more modern still — bigger radii, no chrome at all" · "keep <a class="dv-oid" href="#2a">2a</a> but bring back the dense toolbar from <a class="dv-oid" href="#1a">1a</a>"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Editor shell — three layouts</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Docked panels — dense, desktop-first</div>
+<div class="dv-card" style="width:1200px">
+  <div style="display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 12px;background:#181c20;border-bottom:1px solid #2a3138">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:20px;height:20px;border-radius:5px;background:#5b8cff"></div>
+      <div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Forest Friends</div>
+      <div style="font:400 10px/1 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.06em">PAGE 07 / 24 · 8.5×11 IN</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;gap:1px;background:#2a3138;border-radius:6px;overflow:hidden">
+        <div style="padding:5px 11px;font:500 11px Archivo,sans-serif;color:#0d1015;background:#5b8cff">Draw</div>
+        <div style="padding:5px 11px;font:500 11px Archivo,sans-serif;color:#8b96a2;background:#1f242a">Color</div>
+        <div style="padding:5px 11px;font:500 11px Archivo,sans-serif;color:#8b96a2;background:#1f242a">Assemble</div>
+      </div>
+      <div style="padding:6px 13px;border-radius:6px;border:1px solid #2a3138;font:500 11px Archivo,sans-serif;color:#e7ebef">Export</div>
+      <div style="padding:6px 13px;border-radius:6px;background:#e7ebef;font:600 11px Archivo,sans-serif;color:#101316">Publish</div>
+    </div>
+  </div>
+  <div style="display:flex;height:600px">
+    <div style="width:60px;background:#181c20;border-right:1px solid #2a3138;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0">
+      <div style="width:44px;padding:7px 0;border-radius:7px;background:#5b8cff;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;border:2px solid #0d1015"></div><div style="font:500 7.5px/1 'JetBrains Mono',monospace;color:#0d1015">PEN</div></div>
+      <div style="width:44px;padding:7px 0;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:13px;height:13px;border:2px solid #8b96a2"></div><div style="font:500 7.5px/1 'JetBrains Mono',monospace;color:#8b96a2">FILL</div></div>
+      <div style="width:44px;padding:7px 0;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:14px;height:3px;background:#8b96a2;transform:rotate(-45deg)"></div><div style="font:500 7.5px/1 'JetBrains Mono',monospace;color:#8b96a2">LINE</div></div>
+      <div style="width:44px;padding:7px 0;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:3px;background:#8b96a2"></div><div style="font:500 7.5px/1 'JetBrains Mono',monospace;color:#8b96a2">MASK</div></div>
+      <div style="width:44px;padding:7px 0;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:13px;height:13px;border:2px dashed #8b96a2;border-radius:50%"></div><div style="font:500 7.5px/1 'JetBrains Mono',monospace;color:#8b96a2">SEL</div></div>
+      <div style="width:28px;height:1px;background:#2a3138;margin:7px 0"></div>
+      <div style="width:44px;padding:7px 0;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;border:2px solid #5b8cff"></div><div style="font:500 7.5px/1 'JetBrains Mono',monospace;color:#8b96a2">AI</div></div>
+    </div>
+    <div style="flex:1;min-width:0;background:#0d1015;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:16px;height:36px;padding:0 14px;border-bottom:1px solid #1f242a">
+        <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">STROKE</div>
+        <div style="display:flex;align-items:center;gap:7px"><div style="width:96px;height:3px;background:#2a3138;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;height:3px;width:42px;background:#5b8cff;border-radius:2px"></div><div style="position:absolute;left:38px;top:-3.5px;width:10px;height:10px;border-radius:50%;background:#e7ebef"></div></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#e7ebef">2.4pt</div></div>
+        <div style="width:1px;height:16px;background:#2a3138"></div>
+        <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">SMOOTHING 68%</div>
+        <div style="width:1px;height:16px;background:#2a3138"></div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:9px;height:9px;border-radius:50%;background:#5b8cff"></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">SYMMETRY · VERTICAL</div></div>
+        <div style="margin-left:auto;font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">64%</div>
+      </div>
+      <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:20px">
+        <div style="width:376px;height:446px;background:#fbfaf8;box-shadow:0 8px 28px rgba(0,0,0,.5);position:relative;padding:22px;box-sizing:border-box">
+          <div style="position:absolute;inset:14px;border:1px dashed rgba(91,140,255,.55)"></div>
+          <div style="height:100%;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f7f5f2 6px 12px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:14px;box-sizing:border-box"><div style="font:500 10px 'JetBrains Mono',monospace;color:#8f9299;letter-spacing:.08em;background:#fbfaf8;padding:3px 7px">LINE ART · PAGE 07</div></div>
+        </div>
+      </div>
+      <div style="height:78px;flex:none;border-top:1px solid #1f242a;background:#12161a;display:flex;align-items:center;gap:8px;padding:0 14px;overflow:hidden">
+        <div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;writing-mode:vertical-rl;letter-spacing:.1em">PAGES</div>
+        <div style="width:40px;height:52px;background:#fbfaf8;border:2px solid #2a3138"></div>
+        <div style="width:40px;height:52px;background:repeating-linear-gradient(135deg,#eceae6 0 4px,#f7f5f2 4px 8px);border:2px solid #2a3138"></div>
+        <div style="width:40px;height:52px;background:repeating-linear-gradient(135deg,#eceae6 0 4px,#f7f5f2 4px 8px);border:2px solid #5b8cff"></div>
+        <div style="width:40px;height:52px;background:repeating-linear-gradient(135deg,#eceae6 0 4px,#f7f5f2 4px 8px);border:2px solid #2a3138"></div>
+        <div style="width:40px;height:52px;background:#fbfaf8;border:2px solid #2a3138"></div>
+        <div style="width:40px;height:52px;border:1px dashed #2a3138;display:flex;align-items:center;justify-content:center;font:400 16px Archivo,sans-serif;color:#8b96a2">+</div>
+      </div>
+    </div>
+    <div style="width:252px;background:#181c20;border-left:1px solid #2a3138;display:flex;flex-direction:column">
+      <div style="padding:12px 14px;border-bottom:1px solid #2a3138">
+        <div style="font:500 10px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:10px">LAYERS</div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;align-items:center;gap:9px;padding:6px 7px;border-radius:5px;background:#1f242a"><div style="width:22px;height:22px;background:repeating-linear-gradient(135deg,#eceae6 0 3px,#f7f5f2 3px 6px);border-radius:3px"></div><div style="flex:1;font:500 11px Archivo,sans-serif;color:#e7ebef">Line art</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#5b8cff">LOCK</div></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:6px 7px;border-radius:5px"><div style="width:22px;height:22px;background:#cfe0d6;border-radius:3px"></div><div style="flex:1;font:500 11px Archivo,sans-serif;color:#e7ebef">Flat color</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">82%</div></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:6px 7px;border-radius:5px"><div style="width:22px;height:22px;background:#e8e2d4;border-radius:3px"></div><div style="flex:1;font:500 11px Archivo,sans-serif;color:#e7ebef">Texture</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">40%</div></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:6px 7px;border-radius:5px;opacity:.5"><div style="width:22px;height:22px;background:#fbfaf8;border-radius:3px"></div><div style="flex:1;font:500 11px Archivo,sans-serif;color:#e7ebef">Guides</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">OFF</div></div>
+        </div>
+      </div>
+      <div style="padding:12px 14px;border-bottom:1px solid #2a3138">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px"><div style="font:500 10px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em">PALETTE</div><div style="font:400 10px Archivo,sans-serif;color:#5b8cff">Meadow</div></div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px">
+          <div style="aspect-ratio:1;border-radius:4px;background:#e4b7a0;outline:2px solid #5b8cff;outline-offset:1px"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#cfa77e"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#8fae8b"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#5d7f6f"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#d9cf9e"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#b98a8a"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#7b8fa8"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#42505f"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#efe6da"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#c9c2b6"></div>
+          <div style="aspect-ratio:1;border-radius:4px;background:#8c7a6b"></div>
+          <div style="aspect-ratio:1;border-radius:4px;border:1px dashed #2a3138;display:flex;align-items:center;justify-content:center;font:400 12px Archivo,sans-serif;color:#8b96a2">+</div>
+        </div>
+      </div>
+      <div style="padding:12px 14px">
+        <div style="font:500 10px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:10px">PRINT CHECK</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:7px;height:7px;border-radius:50%;background:#8fae8b"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">300 dpi · ready</div></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:7px;height:7px;border-radius:50%;background:#8fae8b"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">Bleed 0.125 in set</div></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:7px;height:7px;border-radius:50%;background:#e4b7a0"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">2 strokes under 0.5pt</div></div>
+        </div>
+        <div style="margin-top:12px;padding:9px 11px;border-radius:6px;background:#1f242a;font:400 11px/1.45 Archivo,sans-serif;color:#8b96a2">Thin lines vanish in print. <span style="color:#5b8cff">Thicken all</span></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Floating toolbars — full-bleed canvas, tablet-friendly</div>
+<div class="dv-card" style="width:1200px">
+  <div style="position:relative;height:680px;background:#0d1015;display:flex;align-items:center;justify-content:center">
+    <div style="width:520px;height:620px;background:#fbfaf8;box-shadow:0 10px 40px rgba(0,0,0,.55);padding:26px;box-sizing:border-box">
+      <div style="height:100%;background:repeating-linear-gradient(135deg,#eceae6 0 7px,#f7f5f2 7px 14px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:16px;box-sizing:border-box"><div style="font:500 10px 'JetBrains Mono',monospace;color:#8f9299;letter-spacing:.08em;background:#fbfaf8;padding:3px 7px">LINE ART · FULL BLEED</div></div>
+    </div>
+    <div style="position:absolute;left:20px;top:50%;transform:translateY(-50%);width:56px;padding:8px 0;border-radius:16px;background:rgba(24,28,32,.92);border:1px solid #2a3138;box-shadow:0 8px 24px rgba(0,0,0,.4);display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div style="width:40px;height:40px;border-radius:12px;background:#5b8cff;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;border:2px solid #0d1015"></div></div>
+      <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border:2px solid #8b96a2"></div></div>
+      <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center"><div style="width:16px;height:3px;background:#8b96a2;transform:rotate(-45deg)"></div></div>
+      <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:4px;background:#8b96a2"></div></div>
+      <div style="width:24px;height:1px;background:#2a3138"></div>
+      <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center"><div style="width:15px;height:15px;border-radius:50%;border:2px dashed #8b96a2"></div></div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;background:rgba(24,28,32,.92);border:1px solid #2a3138;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+      <div style="display:flex;gap:5px">
+        <div style="width:24px;height:24px;border-radius:50%;background:#e4b7a0;outline:2px solid #5b8cff;outline-offset:2px"></div>
+        <div style="width:24px;height:24px;border-radius:50%;background:#8fae8b"></div>
+        <div style="width:24px;height:24px;border-radius:50%;background:#7b8fa8"></div>
+        <div style="width:24px;height:24px;border-radius:50%;background:#d9cf9e"></div>
+        <div style="width:24px;height:24px;border-radius:50%;background:#42505f"></div>
+      </div>
+      <div style="width:1px;height:22px;background:#2a3138"></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:80px;height:3px;background:#2a3138;border-radius:2px;position:relative"><div style="position:absolute;left:0;height:3px;width:52px;background:#5b8cff;border-radius:2px"></div><div style="position:absolute;left:47px;top:-4px;width:11px;height:11px;border-radius:50%;background:#e7ebef"></div></div><div style="font:400 10px 'JetBrains Mono',monospace;color:#e7ebef">3.0pt</div></div>
+      <div style="width:1px;height:22px;background:#2a3138"></div>
+      <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">UNDO</div>
+      <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">REDO</div>
+    </div>
+    <div style="position:absolute;right:20px;top:20px;width:196px;border-radius:14px;background:rgba(24,28,32,.94);border:1px solid #2a3138;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:12px 13px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><div style="font:500 10px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em">LAYERS</div><div style="font:400 10px Archivo,sans-serif;color:#5b8cff">3</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px"><div style="width:20px;height:20px;border-radius:4px;background:repeating-linear-gradient(135deg,#eceae6 0 3px,#f7f5f2 3px 6px)"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">Line art</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><div style="width:20px;height:20px;border-radius:4px;background:#cfe0d6"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">Flat color</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><div style="width:20px;height:20px;border-radius:4px;background:#e8e2d4"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">Texture</div></div>
+      </div>
+    </div>
+    <div style="position:absolute;right:20px;bottom:22px;display:flex;flex-direction:column;gap:7px;align-items:flex-end">
+      <div style="padding:8px 13px;border-radius:999px;background:rgba(24,28,32,.92);border:1px solid #2a3138;font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">PAGE 07 / 24</div>
+      <div style="padding:9px 15px;border-radius:999px;background:#5b8cff;font:600 11px Archivo,sans-serif;color:#0d1015">Generate variant</div>
+    </div>
+    <div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:7px 14px;border-radius:999px;background:rgba(24,28,32,.8);border:1px solid #2a3138">
+      <div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Forest Friends</div>
+      <div style="width:1px;height:14px;background:#2a3138"></div>
+      <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">AUTOSAVED 2M AGO</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Minimal — top bar plus radial tool wheel at the cursor</div>
+<div class="dv-card" style="width:1200px">
+  <div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;background:#181c20;border-bottom:1px solid #2a3138">
+    <div style="display:flex;align-items:center;gap:14px"><div style="width:18px;height:18px;border-radius:5px;background:#5b8cff"></div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Forest Friends · Page 07</div></div>
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">HOLD SPACE FOR TOOLS</div>
+      <div style="padding:6px 13px;border-radius:6px;background:#e7ebef;font:600 11px Archivo,sans-serif;color:#101316">Done</div>
+    </div>
+  </div>
+  <div style="position:relative;height:632px;background:#0d1015;display:flex;align-items:center;justify-content:center">
+    <div style="width:470px;height:568px;background:#fbfaf8;box-shadow:0 10px 36px rgba(0,0,0,.55);padding:24px;box-sizing:border-box">
+      <div style="height:100%;background:repeating-linear-gradient(135deg,#eceae6 0 7px,#f7f5f2 7px 14px)"></div>
+    </div>
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:236px;height:236px;border-radius:50%;background:rgba(13,16,21,.72);border:1px solid #2a3138;backdrop-filter:blur(3px)"></div>
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:236px;height:236px">
+      <div style="position:absolute;left:50%;top:6px;transform:translateX(-50%);width:62px;padding:9px 0;border-radius:12px;background:#5b8cff;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:14px;height:14px;border-radius:50%;border:2px solid #0d1015"></div><div style="font:500 8px 'JetBrains Mono',monospace;color:#0d1015">PEN</div></div>
+      <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:62px;padding:9px 0;border-radius:12px;background:#1f242a;border:1px solid #2a3138;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:14px;height:14px;border:2px solid #8b96a2"></div><div style="font:500 8px 'JetBrains Mono',monospace;color:#8b96a2">FILL</div></div>
+      <div style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:62px;padding:9px 0;border-radius:12px;background:#1f242a;border:1px solid #2a3138;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:14px;height:14px;border-radius:4px;background:#8b96a2"></div><div style="font:500 8px 'JetBrains Mono',monospace;color:#8b96a2">MASK</div></div>
+      <div style="position:absolute;left:6px;top:50%;transform:translateY(-50%);width:62px;padding:9px 0;border-radius:12px;background:#1f242a;border:1px solid #2a3138;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:16px;height:3px;background:#8b96a2;transform:rotate(-45deg)"></div><div style="font:500 8px 'JetBrains Mono',monospace;color:#8b96a2">LINE</div></div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:#181c20;border:1px solid #2a3138;display:flex;align-items:center;justify-content:center;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">2.4PT</div>
+    </div>
+    <div style="position:absolute;left:24px;bottom:24px;display:flex;flex-direction:column;gap:6px">
+      <div style="font:400 9px 'JetBrains Mono',monospace;color:#5a636d;letter-spacing:.08em">SHORTCUTS</div>
+      <div style="font:400 10px/1.7 'JetBrains Mono',monospace;color:#8b96a2">B BRUSH · F FILL · ⌥ EYEDROP<br>⇧ STRAIGHTEN · ⌘Z UNDO</div>
+    </div>
+    <div style="position:absolute;right:24px;bottom:24px;display:flex;align-items:center;gap:6px">
+      <div style="width:22px;height:22px;border-radius:50%;background:#e4b7a0;outline:2px solid #5b8cff;outline-offset:2px"></div>
+      <div style="width:22px;height:22px;border-radius:50%;background:#8fae8b"></div>
+      <div style="width:22px;height:22px;border-radius:50%;background:#7b8fa8"></div>
+      <div style="width:22px;height:22px;border-radius:50%;background:#42505f"></div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "take <a class="dv-oid" href="#1a">1a</a> but move the page strip into the right panel" · "make <a class="dv-oid" href="#1b">1b</a> a real iPad frame" · "light theme version of <a class="dv-oid" href="#1a">1a</a>"</p>
+</section>
+
+<section class="dv-turn" id="t1s">
+<div class="dv-thd"><a class="dv-tid" href="#t1s">1·rest</a><span class="dv-tname">Supporting screens — built in the <a class="dv-oid" href="#1a">1a</a> docked style</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Library — my books</div>
+<div class="dv-card" style="width:940px">
+  <div style="display:flex;height:610px">
+    <div style="width:186px;background:#181c20;border-right:1px solid #2a3138;padding:14px 12px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:18px"><div style="width:20px;height:20px;border-radius:5px;background:#5b8cff"></div><div style="font:600 12px Archivo,sans-serif;color:#e7ebef">Pagewright</div></div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="padding:7px 9px;border-radius:5px;background:#1f242a;font:500 11px Archivo,sans-serif;color:#e7ebef">All books</div>
+        <div style="padding:7px 9px;font:400 11px Archivo,sans-serif;color:#8b96a2">Drafts</div>
+        <div style="padding:7px 9px;font:400 11px Archivo,sans-serif;color:#8b96a2">Published</div>
+        <div style="padding:7px 9px;font:400 11px Archivo,sans-serif;color:#8b96a2">Loose pages</div>
+        <div style="padding:7px 9px;font:400 11px Archivo,sans-serif;color:#8b96a2">Templates</div>
+      </div>
+      <div style="height:1px;background:#2a3138;margin:16px 0"></div>
+      <div style="font:500 9px 'JetBrains Mono',monospace;color:#5a636d;letter-spacing:.1em;margin-bottom:9px">COLLECTIONS</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <div style="font:400 11px Archivo,sans-serif;color:#8b96a2">Classroom · Grade 2</div>
+        <div style="font:400 11px Archivo,sans-serif;color:#8b96a2">Botanical series</div>
+        <div style="font:400 11px Archivo,sans-serif;color:#8b96a2">Client work</div>
+      </div>
+    </div>
+    <div style="flex:1;background:#101316;padding:18px 20px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px">
+        <div><div style="font:600 17px Archivo,sans-serif;color:#e7ebef">All books</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:4px">12 BOOKS · 318 PAGES</div></div>
+        <div style="display:flex;gap:8px"><div style="padding:7px 13px;border-radius:6px;border:1px solid #2a3138;font:500 11px Archivo,sans-serif;color:#e7ebef">Import art</div><div style="padding:7px 13px;border-radius:6px;background:#5b8cff;font:600 11px Archivo,sans-serif;color:#0d1015">New book</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f7f5f2 6px 12px);border-radius:4px;position:relative"><div style="position:absolute;left:8px;top:8px;padding:3px 6px;border-radius:3px;background:#5b8cff;font:600 8px 'JetBrains Mono',monospace;color:#0d1015">DRAFT</div></div><div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Forest Friends</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:3px">24 PAGES · 2D AGO</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:4px"></div><div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Tide Pools</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:3px">36 PAGES · PUBLISHED</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f7f5f2 6px 12px);border-radius:4px"></div><div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Big Machines</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:3px">18 PAGES · 1W AGO</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:4px"></div><div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Mandala Basics</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:3px">40 PAGES · PUBLISHED</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f7f5f2 6px 12px);border-radius:4px"></div><div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Farm Days</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:3px">12 PAGES · 3W AGO</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:4px"></div><div><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Night Sky</div><div style="font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:3px">28 PAGES · PUBLISHED</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:3/4;border:1px dashed #2a3138;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px"><div style="font:300 22px Archivo,sans-serif;color:#8b96a2">+</div><div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2">NEW BOOK</div></div></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Templates gallery</div>
+<div class="dv-card" style="width:560px">
+  <div style="height:655px;background:#101316;padding:18px 20px;box-sizing:border-box">
+    <div style="font:600 16px Archivo,sans-serif;color:#e7ebef">Start from a template</div>
+    <div style="font:400 11px/1.5 Archivo,sans-serif;color:#8b96a2;margin-top:5px;max-width:330px">Page grids, trim sizes and line weights are preset. Swap the art, keep the print setup.</div>
+    <div style="display:flex;gap:6px;margin:15px 0 14px;flex-wrap:wrap">
+      <div style="padding:5px 11px;border-radius:999px;background:#5b8cff;font:500 10px Archivo,sans-serif;color:#0d1015">All</div>
+      <div style="padding:5px 11px;border-radius:999px;border:1px solid #2a3138;font:400 10px Archivo,sans-serif;color:#8b96a2">Kids</div>
+      <div style="padding:5px 11px;border-radius:999px;border:1px solid #2a3138;font:400 10px Archivo,sans-serif;color:#8b96a2">Mandala</div>
+      <div style="padding:5px 11px;border-radius:999px;border:1px solid #2a3138;font:400 10px Archivo,sans-serif;color:#8b96a2">Botanical</div>
+      <div style="padding:5px 11px;border-radius:999px;border:1px solid #2a3138;font:400 10px Archivo,sans-serif;color:#8b96a2">Worksheet</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div style="display:flex;flex-direction:column;gap:7px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:4px;border:2px solid #5b8cff"></div><div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Single scene</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:-4px">8.5×11 · 1 UP</div></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:4px"></div><div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Scene + caption</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:-4px">8.5×11 · TEXT BOX</div></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:4px"></div><div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Four-up grid</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:-4px">8.5×11 · 4 UP</div></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:4px"></div><div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Mandala ring</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:-4px">SQUARE · 8×8</div></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:4px"></div><div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Trace &amp; copy</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:-4px">LETTER · WORKSHEET</div></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:4px"></div><div style="font:500 11px Archivo,sans-serif;color:#e7ebef">Poster page</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:-4px">11×17 · FOLD</div></div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>AI generate page</div>
+<div class="dv-card" style="width:600px">
+  <div style="height:560px;background:#101316;display:flex;flex-direction:column;box-sizing:border-box">
+    <div style="padding:16px 18px;border-bottom:1px solid #2a3138;display:flex;align-items:center;justify-content:space-between">
+      <div style="font:600 14px Archivo,sans-serif;color:#e7ebef">Generate a page</div>
+      <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">4 CREDITS LEFT TODAY</div>
+    </div>
+    <div style="flex:1;display:flex;min-height:0">
+      <div style="width:250px;padding:16px 18px;border-right:1px solid #2a3138;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:7px">PROMPT</div>
+          <div style="padding:10px;border-radius:7px;background:#181c20;border:1px solid #5b8cff;font:400 11.5px/1.5 Archivo,sans-serif;color:#e7ebef;min-height:64px">a sleepy fox curled under fern leaves, thick outlines, no shading</div>
+        </div>
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:7px">LINE WEIGHT</div>
+          <div style="display:flex;gap:1px;border-radius:6px;overflow:hidden;background:#2a3138">
+            <div style="flex:1;padding:6px 0;text-align:center;font:500 10px Archivo,sans-serif;color:#8b96a2;background:#1f242a">Fine</div>
+            <div style="flex:1;padding:6px 0;text-align:center;font:500 10px Archivo,sans-serif;color:#0d1015;background:#5b8cff">Medium</div>
+            <div style="flex:1;padding:6px 0;text-align:center;font:500 10px Archivo,sans-serif;color:#8b96a2;background:#1f242a">Bold</div>
+          </div>
+          <div style="font:400 10px/1.45 Archivo,sans-serif;color:#8b96a2;margin-top:7px">Bold suits ages 3–6 and crayon.</div>
+        </div>
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:7px">DETAIL</div>
+          <div style="height:3px;background:#2a3138;border-radius:2px;position:relative"><div style="position:absolute;height:3px;width:38%;background:#5b8cff;border-radius:2px"></div><div style="position:absolute;left:34%;top:-4px;width:11px;height:11px;border-radius:50%;background:#e7ebef"></div></div>
+          <div style="display:flex;justify-content:space-between;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:6px"><span>SIMPLE</span><span>INTRICATE</span></div>
+        </div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:7px">
+          <div style="padding:9px 0;border-radius:6px;background:#5b8cff;text-align:center;font:600 11.5px Archivo,sans-serif;color:#0d1015">Generate 4 options</div>
+          <div style="font:400 10px/1.4 Archivo,sans-serif;color:#5a636d;text-align:center">Vector line art, print-safe by default</div>
+        </div>
+      </div>
+      <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1">
+          <div style="background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f7f5f2 6px 12px);border-radius:5px;border:2px solid #5b8cff"></div>
+          <div style="background:#fbfaf8;border-radius:5px"></div>
+          <div style="background:repeating-linear-gradient(135deg,#eceae6 0 6px,#f7f5f2 6px 12px);border-radius:5px"></div>
+          <div style="background:#1f242a;border-radius:5px;display:flex;align-items:center;justify-content:center;font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2">RENDERING…</div>
+        </div>
+        <div style="display:flex;gap:7px">
+          <div style="flex:1;padding:8px 0;border-radius:6px;border:1px solid #2a3138;text-align:center;font:500 11px Archivo,sans-serif;color:#e7ebef">More like this</div>
+          <div style="flex:1;padding:8px 0;border-radius:6px;background:#e7ebef;text-align:center;font:600 11px Archivo,sans-serif;color:#101316">Add to book</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Book assembly — page order &amp; spreads</div>
+<div class="dv-card" style="width:940px">
+  <div style="height:552px;background:#101316;box-sizing:border-box;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #2a3138">
+      <div style="display:flex;align-items:baseline;gap:12px"><div style="font:600 14px Archivo,sans-serif;color:#e7ebef">Forest Friends</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">24 PAGES · 12 SPREADS · SADDLE STITCH</div></div>
+      <div style="display:flex;gap:7px">
+        <div style="padding:6px 12px;border-radius:6px;border:1px solid #2a3138;font:500 11px Archivo,sans-serif;color:#e7ebef">Insert blank</div>
+        <div style="padding:6px 12px;border-radius:6px;border:1px solid #2a3138;font:500 11px Archivo,sans-serif;color:#e7ebef">Auto-order</div>
+        <div style="padding:6px 12px;border-radius:6px;background:#5b8cff;font:600 11px Archivo,sans-serif;color:#0d1015">Proof</div>
+      </div>
+    </div>
+    <div style="flex:1;padding:16px 18px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:3px;border:1px solid #2a3138"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">01 COVER</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:#1f242a;border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">02 BLANK</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">03</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">04</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:3px;border:2px solid #5b8cff"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#5b8cff">05 DRAGGING</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;border:1px dashed #5b8cff;border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#5b8cff">DROP HERE</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">06</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">07</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">08</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">09</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:#fbfaf8;border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">10</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="aspect-ratio:3/4;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:3px"></div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">11</div></div>
+      </div>
+    </div>
+    <div style="padding:11px 18px;border-top:1px solid #2a3138;display:flex;align-items:center;gap:14px">
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:7px;height:7px;border-radius:50%;background:#e4b7a0"></div><div style="font:400 11px Archivo,sans-serif;color:#e7ebef">Page count must be a multiple of 4 — add 2 pages</div></div>
+      <div style="font:400 11px Archivo,sans-serif;color:#5b8cff">Fix automatically</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1h"><div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Palette manager</div>
+<div class="dv-card" style="width:560px">
+  <div style="height:520px;background:#101316;padding:18px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <div><div style="font:600 15px Archivo,sans-serif;color:#e7ebef">Palettes</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:4px">SHARED ACROSS THIS BOOK</div></div>
+      <div style="padding:6px 12px;border-radius:6px;background:#5b8cff;font:600 11px Archivo,sans-serif;color:#0d1015">New palette</div>
+    </div>
+    <div style="padding:13px;border-radius:8px;background:#181c20;border:1px solid #5b8cff">
+      <div style="display:flex;align-items:center;justify-content:between;gap:10px;margin-bottom:11px"><div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Meadow</div><div style="font:400 9px 'JetBrains Mono',monospace;color:#8b96a2;margin-left:auto">11 SWATCHES · IN USE ON 14 PAGES</div></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <div style="width:34px;height:34px;border-radius:5px;background:#e4b7a0"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#cfa77e"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#8fae8b"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#5d7f6f"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#d9cf9e"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#b98a8a"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#7b8fa8"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#42505f"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#efe6da"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#c9c2b6"></div>
+        <div style="width:34px;height:34px;border-radius:5px;background:#8c7a6b"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px;padding-top:11px;border-top:1px solid #2a3138">
+        <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">E4B7A0</div>
+        <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2">CMYK 0/24/34/4</div>
+        <div style="margin-left:auto;font:400 10.5px Archivo,sans-serif;color:#5b8cff">Edit swatch</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:#181c20"><div style="display:flex;gap:3px"><div style="width:16px;height:16px;border-radius:3px;background:#a8c4d8"></div><div style="width:16px;height:16px;border-radius:3px;background:#7398b5"></div><div style="width:16px;height:16px;border-radius:3px;background:#3d5f78"></div><div style="width:16px;height:16px;border-radius:3px;background:#e3edf2"></div></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Tide Pools</div><div style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">4 SWATCHES</div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:#181c20"><div style="display:flex;gap:3px"><div style="width:16px;height:16px;border-radius:3px;background:#f2c14e"></div><div style="width:16px;height:16px;border-radius:3px;background:#e8804f"></div><div style="width:16px;height:16px;border-radius:3px;background:#c4453f"></div><div style="width:16px;height:16px;border-radius:3px;background:#5e2b2b"></div></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Crayon box</div><div style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">KID-SAFE</div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px dashed #2a3138"><div style="font:400 11px Archivo,sans-serif;color:#8b96a2">Extract palette from an image</div></div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1i"><div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Export &amp; print settings</div>
+<div class="dv-card" style="width:600px">
+  <div style="height:520px;background:#101316;box-sizing:border-box;display:flex;flex-direction:column">
+    <div style="padding:15px 18px;border-bottom:1px solid #2a3138;font:600 14px Archivo,sans-serif;color:#e7ebef">Export</div>
+    <div style="flex:1;display:flex;min-height:0">
+      <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:8px">FORMAT</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:6px;background:#181c20;border:1px solid #5b8cff"><div style="width:11px;height:11px;border-radius:50%;border:3px solid #5b8cff"></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Print PDF</div><div style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">CMYK · 300 DPI</div></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:6px;background:#181c20"><div style="width:11px;height:11px;border-radius:50%;border:2px solid #4a545e"></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Digital PDF</div><div style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">RGB · SCREEN</div></div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:6px;background:#181c20"><div style="width:11px;height:11px;border-radius:50%;border:2px solid #4a545e"></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">PNG per page</div><div style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#8b96a2">ZIP</div></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:7px">TRIM</div><div style="padding:8px 10px;border-radius:6px;background:#181c20;font:400 11px Archivo,sans-serif;color:#e7ebef">8.5 × 11 in</div></div>
+          <div><div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em;margin-bottom:7px">BLEED</div><div style="padding:8px 10px;border-radius:6px;background:#181c20;font:400 11px Archivo,sans-serif;color:#e7ebef">0.125 in</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:30px;height:17px;border-radius:999px;background:#5b8cff;position:relative"><div style="position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#0d1015"></div></div><div style="font:400 11.5px Archivo,sans-serif;color:#e7ebef">Crop marks</div></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:30px;height:17px;border-radius:999px;background:#5b8cff;position:relative"><div style="position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#0d1015"></div></div><div style="font:400 11.5px Archivo,sans-serif;color:#e7ebef">Single-sided (no bleed-through)</div></div>
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:30px;height:17px;border-radius:999px;background:#2a3138;position:relative"><div style="position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#6c7681"></div></div><div style="font:400 11.5px Archivo,sans-serif;color:#8b96a2">Flatten colored layers</div></div>
+        </div>
+        <div style="margin-top:auto;padding:10px 0;border-radius:6px;background:#5b8cff;text-align:center;font:600 11.5px Archivo,sans-serif;color:#0d1015">Export 24 pages</div>
+      </div>
+      <div style="width:210px;padding:16px;border-left:1px solid #2a3138;display:flex;flex-direction:column;gap:11px">
+        <div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em">PREFLIGHT</div>
+        <div style="background:#fbfaf8;aspect-ratio:3/4;border-radius:3px;position:relative;padding:10px;box-sizing:border-box"><div style="position:absolute;inset:6px;border:1px dashed rgba(91,140,255,.6)"></div><div style="height:100%;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px)"></div></div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:8px;align-items:flex-start"><div style="width:7px;height:7px;border-radius:50%;background:#8fae8b;margin-top:4px"></div><div style="font:400 10.5px/1.4 Archivo,sans-serif;color:#e7ebef">All art vector</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><div style="width:7px;height:7px;border-radius:50%;background:#8fae8b;margin-top:4px"></div><div style="font:400 10.5px/1.4 Archivo,sans-serif;color:#e7ebef">Fonts outlined</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><div style="width:7px;height:7px;border-radius:50%;background:#e4b7a0;margin-top:4px"></div><div style="font:400 10.5px/1.4 Archivo,sans-serif;color:#e7ebef">Page 12 art enters the bleed</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1j"><div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Onboarding — pick the path</div>
+<div class="dv-card" style="width:600px">
+  <div style="height:470px;background:#101316;padding:26px;box-sizing:border-box;display:flex;flex-direction:column">
+    <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em">STEP 1 OF 3</div>
+    <div style="font:600 21px/1.25 Archivo,sans-serif;color:#e7ebef;margin-top:10px;max-width:340px">What are you making today?</div>
+    <div style="font:400 12px/1.5 Archivo,sans-serif;color:#8b96a2;margin-top:7px;max-width:340px">We'll preset your page size, line weights and export defaults. You can change all of it later.</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:20px">
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:9px;background:#181c20;border:1px solid #5b8cff"><div style="width:26px;height:26px;border-radius:7px;background:#5b8cff"></div><div><div style="font:500 12.5px Archivo,sans-serif;color:#e7ebef">A book to print or sell</div><div style="font:400 10.5px Archivo,sans-serif;color:#8b96a2;margin-top:2px">Trim, bleed and spreads handled for you</div></div></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:9px;background:#181c20"><div style="width:26px;height:26px;border-radius:7px;background:#2a3138"></div><div><div style="font:500 12.5px Archivo,sans-serif;color:#e7ebef">Pages for my classroom</div><div style="font:400 10.5px Archivo,sans-serif;color:#8b96a2;margin-top:2px">Letter size, bold lines, one-click 30 copies</div></div></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:9px;background:#181c20"><div style="width:26px;height:26px;border-radius:7px;background:#2a3138"></div><div><div style="font:500 12.5px Archivo,sans-serif;color:#e7ebef">Turn my artwork into line art</div><div style="font:400 10.5px Archivo,sans-serif;color:#8b96a2;margin-top:2px">Import a scan or PSD and trace it</div></div></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:9px;background:#181c20"><div style="width:26px;height:26px;border-radius:7px;background:#2a3138"></div><div><div style="font:500 12.5px Archivo,sans-serif;color:#e7ebef">Just color something</div><div style="font:400 10.5px Archivo,sans-serif;color:#8b96a2;margin-top:2px">Skip the editor, open a ready page</div></div></div>
+    </div>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:14px">
+      <div style="padding:9px 18px;border-radius:6px;background:#e7ebef;font:600 11.5px Archivo,sans-serif;color:#101316">Continue</div>
+      <div style="font:400 11px Archivo,sans-serif;color:#8b96a2">Skip setup</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1k"><div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Share &amp; publish</div>
+<div class="dv-card" style="width:560px">
+  <div style="height:470px;background:#101316;padding:22px;box-sizing:border-box;display:flex;flex-direction:column;gap:15px">
+    <div><div style="font:600 15px Archivo,sans-serif;color:#e7ebef">Publish Forest Friends</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2;margin-top:5px">24 PAGES · PREFLIGHT PASSED</div></div>
+    <div style="display:flex;gap:12px;padding:13px;border-radius:9px;background:#181c20">
+      <div style="width:70px;background:repeating-linear-gradient(135deg,#eceae6 0 5px,#f7f5f2 5px 10px);border-radius:4px;aspect-ratio:3/4"></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+        <div style="font:500 12px Archivo,sans-serif;color:#e7ebef">Cover &amp; listing</div>
+        <div style="font:400 10.5px/1.5 Archivo,sans-serif;color:#8b96a2">Twelve calm forest scenes with thick, crayon-friendly outlines. Ages 4–8.</div>
+        <div style="font:400 10.5px Archivo,sans-serif;color:#5b8cff">Edit listing</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 9px 'JetBrains Mono',monospace;color:#8b96a2;letter-spacing:.1em">WHERE</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:7px;background:#181c20;border:1px solid #5b8cff"><div style="width:16px;height:16px;border-radius:4px;background:#5b8cff"></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Public link</div><div style="margin-left:auto;font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2">VIEW + PRINT</div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:7px;background:#181c20"><div style="width:16px;height:16px;border-radius:4px;background:#2a3138"></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Classroom pack</div><div style="margin-left:auto;font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2">30 COPIES</div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:7px;background:#181c20"><div style="width:16px;height:16px;border-radius:4px;background:#2a3138"></div><div style="font:500 11.5px Archivo,sans-serif;color:#e7ebef">Print-on-demand PDF</div><div style="margin-left:auto;font:400 9.5px 'JetBrains Mono',monospace;color:#8b96a2">CMYK</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;background:#181c20">
+      <div style="font:400 10px 'JetBrains Mono',monospace;color:#8b96a2;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">pagewright.app/b/forest-friends</div>
+      <div style="padding:5px 10px;border-radius:5px;background:#2a3138;font:500 10px Archivo,sans-serif;color:#e7ebef">Copy</div>
+    </div>
+    <div style="margin-top:auto;display:flex;gap:9px">
+      <div style="flex:1;padding:10px 0;border-radius:6px;border:1px solid #2a3138;text-align:center;font:500 11.5px Archivo,sans-serif;color:#e7ebef">Save draft</div>
+      <div style="flex:1;padding:10px 0;border-radius:6px;background:#5b8cff;text-align:center;font:600 11.5px Archivo,sans-serif;color:#0d1015">Publish</div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "add an in-app coloring view for end users" · "show <a class="dv-oid" href="#1f">1f</a> mid-generation with a progress state" · "light theme across all screens"</p>
+</section>
+
+</x-dc>
+</body>
+</html>

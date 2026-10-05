@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.local.example
 
 # vercel
 .vercel
@@ -39,3 +40,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# e2e screenshots
+/tests/e2e/.output/
+
+# design system build + Claude Design sync (machine state)
+/ds-dist/
+/ds-bundle/
+/.ds-sync/
+/.design-sync/.cache/
+/.design-sync/learnings/
+/.design-sync/node_modules

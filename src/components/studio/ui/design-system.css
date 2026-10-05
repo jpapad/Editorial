@@ -1,0 +1,21 @@
+/* Stylesheet for the packaged design system (scripts/build-ds.mjs), not
+ * loaded by the app. It is the app's own globals.css (tokens + Tailwind),
+ * plus what the root layout normally supplies at runtime: the font
+ * variables next/font would set, and the studio shell's font/ink/surface on
+ * <body>. Light by default; data-theme="dark" on any ancestor switches the
+ * tokens (the [data-theme] rules come with globals.css). Tailwind scans the whole project, so every utility the app uses
+ * is in the output. */
+@import "../../../app/globals.css";
+
+:root {
+  --font-commissioner: "Commissioner";
+  --font-jetbrains-mono: "JetBrains Mono";
+}
+
+@layer base {
+  body {
+    font-family: var(--font-pw-sans);
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+}

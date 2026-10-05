@@ -1,0 +1,19 @@
+{
+  "projectId": "26c43fc8-03e0-476b-ba31-f3a074b77cb0",
+  "shape": "package",
+  "pkg": "@pagewright/ui",
+  "globalName": "PagewrightUI",
+  "buildCmd": "npm run build:ds",
+  "entry": "./ds-dist/index.js",
+  "srcDir": "../src/components/studio/ui",
+  "cssEntry": "pagewright.css",
+  "extraFonts": [
+    "fonts.css"
+  ],
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "Button": {
+      "cardMode": "column"
+    }
+  }
+}

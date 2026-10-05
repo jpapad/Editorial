@@ -19,8 +19,261 @@
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* @layer base (not a bare rule) matters here: Tailwind v4 puts its own
+   generated utilities in `@layer utilities`, and CSS cascade layers make
+   ANY layered rule beat ANY unlayered one regardless of specificity — a
+   bare `body { font-family: ... }` here would silently out-rank every
+   Tailwind font utility in the whole app (`font-pw-sans` included),
+   which is exactly the bug this fixed: /studio's Archivo font was being
+   overridden by this rule despite `.font-pw-sans` having higher nominal
+   specificity, because unlayered always wins over layered. */
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Pagewright design tokens (Sprint 7 design handoff — /studio module).
+ *
+ * Additive only: nothing above this line is touched, and nothing here
+ * renames or overrides `--background`/`--foreground`/body's font — the
+ * three existing editors (`/`, `/play`, `/kdp-editor`) read none of these
+ * new tokens, so this cannot change how they look. Scoped to a NEW
+ * `@theme` block rather than folding into the one above for the same
+ * reason: keeps the boundary between "pre-existing app shell" and
+ * "Pagewright design system" visible in the file, not just in practice.
+ *
+ * Values are transcribed directly from design_handoff_coloring_editor/
+ * README.md's "design system" section — see that file for the source of
+ * truth and rationale (e.g. why muted text stops at #6b7280).
+ *
+ * Light shell everywhere; dark only immediately around the drawing
+ * canvas (confirmed reading of the turn-3 decision, not the 2a
+ * screenshot's fully-dark shell — see the plan discussion). The dark
+ * tokens below are consumed by a `.canvas-dark` scope applied ONLY to
+ * the editor's canvas-surround element (added in Step 3), never to the
+ * top bar / rails / panels / filmstrip, which stay on the light tokens
+ * unconditionally.
+ * --------------------------------------------------------------------- */
+@theme {
+  /* Surfaces — the LIGHT theme's values. The dark theme overrides the same
+     variables under [data-theme="dark"] below, so every utility
+     (bg-panel, text-ink, …) follows the active theme with no per-component
+     changes. Pagewright 2026 design: cool grey workspace, glass islands. */
+  --color-surface: #eef0f4; /* app background */
+  --color-panel: #ffffff; /* cards/panels */
+  --color-inset: #e6e8ee; /* inset controls, variant a */
+  --color-inset-alt: #f1f2f6; /* inset controls, variant b */
+  --color-hairline: #e1e3ea;
+  --color-disabled-bg: #e6e8ee;
+  --color-disabled-ink: #9a9da8;
+
+  /* Ink */
+  --color-ink: #14151a; /* primary */
+  --color-ink-secondary: #3d404b;
+  --color-ink-muted: #5e6270; /* floor — never go lighter than this for text */
+  --color-icon-idle: #474b57;
+  /* Text on the solid fills that flip between themes (bg-accent, bg-ink,
+     bg-error, bg-warning): white on the light theme's dark fills, near-black
+     on the dark theme's light ones. Never hard-code text-white there. */
+  --color-on-accent: #ffffff;
+  --color-on-ink: #ffffff;
+
+  /* Accent */
+  --color-accent: #4453d6;
+  --color-accent-ring: rgba(68, 83, 214, 0.18);
+  --color-accent-tint: #e8eafb; /* advisory cards, active rows */
+  /* AI actions: a warm coral, used sparingly */
+  --color-spark: #c2410c;
+  --color-spark-fill: #ff8a65;
+
+  /* Paper — the drawing surface stays white in both themes */
+  --color-paper: #ffffff;
+  --color-paper-warm: #fbfbfc;
+  --color-tablet-ground: #f2f0ec;
+
+  /* Semantic */
+  --color-success: #2f8f5b;
+  --color-warning: #c98a12;
+  --color-error: #c4453f;
+
+  /* Workspace behind the page: dotted ground + frosted-glass islands */
+  --color-workspace: #eef0f4;
+  --color-workspace-dot: rgba(15, 16, 19, 0.1);
+  --color-glass: rgba(255, 255, 255, 0.82);
+  --color-glass-border: rgba(15, 16, 19, 0.08);
+
+  /* Dark canvas surround (see `.canvas-dark`, Step 3) */
+  --color-canvas-dark-from: #15191f;
+  --color-canvas-dark-to: #0b0d10;
+  --color-canvas-dark-accent: #5b8cff;
+  --color-canvas-dark-ink: #f1f4f8;
+
+  /* Radii */
+  --radius-pill: 999px; /* buttons/pills/chips/swatches */
+  --radius-rail: 20px; /* tool rails */
+  --radius-panel: 22px;
+  --radius-panel-sm: 18px;
+  --radius-row: 14px; /* list rows/tiles */
+  --radius-row-sm: 12px;
+  --radius-paper: 10px; /* paper/thumbnails */
+  --radius-paper-sm: 8px;
+
+  /* Shadows */
+  --shadow-resting: 0 1px 2px rgba(16, 20, 26, 0.06);
+  --shadow-panel: 0 1px 2px rgba(16, 20, 26, 0.06), 0 8px 24px rgba(16, 20, 26, 0.05);
+  --shadow-toolbar: 0 2px 6px rgba(16, 20, 26, 0.08), 0 12px 30px rgba(16, 20, 26, 0.09);
+  --shadow-paper: 0 2px 6px rgba(16, 20, 26, 0.08), 0 18px 44px rgba(16, 20, 26, 0.1);
+  --shadow-canvas-dark: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* Type scale — paired with a matching --text-<name>--line-height per
+     Tailwind v4's convention, so `text-page-title` carries both. Weight
+     is applied separately via font-medium/font-semibold (600 = semibold
+     in the default Tailwind scale, 500 = medium). */
+  --text-page-title: 30px;
+  --text-page-title--line-height: 1.2;
+  --text-modal-title: 22px;
+  --text-modal-title--line-height: 1.2;
+  --text-section-title: 17px;
+  --text-section-title--line-height: 1.25;
+  --text-card-title: 14px;
+  --text-card-title--line-height: 1.3;
+  --text-body: 13.5px;
+  --text-body--line-height: 1.55;
+  --text-helper: 12px;
+  --text-helper--line-height: 1.5;
+  --text-mono: 10.5px;
+  --text-mono--line-height: 1.4;
+}
+
+/* Fonts get their OWN `@theme inline` block, separate from the bare
+ * `@theme` above — not a stylistic choice. `--font-archivo` /
+ * `--font-jetbrains-mono` are populated per-element by
+ * src/app/studio/layout.tsx's next/font `.variable` classes, not
+ * declared globally on `:root` (mirrors the existing --font-sans /
+ * --font-mono pair a few lines up, which does the same thing for Geist).
+ * A bare `@theme` value is meant to be a static constant resolved once;
+ * pointing one at a var() that only exists on a specific descendant
+ * element made `--font-pw-sans` resolve to nothing anywhere (confirmed
+ * empirically — `getComputedStyle(...).getPropertyValue('--font-pw-sans')`
+ * came back "" even on the exact element carrying the font's `.variable`
+ * class). `@theme inline` defers resolution to each consuming element's
+ * own scope instead of `:root`'s, which is what makes this work at all.
+ */
+@theme inline {
+  --font-pw-sans: var(--font-commissioner), Commissioner, Helvetica, Arial, sans-serif;
+  --font-pw-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* The mono metadata convention (uppercase, letter-spaced, `--text-mono`,
+ * `font-pw-mono`) is deliberately NOT a hand-written CSS class here —
+ * Tailwind v4 only emits a theme value where it detects a matching
+ * utility class in scanned source, so a bespoke rule that just
+ * references `var(--font-pw-mono)` directly (never using `font-pw-mono`
+ * as an actual class) got nothing generated for it at all, and silently
+ * fell back to inheriting the surrounding sans font — a real bug, caught
+ * by checking computed styles rather than trusting the visual proof-read.
+ * Step 2's MetaLabel primitive composes this correctly, from plain
+ * Tailwind utilities (`font-pw-mono uppercase tracking-[0.09em]
+ * font-medium text-mono`); no CSS class belongs here in Step 1.
+ */
+
+/* Dark canvas-surround scope (see the header comment above). Applied to
+   the canvas-area wrapper only — never to `<html>`/`<body>`, so it can't
+   leak into the top bar/rails/panels or any other route. */
+.canvas-dark {
+  background: radial-gradient(120% 90% at 50% 0%, var(--color-canvas-dark-from), var(--color-canvas-dark-to));
+}
+
+/* prefers-reduced-motion: handled per-primitive via Tailwind's native
+   `motion-reduce:` variant (e.g. `motion-reduce:transition-none`) instead
+   of a global class — no custom CSS needed for it. */
+
+/* ---------------------------------------------------------------------
+ * Themes. Light values live in the @theme block above; these selectors
+ * swap them. [data-theme] is set on <html> by the inline script in
+ * app/layout.tsx (before first paint) and by ThemeToggle; a subtree can
+ * pin itself with its own data-theme (the children's coloring screens
+ * always use data-theme="light"). Custom properties inherit, so the
+ * nearest [data-theme] ancestor wins.
+ * --------------------------------------------------------------------- */
+[data-theme="light"] {
+  --color-surface: #eef0f4;
+  --color-panel: #ffffff;
+  --color-inset: #e6e8ee;
+  --color-inset-alt: #f1f2f6;
+  --color-hairline: #e1e3ea;
+  --color-disabled-bg: #e6e8ee;
+  --color-disabled-ink: #9a9da8;
+  --color-ink: #14151a;
+  --color-ink-secondary: #3d404b;
+  --color-ink-muted: #5e6270;
+  --color-icon-idle: #474b57;
+  --color-on-accent: #ffffff;
+  --color-on-ink: #ffffff;
+  --color-accent: #4453d6;
+  --color-accent-ring: rgba(68, 83, 214, 0.18);
+  --color-accent-tint: #e8eafb;
+  --color-spark: #c2410c;
+  --color-success: #2f8f5b;
+  --color-warning: #c98a12;
+  --color-error: #c4453f;
+  --color-workspace: #eef0f4;
+  --color-workspace-dot: rgba(15, 16, 19, 0.1);
+  --color-glass: rgba(255, 255, 255, 0.82);
+  --color-glass-border: rgba(15, 16, 19, 0.08);
+  --shadow-resting: 0 1px 2px rgba(16, 20, 26, 0.06);
+  --shadow-panel: 0 1px 2px rgba(16, 20, 26, 0.06), 0 8px 24px rgba(16, 20, 26, 0.05);
+  --shadow-toolbar: 0 2px 6px rgba(16, 20, 26, 0.08), 0 12px 30px rgba(16, 20, 26, 0.09);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --color-surface: #0f1013;
+  --color-panel: #1a1b20;
+  --color-inset: #26272e;
+  --color-inset-alt: #202127;
+  --color-hairline: #2c2e36;
+  --color-disabled-bg: #26272e;
+  --color-disabled-ink: #6b6e78;
+  --color-ink: #edeef2;
+  --color-ink-secondary: #b7bac4;
+  --color-ink-muted: #9a9da8;
+  --color-icon-idle: #b7bac4;
+  --color-on-accent: #0f1013;
+  --color-on-ink: #0f1013;
+  --color-accent: #9aa8ff;
+  --color-accent-ring: rgba(154, 168, 255, 0.24);
+  --color-accent-tint: #252a44;
+  --color-spark: #ffb199;
+  --color-success: #4ade80;
+  --color-warning: #f2b544;
+  --color-error: #f07167;
+  --color-workspace: #0f1013;
+  --color-workspace-dot: rgba(255, 255, 255, 0.07);
+  --color-glass: rgba(26, 27, 32, 0.8);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 30px rgba(0, 0, 0, 0.35);
+  --shadow-toolbar: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.45);
+  --shadow-paper: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 30px 80px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+/* The dotted workspace behind the page (editor canvas, library). */
+.pw-workspace {
+  background-color: var(--color-workspace);
+  background-image: radial-gradient(var(--color-workspace-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* A floating frosted-glass island (top bar groups, tool dock, panels). */
+.pw-glass {
+  background-color: var(--color-glass);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--color-glass-border);
 }

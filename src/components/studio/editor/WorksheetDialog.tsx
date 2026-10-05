@@ -1,0 +1,430 @@
+"use client";
+
+import { useState } from "react";
+import { Calculator, Contrast, FlipHorizontal2, Grid2x2, Grid3x3, Hash, LayoutGrid, Loader2, Palette, PencilLine, Puzzle, Route, Search, Spline, Type, X } from "lucide-react";
+import Button from "@/components/studio/ui/Button";
+import MetaLabel from "@/components/studio/ui/MetaLabel";
+import Slider from "@/components/studio/ui/Slider";
+import Toggle from "@/components/studio/ui/Toggle";
+import { cn } from "@/utils/cn";
+import {
+  connectDotsFromPage,
+  connectDotsPage,
+  DOTS_DESIGNS,
+  letterTracingPage,
+  MAZE_LEVELS,
+  mazePage,
+  numberTracingPage,
+  spotTheDifference,
+  type DotsDesign,
+  type MazeLevel,
+} from "@/components/editor/worksheets";
+import { crosswordPages, finishDrawingPage, normalizeWord, wordSearchPages, type CrosswordEntry } from "@/components/editor/puzzles";
+import { colorByNumberPage } from "@/components/editor/colorByNumber";
+import { countingPage, gridCopyPage, PICTURE_SHAPES, shadowMatchPage, SUDOKU_LEVELS, sudokuPages, wordTracingPages, type CountingKind, type ShadowItem, type SudokuLevel, type SudokuSize } from "@/components/editor/activities";
+import { silhouetteDataUrl } from "@/lib/silhouette";
+import { findRegions, NUMBER_COLORS, numberRegions } from "@/components/studio/editor/regions";
+import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
+import type { BookPage, PageSpace } from "@/types/editor";
+import { useLanguage, useT } from "@/lib/i18n";
+
+type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish" | "cbn" | "sudoku" | "shadows" | "gridcopy" | "words" | "counting";
+
+const KINDS: { value: Kind; label: string; hint: string; Icon: typeof Type }[] = [
+  { value: "letters", label: "Letter tracing", hint: "One page per letter", Icon: Type },
+  { value: "numbers", label: "Number tracing", hint: "With circles to count and color", Icon: Hash },
+  { value: "dots", label: "Connect the dots", hint: "Numbered dots that reveal a picture", Icon: Spline },
+  { value: "maze", label: "Maze", hint: "Always solvable, 3 levels", Icon: Route },
+  { value: "spot", label: "Spot the difference", hint: "From the current page, with answers", Icon: Search },
+  { value: "wordsearch", label: "Word search", hint: "Your words hidden in a letter grid, with answers", Icon: Grid3x3 },
+  { value: "crossword", label: "Crossword", hint: "Your words and clues, with answers", Icon: Puzzle },
+  { value: "finish", label: "Finish the picture", hint: "Half of the current page, to draw the other half", Icon: FlipHorizontal2 },
+  { value: "sudoku", label: "Sudoku", hint: "4×4 or 6×6, with numbers or pictures, and answers", Icon: Grid2x2 },
+  { value: "shadows", label: "Find the shadow", hint: "Match each picture to its shadow", Icon: Contrast },
+  { value: "gridcopy", label: "Draw in the grid", hint: "The current page under a grid, with an empty grid to copy it into", Icon: LayoutGrid },
+  { value: "words", label: "Word tracing", hint: "Whole words to color, trace and write", Icon: PencilLine },
+  { value: "counting", label: "Counting", hint: "Count the shapes, or add two groups", Icon: Calculator },
+  { value: "cbn", label: "Color by number", hint: "A copy of the current page with a number in every area and a color key", Icon: Palette },
+];
+
+const SAMPLE_WORDS: Record<string, string> = {
+  en: "CAT\nDOG\nHORSE\nRABBIT\nDUCK\nSHEEP",
+  el: "ΓΑΤΑ\nΣΚΥΛΟΣ\nΑΛΟΓΟ\nΛΑΓΟΣ\nΠΑΠΙΑ\nΠΡΟΒΑΤΟ",
+};
+const SAMPLE_CLUES: Record<string, string> = {
+  en: "HORSE: You can ride it\nSHEEP: It gives us wool\nGOAT: It has horns and a beard\nMOUSE: It loves cheese\nTIGER: A big cat with stripes\nRABBIT: It hops and eats carrots",
+  el: "ΓΑΤΑ: Κάνει νιάου\nΣΚΥΛΟΣ: Γαβγίζει\nΑΛΟΓΟ: Το καβαλάμε\nΠΑΠΙΑ: Κάνει πα πα\nΠΡΟΒΑΤΟ: Μας δίνει μαλλί\nΛΑΓΟΣ: Τρώει καρότα",
+};
+
+/** "word: clue" per line (the clue is optional). */
+function parseClues(source: string): CrosswordEntry[] {
+  return source
+    .split("\n")
+    .map((row) => {
+      const at = row.search(/[:=\-–]/);
+      return at < 0 ? { word: row, clue: "" } : { word: row.slice(0, at), clue: row.slice(at + 1) };
+    })
+    .filter((e) => normalizeWord(e.word).length >= 2)
+    .slice(0, 20);
+}
+
+const PRESETS = [
+  { label: "A–Z", value: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
+  { label: "Α–Ω", value: "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" },
+];
+
+export interface WorksheetDialogProps {
+  space: PageSpace;
+  currentPage: BookPage;
+  /** The current page's ink as pixels (what the paint bucket sees) — for color by number. */
+  captureInk?: () => PixelBuffer | null;
+  /** The current page as a PNG data URL — for "draw in the grid". */
+  capturePage?: () => string | null;
+  onAdd: (pages: BookPage[]) => void;
+  onClose: () => void;
+}
+
+const MAX_PAGES = 40;
+
+/** Builds worksheet pages (see worksheets.ts) and hands them to the editor to append. */
+export default function WorksheetDialog({ space, currentPage, captureInk, capturePage, onAdd, onClose }: WorksheetDialogProps) {
+  const t = useT();
+  const { lang } = useLanguage();
+  const [words, setWords] = useState(SAMPLE_WORDS[lang] ?? SAMPLE_WORDS.en);
+  const [clues, setClues] = useState(SAMPLE_CLUES[lang] ?? SAMPLE_CLUES.en);
+  const [kind, setKind] = useState<Kind>("letters");
+  const [letters, setLetters] = useState("ABC");
+  const [from, setFrom] = useState(1);
+  const [to, setTo] = useState(5);
+  const [design, setDesign] = useState<DotsDesign | "mine">("star");
+  const [colorCount, setColorCount] = useState(5);
+  const [sudokuSize, setSudokuSize] = useState<SudokuSize>(4);
+  const [sudokuLevel, setSudokuLevel] = useState<SudokuLevel>("easy");
+  const [sudokuPictures, setSudokuPictures] = useState(false);
+  const [sudokuCount, setSudokuCount] = useState(2);
+  const [gridCells, setGridCells] = useState(6);
+  const [traceWords, setTraceWords] = useState(SAMPLE_WORDS[lang] ?? SAMPLE_WORDS.en);
+  const [countingKind, setCountingKind] = useState<CountingKind>("count");
+  const [countingMax, setCountingMax] = useState(6);
+  const [countingPages, setCountingPages] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const pagePictures = currentPage.objects.filter((o) => o.kind === "stamp" && !o.isFrame && !o.hidden);
+  const traceList = traceWords.split(/[\n,;]+/).map((w) => w.trim()).filter(Boolean).slice(0, 40);
+  const [dotCount, setDotCount] = useState(25);
+  const [level, setLevel] = useState<MazeLevel>("easy");
+  const [mazeCount, setMazeCount] = useState(3);
+  const [differences, setDifferences] = useState(5);
+  const [error, setError] = useState<string | null>(null);
+
+  const letterList = [...new Set([...letters.replace(/\s+/g, "")].map((c) => c.toLocaleUpperCase()))].slice(0, MAX_PAGES);
+  const numberCount = Math.max(0, Math.min(MAX_PAGES, to - from + 1));
+  const wordList = [...new Set(words.split(/[\n,;]+/).map(normalizeWord).filter((w) => w.length >= 2))].slice(0, 24);
+  const clueList = parseClues(clues);
+  const pageCount =
+    kind === "letters" ? letterList.length
+    : kind === "numbers" ? numberCount
+    : kind === "dots" || kind === "finish" || kind === "cbn" || kind === "shadows" || kind === "gridcopy" ? 1
+    : kind === "sudoku" ? sudokuCount * 2
+    : kind === "words" ? Math.ceil(traceList.length / 4)
+    : kind === "counting" ? countingPages
+    : kind === "maze" ? mazeCount
+    : kind === "wordsearch" ? (wordList.length ? 2 : 0)
+    : kind === "crossword" ? (clueList.length >= 2 ? 2 : 0)
+    : 2;
+
+  async function build() {
+    setError(null);
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0] % 1e9;
+    let pages: BookPage[] = [];
+    if (kind === "letters") pages = letterList.map((l) => letterTracingPage(space, l));
+    else if (kind === "numbers") pages = Array.from({ length: numberCount }, (_, i) => numberTracingPage(space, from + i));
+    else if (kind === "dots") {
+      const page = design === "mine" ? connectDotsFromPage(currentPage, space, dotCount, t) : connectDotsPage(space, design, dotCount, t);
+      if (!page) {
+        setError(t("The current page has no pen outline to turn into dots. Draw the outline with the pen first."));
+        return;
+      }
+      pages = [page];
+    } else if (kind === "sudoku") {
+      pages = Array.from({ length: sudokuCount }, (_, i) => sudokuPages(space, sudokuSize, sudokuLevel, sudokuPictures, seed + i, t)).flatMap((s) => [s.puzzle, s.answers]);
+    } else if (kind === "shadows") {
+      let items: ShadowItem[] = PICTURE_SHAPES.slice(0, 5).map((shapeKind) => ({ kind: "shape", shapeKind }));
+      if (pagePictures.length >= 3) {
+        setBusy(true);
+        try {
+          items = await Promise.all(pagePictures.slice(0, 6).map(async (o) => ({ kind: "picture" as const, src: (o as { src: string }).src, ...(await silhouetteDataUrl((o as { src: string }).src)) })));
+        } catch {
+          // A picture that can't be read: fall back to the built-in shapes.
+        }
+        setBusy(false);
+      }
+      const page = shadowMatchPage(space, items, seed, t);
+      if (!page) return;
+      pages = [page];
+    } else if (kind === "gridcopy") {
+      const src = capturePage?.();
+      if (!src || (currentPage.objects.length === 0 && currentPage.lines.length === 0)) {
+        setError(t("The current page is empty. Draw or place a picture first."));
+        return;
+      }
+      pages = [gridCopyPage(space, { src, width: space.width, height: space.height }, gridCells, t)];
+    } else if (kind === "words") {
+      pages = wordTracingPages(space, traceList);
+    } else if (kind === "counting") {
+      pages = Array.from({ length: countingPages }, (_, i) => countingPage(space, countingKind, countingMax, seed + i, t));
+    } else if (kind === "cbn") {
+      const ink = captureInk?.();
+      const page = ink ? colorByNumberPage(currentPage, numberRegions(findRegions(ink), colorCount, seed), t) : null;
+      if (!page) {
+        setError(t("The current page has no closed areas big enough for a number. Draw closed shapes first (the gap check helps)."));
+        return;
+      }
+      pages = [page];
+    }
+    else if (kind === "maze") pages = Array.from({ length: mazeCount }, (_, i) => mazePage(space, level, seed + i, t));
+    else if (kind === "wordsearch" || kind === "crossword") {
+      const result = kind === "wordsearch" ? wordSearchPages(space, wordList, seed, t) : crosswordPages(space, clueList, seed, t);
+      if (!result) {
+        setError(kind === "wordsearch" ? t("These words don't fit in the grid. Use shorter words (up to 15 letters).") : t("These words don't cross each other. Add words that share letters."));
+        return;
+      }
+      pages = [result.puzzle, result.answers];
+    } else if (kind === "finish") {
+      const page = finishDrawingPage(currentPage, space, t);
+      if (!page) {
+        setError(t("The left half of the current page is empty. Draw something first — the Mirror tool works best."));
+        return;
+      }
+      pages = [page];
+    } else {
+      const result = spotTheDifference(currentPage, space, differences, seed, t);
+      if (!result) {
+        setError(t("The current page needs at least 2 objects or pen strokes to make differences from. Draw or place something first."));
+        return;
+      }
+      pages = [result.puzzle, result.answers];
+    }
+    if (pages.length === 0) return;
+    onAdd(pages);
+    onClose();
+  }
+
+  const chip = (on: boolean) => cn("rounded-pill border px-3 py-1 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", on ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt");
+  const input = "h-9 rounded-row-sm border border-hairline bg-panel px-2.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ws-title"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        className="flex max-h-full w-[640px] max-w-full flex-col gap-4 overflow-auto rounded-panel bg-panel p-6 shadow-panel"
+      >
+        <div className="flex items-center justify-between">
+          <p id="ws-title" className="text-modal-title font-semibold tracking-[-0.02em] text-ink">
+            {t("Worksheets")}
+          </p>
+          <button type="button" aria-label={t("Close")} onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div role="radiogroup" aria-label={t("Worksheet type")} className="grid grid-cols-3 gap-2">
+          {KINDS.map(({ value, label, hint, Icon }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={kind === value}
+              title={t(hint)}
+              onClick={() => setKind(value)}
+              className={cn(
+                "flex items-center gap-2 rounded-row border px-2.5 py-2 text-left text-helper font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                kind === value ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt"
+              )}
+            >
+              <Icon size={18} className="shrink-0" />
+              {t(label)}
+            </button>
+          ))}
+        </div>
+        <p className="text-helper text-ink-muted">{t(KINDS.find((k) => k.value === kind)?.hint ?? "")}</p>
+
+        {kind === "letters" && (
+          <div className="flex flex-col gap-2">
+            <label className="flex flex-col gap-1">
+              <MetaLabel>{t("Letters")}</MetaLabel>
+              <input value={letters} onChange={(e) => setLetters(e.target.value)} className={input} placeholder={t("e.g. ABC or Α Β Γ")} />
+            </label>
+            <div className="flex gap-1.5">
+              {PRESETS.map((p) => (
+                <button key={p.label} type="button" onClick={() => setLetters(p.value)} className="rounded-pill border border-hairline px-3 py-1 text-helper text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {kind === "numbers" && (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <MetaLabel>{t("From")}</MetaLabel>
+              <input type="number" min={0} max={99} value={from} onChange={(e) => setFrom(Math.max(0, Number(e.target.value) || 0))} className={input} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <MetaLabel>{t("To")}</MetaLabel>
+              <input type="number" min={0} max={99} value={to} onChange={(e) => setTo(Math.max(0, Number(e.target.value) || 0))} className={input} />
+            </label>
+          </div>
+        )}
+
+        {kind === "dots" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {[...DOTS_DESIGNS, { value: "mine" as const, label: "My drawing" }].map((d) => (
+                <button
+                  key={d.value}
+                  type="button"
+                  aria-pressed={design === d.value}
+                  onClick={() => setDesign(d.value)}
+                  className={cn("rounded-pill border px-3 py-1 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", design === d.value ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt")}
+                >
+                  {t(d.label)}
+                </button>
+              ))}
+            </div>
+            {design === "mine" && <p className="text-helper text-ink-muted">{t("Follows the pen outline of the page you're on. Details drawn apart from the outline are left out.")}</p>}
+            <Slider label={t("Number of dots")} valueLabel={String(dotCount)} min={10} max={60} step={1} value={dotCount} onChange={setDotCount} />
+          </div>
+        )}
+
+        {kind === "maze" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-1.5">
+              {MAZE_LEVELS.map((l) => (
+                <button
+                  key={l.value}
+                  type="button"
+                  aria-pressed={level === l.value}
+                  onClick={() => setLevel(l.value)}
+                  className={cn("rounded-pill border px-3 py-1 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", level === l.value ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt")}
+                >
+                  {t(l.label)}
+                </button>
+              ))}
+            </div>
+            <Slider label={t("Mazes")} valueLabel={String(mazeCount)} min={1} max={10} step={1} value={mazeCount} onChange={setMazeCount} />
+          </div>
+        )}
+
+        {kind === "spot" && (
+          <div className="flex flex-col gap-2">
+            <p className="text-body text-ink-secondary">
+              {t("Uses the page you're on ({objects} objects, {strokes} strokes). Adds a puzzle page and an answer page.", { objects: currentPage.objects.length, strokes: currentPage.lines.filter((l) => l.tool === "pen").length })}
+            </p>
+            <Slider label={t("Differences")} valueLabel={String(differences)} min={3} max={10} step={1} value={differences} onChange={setDifferences} />
+          </div>
+        )}
+
+        {kind === "wordsearch" && (
+          <label className="flex flex-col gap-1">
+            <MetaLabel>{t("Words — one per line")}</MetaLabel>
+            <textarea value={words} onChange={(e) => setWords(e.target.value)} rows={7} className={cn(input, "h-auto resize-y py-2")} />
+            <span className="text-helper text-ink-muted">{t("{n} words. Accents are removed and letters are capitalised.", { n: wordList.length })}</span>
+          </label>
+        )}
+
+        {kind === "crossword" && (
+          <label className="flex flex-col gap-1">
+            <MetaLabel>{t("Word: clue — one per line")}</MetaLabel>
+            <textarea value={clues} onChange={(e) => setClues(e.target.value)} rows={7} className={cn(input, "h-auto resize-y py-2")} />
+            <span className="text-helper text-ink-muted">{t("{n} words. Words that can't cross the others are left out.", { n: clueList.length })}</span>
+          </label>
+        )}
+
+        {kind === "sudoku" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {([4, 6] as const).map((n) => (
+                <button key={n} type="button" aria-pressed={sudokuSize === n} onClick={() => setSudokuSize(n)} className={chip(sudokuSize === n)}>
+                  {n}×{n}
+                </button>
+              ))}
+              <span className="mx-1 w-px self-stretch bg-hairline" />
+              {SUDOKU_LEVELS.map((l) => (
+                <button key={l.value} type="button" aria-pressed={sudokuLevel === l.value} onClick={() => setSudokuLevel(l.value)} className={chip(sudokuLevel === l.value)}>
+                  {t(l.label)}
+                </button>
+              ))}
+            </div>
+            <Toggle checked={sudokuPictures} onChange={setSudokuPictures} label={t("Pictures instead of numbers")} />
+            <Slider label={t("Puzzles")} valueLabel={String(sudokuCount)} min={1} max={10} step={1} value={sudokuCount} onChange={setSudokuCount} />
+          </div>
+        )}
+
+        {kind === "shadows" && (
+          <p className="text-body text-ink-secondary">
+            {pagePictures.length >= 3 ? t("Uses the {n} pictures on the page you're on.", { n: Math.min(6, pagePictures.length) }) : t("Uses simple shapes. To use your own pictures, open a page with at least 3 pictures on it.")}
+          </p>
+        )}
+
+        {kind === "gridcopy" && <Slider label={t("Squares across")} valueLabel={String(gridCells)} min={3} max={12} step={1} value={gridCells} onChange={setGridCells} />}
+
+        {kind === "words" && (
+          <label className="flex flex-col gap-1">
+            <MetaLabel>{t("Words — one per line")}</MetaLabel>
+            <textarea value={traceWords} onChange={(e) => setTraceWords(e.target.value)} rows={6} className={cn(input, "h-auto resize-y py-2")} />
+            <span className="text-helper text-ink-muted">{t("4 words per page, written as you type them.")}</span>
+          </label>
+        )}
+
+        {kind === "counting" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-1.5">
+              <button type="button" aria-pressed={countingKind === "count"} onClick={() => setCountingKind("count")} className={chip(countingKind === "count")}>
+                {t("Count")}
+              </button>
+              <button type="button" aria-pressed={countingKind === "add"} onClick={() => setCountingKind("add")} className={chip(countingKind === "add")}>
+                {t("Add")}
+              </button>
+            </div>
+            <Slider label={t("Up to")} valueLabel={String(countingMax)} min={3} max={10} step={1} value={countingMax} onChange={setCountingMax} />
+            <Slider label={t("Pages")} valueLabel={String(countingPages)} min={1} max={10} step={1} value={countingPages} onChange={setCountingPages} />
+          </div>
+        )}
+
+        {kind === "cbn" && (
+          <div className="flex flex-col gap-3">
+            <Slider label={t("Colors")} valueLabel={String(colorCount)} min={3} max={NUMBER_COLORS.length} step={1} value={colorCount} onChange={setColorCount} />
+            <div className="flex flex-wrap gap-1.5" aria-hidden>
+              {NUMBER_COLORS.slice(0, colorCount).map((c, i) => (
+                <span key={c.hex} className="flex items-center gap-1.5 rounded-pill border border-hairline px-2 py-0.5 text-helper text-ink-secondary">
+                  <span className="h-3 w-3 rounded-pill" style={{ background: c.hex }} />
+                  {i + 1} {t(c.name)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {kind === "finish" && (
+          <p className="text-body text-ink-secondary">{t("Keeps the left half of the page you're on, with a dashed line down the middle and a grid on the right to copy onto.")}</p>
+        )}
+
+        {error && <p className="text-helper text-error">{error}</p>}
+
+        <div className="flex items-center justify-end gap-2 border-t border-hairline pt-4">
+          <Button variant="ghost" onClick={onClose}>
+            {t("Cancel")}
+          </Button>
+          <Button variant="primary" onClick={() => void build()} disabled={pageCount === 0 || busy} icon={busy ? <Loader2 size={14} className="animate-spin" /> : undefined}>
+            {pageCount === 1 ? t("Add 1 page") : t("Add {n} pages", { n: pageCount })}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
