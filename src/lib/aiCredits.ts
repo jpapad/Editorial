@@ -3,6 +3,7 @@
 // provider is called, so it can't be skipped from the browser.
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { takeRate } from "@/lib/rateLimit";
 
 export type CreditKind = "ai_image" | "ai_photo";
 
@@ -25,6 +26,8 @@ export async function reserveCredits(kind: CreditKind, units: number): Promise<C
   const supabase = await createServerSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { ok: false, status: 401, error: "Sign in to use AI features." };
+  // Bursts are stopped before the monthly limit is even looked at (see rateLimit.ts).
+  if (!takeRate("aiImage", `u:${auth.user.id}`).ok) return { ok: false, status: 429, error: "Too many requests — wait a moment and try again." };
 
   const { data, error } = await supabase.rpc("consume_ai_credit", { credit_kind: kind, credit_units: units });
   if (error) {

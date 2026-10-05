@@ -18,7 +18,8 @@ Next.js 16 (App Router, Turbopack) · React 19 · Konva · Supabase (Postgres + 
 | Τάξεις & οικογένειες: τα παιδιά μπαίνουν με κωδικό + δύο εικόνες | `/studio/groups` (ενήλικας), `/kids`, `/kids/<code>` (παιδί) |
 | Κοινοποίηση για ζωγραφική χωρίς λογαριασμό | `/share/<token>` |
 | Εγκαταστάσιμη εφαρμογή (PWA) | `src/app/manifest.ts`, `public/sw.js` |
-| Admin (supervisor) | `/studio/admin` |
+| Admin (supervisor), με καταγραφή σφαλμάτων server και browser | `/studio/admin`, `src/instrumentation*.ts`, `src/lib/errorLog.ts` |
+| Όρια αιτημάτων ανά λεπτό στα API (AI, export, αναφορές σφαλμάτων) | `src/lib/rateLimit.ts` |
 
 ## Ξεκίνημα
 

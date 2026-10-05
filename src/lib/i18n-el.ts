@@ -1188,4 +1188,13 @@ export const EL: Record<string, string> = {
   "Can edit": "Επεξεργασία",
   "Can view and comment": "Προβολή και σχόλια",
   "Shared with me": "Κοινόχρηστα μαζί μου",
+  "Too many requests — wait a moment and try again.": "Πάρα πολλά αιτήματα — περίμενε λίγο και ξαναδοκίμασε.",
+  "This book is too big to export in one go. Try fewer pages.": "Το βιβλίο είναι πολύ μεγάλο για εξαγωγή με τη μία. Δοκίμασε λιγότερες σελίδες.",
+  "Recent errors": "Πρόσφατα σφάλματα",
+  "{n} kinds": "{n} είδη",
+  "No errors recorded. 🎉": "Δεν έχει καταγραφεί κανένα σφάλμα. 🎉",
+  "Server": "Server",
+  "Browser": "Browser",
+  "{n}× · last {date}": "{n}× · τελευταία {date}",
+  "Fixed": "Διορθώθηκε",
 };

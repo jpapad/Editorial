@@ -5,6 +5,7 @@
 // not add `export const runtime = "edge"` (pdfkit doesn't exist on edge).
 
 import { NextResponse } from "next/server";
+import { requesterKey, takeRate, tooManyRequests } from "@/lib/rateLimit";
 import { exportRasterPagesToPdf, type ExportPage } from "@/utils/rasterPdfExporter";
 
 interface ExportRequestBody {
@@ -21,7 +22,17 @@ function isExportPage(p: unknown): p is ExportPage {
   return typeof o.src === "string" && num(o.pageWidth, 1) && num(o.pageHeight, 1) && num(o.imageWidth, 1) && num(o.imageHeight, 1) && num(o.x, -MAX_PAGE_PT) && num(o.y, -MAX_PAGE_PT);
 }
 
+/** A whole book of 300 DPI pages is big, but not this big. */
+const MAX_BODY_BYTES = 250 * 1024 * 1024;
+
 export async function POST(request: Request) {
+  // Open to the signed-out editor too, so counted per IP.
+  const rate = takeRate("export", requesterKey(request));
+  if (!rate.ok) return tooManyRequests(rate.retryAfter);
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "This book is too big to export in one go. Try fewer pages." }, { status: 413 });
+  }
+
   let body: ExportRequestBody;
   try {
     body = (await request.json()) as ExportRequestBody;

@@ -95,6 +95,8 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       return json(book ? { title: book.title, trim_size: book.trim_size, bleed: book.bleed, pages: book.pages.filter((pg) => !pg.isBlankBack).map((pg) => { const rest = { ...pg }; delete rest.fillDataUrl; delete rest.completedAt; delete rest.thumbnailDataUrl; return rest; }) } : null);
     }
     if (db.kids && url.pathname.startsWith('/rest/v1/rpc/kid_')) return kidsRoute(db.kids, url, method, req, json, single, onWrite);
+    if (url.pathname === '/rest/v1/rpc/admin_recent_errors') return db.errors ? json(db.errors) : json({ message: 'Could not find the function public.admin_recent_errors' }, 404);
+    if (url.pathname === '/rest/v1/rpc/admin_clear_error') { const id = JSON.parse(req.postData()).error_id; db.errors = (db.errors ?? []).filter((e) => e.id !== id); onWrite?.('clear_error', id); return json(null); }
     if (url.pathname === '/rest/v1/rpc/book_role') return db.team ? json(db.team.role ?? 'owner') : json({ message: 'Could not find the function public.book_role' }, 404);
     if (url.pathname === '/rest/v1/rpc/books_shared_with_me') return db.team ? json(db.team.shared ?? []) : json({ message: 'Could not find the function' }, 404);
     if (url.pathname === '/rest/v1/rpc/accept_book_invite') {

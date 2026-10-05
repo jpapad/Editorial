@@ -218,6 +218,10 @@ export type Database = {
       log_export: { Args: { export_kind: string }; Returns: undefined };
       admin_set_ai_limit: { Args: { target_user: string; new_limit: number }; Returns: undefined };
       admin_stats: { Args: Record<string, never>; Returns: AdminStats };
+      // sql/12_app_errors.sql
+      log_app_error: { Args: { error_source: string; error_message: string; error_path?: string; error_digest?: string | null; error_agent?: string | null }; Returns: undefined };
+      admin_recent_errors: { Args: { max_rows?: number }; Returns: AppErrorRow[] };
+      admin_clear_error: { Args: { error_id: number }; Returns: undefined };
       // sql/11_book_members.sql
       book_role: { Args: { target: string }; Returns: "owner" | "editor" | "viewer" | null };
       accept_book_invite: { Args: { invite: string }; Returns: string | null };
@@ -230,6 +234,18 @@ export type Database = {
       kid_save: { Args: { kid_token: string; book: string; page: string; page_fill: string | null; page_thumb: string | null; done: boolean }; Returns: boolean };
     };
   };
+};
+
+export type AppErrorRow = {
+  id: number;
+  source: "server" | "client";
+  message: string;
+  path: string;
+  digest: string | null;
+  user_agent: string | null;
+  first_at: string;
+  last_at: string;
+  hits: number;
 };
 
 export type BookMemberRow = {

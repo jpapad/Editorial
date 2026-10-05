@@ -9,7 +9,7 @@ import StatusDot from "@/components/studio/ui/StatusDot";
 import { supabase } from "@/lib/supabase/client";
 import { useSession } from "@/lib/auth";
 import { deleteBook } from "@/utils/storage";
-import type { AdminStats, AdminUserRow, BookRow } from "@/types/database";
+import type { AdminStats, AdminUserRow, AppErrorRow, BookRow } from "@/types/database";
 import ActivityChart from "@/components/studio/screens/ActivityChart";
 import { useT } from "@/lib/i18n";
 
@@ -20,7 +20,8 @@ type LoadState =
   | { kind: "forbidden" }
   | { kind: "error"; message: string }
   // stats: null until the usage migration (sql/05_usage_and_templates.sql) has been run.
-  | { kind: "ready"; users: AdminUserRow[]; books: AdminBook[]; stats: AdminStats | null };
+  // errors: null until sql/12_app_errors.sql has been run.
+  | { kind: "ready"; users: AdminUserRow[]; books: AdminBook[]; stats: AdminStats | null; errors: AppErrorRow[] | null };
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const formatDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : "—");
@@ -43,14 +44,15 @@ export default function AdminScreen() {
     if (adminError) return setState({ kind: "error", message: adminError.message });
     if (!isAdmin) return setState({ kind: "forbidden" });
 
-    const [usersRes, booksRes, statsRes] = await Promise.all([
+    const [usersRes, booksRes, statsRes, errorsRes] = await Promise.all([
       supabase.rpc("admin_list_users"),
       supabase.from("books").select("id, user_id, title, status, collection, updated_at").order("updated_at", { ascending: false }),
       supabase.rpc("admin_stats"),
+      supabase.rpc("admin_recent_errors", { max_rows: 50 }),
     ]);
     if (usersRes.error) return setState({ kind: "error", message: usersRes.error.message });
     if (booksRes.error) return setState({ kind: "error", message: booksRes.error.message });
-    setState({ kind: "ready", users: usersRes.data ?? [], books: booksRes.data ?? [], stats: statsRes.error ? null : (statsRes.data ?? null) });
+    setState({ kind: "ready", users: usersRes.data ?? [], books: booksRes.data ?? [], stats: statsRes.error ? null : (statsRes.data ?? null), errors: errorsRes.error ? null : (errorsRes.data ?? []) });
   }, []);
 
   useEffect(() => {
@@ -76,6 +78,15 @@ export default function AdminScreen() {
       await deleteBook(book.id);
     } catch (err) {
       window.alert(err instanceof Error ? err.message : t("Couldn't delete the book."));
+      return;
+    }
+    await load();
+  }
+
+  async function handleClearError(id: number) {
+    const { error } = await supabase.rpc("admin_clear_error", { error_id: id });
+    if (error) {
+      window.alert(error.message);
       return;
     }
     await load();
@@ -167,6 +178,35 @@ export default function AdminScreen() {
         <Card className="grid grid-cols-1 gap-6 p-5 sm:grid-cols-2">
           <ActivityChart title={t("AI images per day")} unit={t("images")} points={state.stats.daily.map((d) => ({ day: d.day, value: d.ai }))} />
           <ActivityChart title={t("Exports per day")} unit={t("exports")} points={state.stats.daily.map((d) => ({ day: d.day, value: d.exports }))} />
+        </Card>
+      )}
+
+      {state.errors && (
+        <Card className="flex flex-col">
+          <div className="flex items-center justify-between gap-4 border-b border-hairline px-5 py-4">
+            <p className="text-section-title font-semibold text-ink">{t("Recent errors")}</p>
+            <MetaLabel>{t("{n} kinds", { n: state.errors.length })}</MetaLabel>
+          </div>
+          {state.errors.length === 0 ? (
+            <p className="px-5 py-4 text-body text-ink-secondary">{t("No errors recorded. 🎉")}</p>
+          ) : (
+            <ul className="flex max-h-[360px] flex-col divide-y divide-hairline overflow-y-auto" aria-label={t("Recent errors")}>
+              {state.errors.map((e) => (
+                <li key={e.id} className="flex items-start gap-3 px-5 py-3">
+                  <StatusDot tone={e.source === "server" ? "error" : "warning"} />
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-pw-mono text-mono text-ink">{e.message}</p>
+                    <p className="text-helper text-ink-muted">
+                      {e.source === "server" ? t("Server") : t("Browser")} · {e.path || "—"} · {t("{n}× · last {date}", { n: e.hits, date: formatDate(e.last_at) })}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => void handleClearError(e.id)}>
+                    {t("Fixed")}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       )}
 

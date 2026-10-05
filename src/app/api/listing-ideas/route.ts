@@ -2,6 +2,7 @@
 // Signed-in only. One cheap text call — no AI credits.
 
 import { NextResponse } from "next/server";
+import { requesterKey, takeRate, tooManyRequests } from "@/lib/rateLimit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listingIdeasWithAi, NoTextProviderError } from "@/services/textAi";
 
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Sign in to use AI features." }, { status: 401 });
+  const rate = takeRate("aiText", requesterKey(request, auth.user.id));
+  if (!rate.ok) return tooManyRequests(rate.retryAfter);
 
   try {
     const ideas = await listingIdeasWithAi({

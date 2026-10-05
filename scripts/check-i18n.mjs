@@ -77,6 +77,8 @@ const EXTRA = [
   "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Brown", "Peach", "Sage green", "Gray blue", "Black",
   // KidsGroupApp's not-found messages (rendered via t(stage.message)).
   "We couldn't find that code. Check it with your teacher or parent.", "Classes aren't set up yet.",
+  // Rate-limit / export-size messages from the API (shown through aiErrorText or as the error).
+  "Too many requests — wait a moment and try again.", "This book is too big to export in one go. Try fewer pages.",
   "Rectangle", "Circle", "Triangle", "Star", "Heart", "Hexagon", "Line", "Arrow", "Left", "Center", "Right",
 ];
 

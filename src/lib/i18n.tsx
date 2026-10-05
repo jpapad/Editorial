@@ -69,6 +69,7 @@ export function useT(): TFunction {
 
 /** User-facing text for an AI route's HTTP error (the server's own message is English). */
 export function aiErrorText(t: TFunction, status: number, fallback: string): string {
+  if (status === 429 && /too many requests/i.test(fallback)) return t("Too many requests — wait a moment and try again.");
   if (status === 429) return t("You've used all your AI credits for this month. They reset on the 1st — or get more under Plans & credits.");
   if (status === 401) return t("Sign in to use AI features.");
   return fallback;

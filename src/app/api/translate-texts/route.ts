@@ -3,6 +3,7 @@
 // can't be used to translate arbitrary amounts of text.
 
 import { NextResponse } from "next/server";
+import { requesterKey, takeRate, tooManyRequests } from "@/lib/rateLimit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isTranslateCode, TRANSLATE_BATCH, TRANSLATE_TEXT_MAX } from "@/services/bookTexts";
 import { NoTextProviderError, translateWithAi } from "@/services/textAi";
@@ -23,6 +24,8 @@ export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Sign in to use AI features." }, { status: 401 });
+  const rate = takeRate("aiText", requesterKey(request, auth.user.id));
+  if (!rate.ok) return tooManyRequests(rate.retryAfter);
 
   try {
     return NextResponse.json({ translations: await translateWithAi(texts as string[], body.target) });

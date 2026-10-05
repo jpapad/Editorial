@@ -191,8 +191,60 @@ check((await as(null, `select public.kid_home('${kidToken}') r`))[0].r === null,
 await as(alice, `delete from public.kid_groups where id = '${grp.id}'`);
 check((await db.query("select count(*)::int n from public.kid_work")).rows[0].n === 0, "deleting the group removes its children and their work");
 
+// ---- working together (sql/11_book_members.sql)
+const teamBook = (await as(alice, `insert into public.books (user_id, title, pages) values ('${alice}', 'Team book', '[]') returning id, updated_at`))[0];
+const carol = "44444444-4444-4444-8444-444444444444";
+await db.exec(`insert into auth.users (id, email) values ('${carol}', 'carol@x.gr')`);
+check((await as(bob, `select public.book_role('${teamBook.id}') r`))[0].r === null && (await as(bob, `select count(*)::int n from public.books where id = '${teamBook.id}'`))[0].n === 0, "before an invite, others can't see the book");
+check(await fails(bob, `insert into public.book_invites (book_id) values ('${teamBook.id}')`), "only the owner makes invite links");
+const editInvite = (await as(alice, `insert into public.book_invites (book_id, role) values ('${teamBook.id}', 'editor') returning token`))[0].token;
+const viewInvite = (await as(alice, `insert into public.book_invites (book_id, role) values ('${teamBook.id}', 'viewer') returning token`))[0].token;
+check((await as(bob, `select public.accept_book_invite('${editInvite}') r`))[0].r === teamBook.id, "opening the editor link joins the book");
+await as(carol, `select public.accept_book_invite('${viewInvite}')`);
+check((await as(bob, `select public.book_role('${teamBook.id}') r`))[0].r === "editor" && (await as(carol, `select public.book_role('${teamBook.id}') r`))[0].r === "viewer" && (await as(alice, `select public.book_role('${teamBook.id}') r`))[0].r === "owner", "roles: owner, editor, viewer");
+check((await as(alice, `select public.accept_book_invite('${editInvite}') r`))[0].r === teamBook.id && (await as(alice, "select count(*)::int n from public.book_members where user_id = auth.uid()"))[0].n === 0, "the owner opening their own link isn't added as a member");
+await as(bob, `update public.books set title = 'Edited by Bob' where id = '${teamBook.id}'`);
+check((await db.query(`select title from public.books where id = '${teamBook.id}'`)).rows[0].title === "Edited by Bob", "an editor can change the book");
+await as(carol, `update public.books set title = 'Edited by Carol' where id = '${teamBook.id}'`);
+check((await db.query(`select title from public.books where id = '${teamBook.id}'`)).rows[0].title === "Edited by Bob" && (await as(carol, `select count(*)::int n from public.books where id = '${teamBook.id}'`))[0].n === 1, "a viewer can read it but not change it");
+check(await fails(bob, `update public.books set user_id = '${bob}' where id = '${teamBook.id}'`), "an editor can't take the book over");
+check(await fails(alice, `update public.books set user_id = '${bob}' where id = '${teamBook.id}'`), "and the owner can't give it away by mistake");
+await as(bob, `delete from public.books where id = '${teamBook.id}'`);
+check((await db.query(`select count(*)::int n from public.books where id = '${teamBook.id}'`)).rows[0].n === 1, "an editor can't delete the book");
+const sharedList = await as(bob, "select * from public.books_shared_with_me()");
+check(sharedList.length === 1 && sharedList[0].role === "editor" && sharedList[0].book.title === "Edited by Bob", "'Shared with me' lists the book with my role");
+check((await as(carol, "select count(*)::int n from public.book_members"))[0].n === 2, "members see who else is on the book");
+await as(bob, `insert into public.page_comments (book_id, page_id, body) values ('${teamBook.id}', 'p1', 'Looks great')`);
+check((await as(carol, "select count(*)::int n from public.page_comments where body = 'Looks great'"))[0].n === 1, "members read and write comments on the book");
+await as(bob, `update public.book_members set role = 'editor' where user_id = '${carol}'`);
+check((await as(carol, `select public.book_role('${teamBook.id}') r`))[0].r === "viewer", "only the owner changes roles");
+await as(alice, `update public.book_invites set revoked_at = now() where token = '${editInvite}'`);
+const dan = "55555555-5555-4555-8555-555555555555";
+await db.exec(`insert into auth.users (id, email) values ('${dan}', 'dan@x.gr')`);
+check((await as(dan, `select public.accept_book_invite('${editInvite}') r`))[0].r === null, "a turned-off link no longer works");
+await as(carol, `delete from public.book_members where user_id = '${carol}'`);
+check((await as(carol, `select public.book_role('${teamBook.id}') r`))[0].r === null, "a member can leave the book");
+await as(carol, `select public.accept_book_invite('${viewInvite}')`);
+await as(bob, "delete from public.book_members");
+const left = (await db.query(`select user_id from public.book_members where book_id = '${teamBook.id}'`)).rows.map((r) => r.user_id);
+check(left.length === 1 && left[0] === carol, "a member deleting 'everyone' only removes themselves", JSON.stringify(left));
+
+// ---- error log (sql/12_app_errors.sql)
+await as(null, "select public.log_app_error('client', 'TypeError: x is undefined', '/studio/editor', null, 'Safari')");
+await as(null, "select public.log_app_error('client', 'TypeError: x is undefined', '/studio/editor')");
+await as(null, `select public.log_app_error('client', '${"y".repeat(2000)}', '/kids')`);
+await as(null, "select public.log_app_error('hacker', 'nope', '/')");
+const errs = await as(admin, "select * from public.admin_recent_errors(10)");
+const te = errs.find((e) => e.message.startsWith("TypeError"));
+check(errs.length === 2 && te.hits === 2 && te.user_agent === "Safari", "the same error twice is one row with a count; unknown sources are ignored", JSON.stringify(errs.map((e) => [e.message.slice(0, 12), e.hits])));
+check(errs.every((e) => e.message.length <= 500), "messages are cut to a bounded length");
+check(await fails(bob, "select * from public.admin_recent_errors(10)") && await fails(null, "select count(*) from public.app_errors"), "only supervisors read the error log");
+await as(admin, `select public.admin_clear_error(${te.id})`);
+check((await as(admin, "select count(*)::int n from public.admin_recent_errors(10)"))[0].n === 1, "a supervisor clears a fixed error");
+
 const stats = (await as(admin, "select public.admin_stats() r"))[0].r;
-check(stats.users === 3 && stats.daily.length === 30, "admin_stats", `users ${stats.users}, ${stats.daily.length} days`);
+const userCount = (await db.query("select count(*)::int n from auth.users")).rows[0].n;
+check(stats.users === userCount && stats.daily.length === 30, "admin_stats", `users ${stats.users} of ${userCount}, ${stats.daily.length} days`);
 
 console.log(failures ? `${failures} FAILED` : "ALL PASSED");
 process.exit(failures ? 1 : 0);
