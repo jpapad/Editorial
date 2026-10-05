@@ -10,9 +10,7 @@ import RightPanel from "@/components/studio/editor/RightPanel";
 import ShortcutsModal from "@/components/studio/editor/ShortcutsModal";
 import AiStudioPanel, { type ImageSize } from "@/components/studio/editor/AiStudioPanel";
 import CommentsPanel from "@/components/studio/editor/CommentsPanel";
-import { supabase } from "@/lib/supabase/client";
 import { useSession } from "@/lib/auth";
-import { addComment, deleteComment, isMissingCommentsTable, listComments, setCommentResolved, type PageComment } from "@/utils/comments";
 import BookAssemblyScreen from "@/components/studio/screens/BookAssemblyScreen";
 import BookPreviewModal from "@/components/editor/BookPreviewModal";
 import PreflightBlockingModal, { type FlaggedPage, type PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
@@ -20,7 +18,7 @@ import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from 
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
 import { eraseSegment, moveStrokes } from "@/components/editor/strokeTools";
 import { vectorizeImageSrc } from "@/lib/vectorizeImage";
-import { captureInk, captureRegion, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
+import { captureInk, captureRegion, captureStage } from "@/components/editor/CanvasEditor";
 import { deleteMyStamp, listMyStamps, placeMyStamp, saveMyStamp, toMyStamp, type MyStamp } from "@/utils/myStamps";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
 import PublishTemplateDialog from "@/components/studio/editor/PublishTemplateDialog";
@@ -59,13 +57,13 @@ import ListingKitModal from "@/components/studio/editor/ListingKitModal";
 import WorksheetDialog from "@/components/studio/editor/WorksheetDialog";
 import ShareDialog from "@/components/studio/editor/ShareDialog";
 import { convertPages, geometryFromSpace, interiorSpace, needsConversion } from "@/utils/pageGeometry";
-import { coverLayout, coverSafeAreas, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
+import { coverLayout, emptyCover, refitCover, type CoverLayout } from "@/utils/coverGeometry";
 import { AGE_GROUPS } from "@/components/studio/editor/ageCheck";
 import { findGaps, type GapMarker } from "@/components/studio/editor/gapCheck";
 import { checkAge, type AgeCheckResult, type AgeGroup } from "@/components/studio/editor/ageCheck";
 import { isPrimaryModifier, isTypingTarget } from "@/components/studio/editor/keyboard";
 import { FONT_OPTIONS } from "@/components/editor/kidFonts";
-import { aiErrorText, useLanguage, useT, type TFunction } from "@/lib/i18n";
+import { aiErrorText, useLanguage, useT } from "@/lib/i18n";
 import type { EditorMode } from "@/components/studio/types";
 import type {
   BookPage,
@@ -87,18 +85,19 @@ import type {
   TextData,
 } from "@/types/editor";
 import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPage, renderPdf } from "@/utils/pdfExport";
-import { BookConflictError, createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
+import { createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import { myBookRole, type BookRole } from "@/utils/collaborators";
 import TeamDialog from "@/components/studio/editor/TeamDialog";
+import { computeStampDimensions, coverGuides, cropImage, logExport, renumber, slugify, waitForNextPaint } from "@/components/studio/editor/editorHelpers";
+import { useBookComments } from "@/components/studio/editor/useBookComments";
+import { useBookAutosave } from "@/components/studio/editor/useBookAutosave";
+import { useUndoHistory } from "@/components/studio/editor/useUndoHistory";
 import { clampObjectsToMargin, pagesNeededForMultipleOf4, runEditorPreflightCheck, thickenThinStrokes, type EditorPreflightIssue } from "@/utils/editorPreflight";
 import { alignDeltas, distributeDeltas, flippedHorizontally, flippedVertically, objectBounds, unionBounds, type AlignEdge } from "@/utils/objectGeometry";
 import { DEFAULT_TRIM_SIZE_ID, getTrimSize, trimShortLabel } from "@/utils/trimSizes";
 
 const MAX_HISTORY = 50;
-const DEFAULT_STAMP_SIZE = 120;
-const MAX_STAMP_DIMENSION = 220;
 const DEFAULT_TITLE = "My Coloring Book";
-const AUTOSAVE_DEBOUNCE_MS = 500;
 const THUMBNAIL_PIXEL_RATIO = 0.2; // low-res preview art for Library/Assemble — not print quality, just enough to replace the striped placeholder
 const PREVIEW_PIXEL_RATIO = 1.5;
 const NUDGE_HISTORY_WINDOW_MS = 600; // a burst of arrow-key nudges is one undo step
@@ -106,70 +105,6 @@ const NUDGE_HISTORY_WINDOW_MS = 600; // a burst of arrow-key nudges is one undo 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const TOOL_KEYS: Record<string, DrawingTool> = { v: "select", p: "pen", e: "eraser", s: "stamp", r: "shape", t: "text", f: "fill", b: "brush", l: "lasso", c: "curve" };
-
-function waitForNextPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}
-
-function computeStampDimensions(naturalSize?: { width: number; height: number }) {
-  if (!naturalSize || !naturalSize.width || !naturalSize.height) {
-    return { width: DEFAULT_STAMP_SIZE, height: DEFAULT_STAMP_SIZE };
-  }
-  const scale = Math.min(MAX_STAMP_DIMENSION / naturalSize.width, MAX_STAMP_DIMENSION / naturalSize.height, 1);
-  return { width: naturalSize.width * scale, height: naturalSize.height * scale };
-}
-
-function slugify(title: string) {
-  const slug = title
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-  return slug || "coloring-book-project";
-}
-
-/** Cuts `crop` (canvas pixels) out of a PNG data URL — the bleed band off a page picture. */
-async function cropImage(src: string, crop: { x: number; y: number; width: number; height: number }): Promise<string> {
-  const img = new window.Image();
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("unreadable"));
-    img.src = src;
-  });
-  if (crop.x === 0 && crop.y === 0 && crop.width >= img.naturalWidth && crop.height >= img.naturalHeight) return src;
-  const canvas = document.createElement("canvas");
-  canvas.width = crop.width;
-  canvas.height = crop.height;
-  canvas.getContext("2d")?.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
-  return canvas.toDataURL("image/png");
-}
-
-function coverGuides(layout: CoverLayout, t: TFunction): GuideSpec {
-  const { back, spineRect, front } = layout;
-  const label = (x: number, text: string) => ({ x: x + 6, y: back.top + 6, text, color: "#3357d4" });
-  return {
-    trim: layout.trim,
-    safe: coverSafeAreas(layout),
-    folds: [
-      [spineRect.left, 0, spineRect.left, layout.space.height],
-      [spineRect.right, 0, spineRect.right, layout.space.height],
-    ],
-    blocked: [layout.barcode],
-    labels: [label(back.left, t("BACK COVER")), label(front.left, t("FRONT COVER"))],
-  };
-}
-
-/** Counts an export for the admin statistics. Fire-and-forget: never blocks or fails an export (e.g. before the usage migration exists). */
-function logExport(kind: "export_pdf" | "export_cover") {
-  void supabase.rpc("log_export", { export_kind: kind }).then(() => undefined);
-}
-
-/** Page numbers follow array order — re-stamp them after any structural change. */
-function renumber(pages: BookPage[]): BookPage[] {
-  return syncPageNumbers(pages.map((p, i) => (p.pageNumber === i + 1 ? p : { ...p, pageNumber: i + 1 })));
-}
 
 /**
  * The real, merged Pagewright editor — 2b's chrome (top bar, tool rail,
@@ -243,7 +178,7 @@ interface EditorShellLoadedProps extends EditorShellProps {
 function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialRole }: EditorShellLoadedProps) {
   const t = useT();
   const { lang } = useLanguage();
-  const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
+  const [createdAt] = useState(() => initialBook?.createdAt ?? new Date().toISOString());
 
   const [title, setTitle] = useState(initialBook?.title || t(DEFAULT_TITLE));
   // Fixed at creation (Onboarding's trim-size row), not editable here — see
@@ -294,12 +229,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
   const sharedEditor = initialRole === "editor";
   const reviewMode = Boolean(user && initialBook?.ownerId && initialBook.ownerId !== user.id && !sharedEditor);
   const [showTeam, setShowTeam] = useState(false);
-  // Last version of the book this tab knows about: a save only goes through if nobody saved since.
-  const lastSavedAtRef = useRef<string | null>(initialBook?.updatedAt ?? null);
-  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
-  const [conflict, setConflict] = useState(false);
   const [sidePanel, setSidePanel] = useState<"default" | "ai" | "comments">("default");
-  const [isSupervisor, setIsSupervisor] = useState(false);
   const [showListing, setShowListing] = useState(false);
   const [showPublishTemplate, setShowPublishTemplate] = useState(false);
   const [showWorksheets, setShowWorksheets] = useState(false);
@@ -315,22 +245,12 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
   const [mockupImages, setMockupImages] = useState<string[] | null | undefined>(undefined);
   const [colorPreviewInk, setColorPreviewInk] = useState<PixelBuffer | null>(null);
   const [showShare, setShowShare] = useState(false);
-  const [comments, setComments] = useState<PageComment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(true);
-  const [commentsError, setCommentsError] = useState<string | null>(null);
   // Tied to the exact page object it was computed for: any edit produces a
   // new page object, so stale markers disappear on their own.
   const [gapCheck, setGapCheck] = useState<{ page: BookPage; markers: GapMarker[] } | null>(null);
   const [ageCheck, setAgeCheck] = useState<{ page: BookPage; result: AgeCheckResult } | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup>("3-5");
 
-  // Undo/redo cover page content, page-list changes and the cover alike:
-  // each entry is a full snapshot.
-  type Snapshot = { pages: BookPage[]; cover: CoverDesign | null };
-  const historyRef = useRef<Snapshot[]>([]);
-  const redoRef = useRef<Snapshot[]>([]);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
   const lastNudgeRef = useRef(0);
 
   const stageRef = useRef<Konva.Stage | null>(null);
@@ -363,55 +283,17 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
 
   // Signed out (the local editor at /): nothing to save to, so don't try —
   // every attempt would fail with an alert.
-  /** One save, after any still in flight (each needs the previous one's version to check against). `force` overwrites a newer save by someone else. */
-  function queueSave(force = false) {
-    saveChainRef.current = saveChainRef.current.then(async () => {
-      // Big pictures are uploaded once and saved as links (imageStore.ts); whatever can't be uploaded is saved embedded, as before.
-      const stored = await externalize(pages, coverDesign, uploadBookImage, uploadedImagesRef.current);
-      const updatedAt = new Date().toISOString();
-      try {
-        await saveBook({ id: bookId, title, pages: stored.pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: stored.cover, createdAt: createdAtRef.current, updatedAt }, { expectedUpdatedAt: force ? null : lastSavedAtRef.current });
-        lastSavedAtRef.current = updatedAt;
-        if (force) setConflict(false);
-      } catch (err) {
-        if (err instanceof BookConflictError) setConflict(true);
-        else window.alert(err instanceof Error ? err.message : t("Could not save this book."));
-      }
-    });
-  }
+  const { conflict, saveNow } = useBookAutosave({
+    enabled: Boolean(bookId && !sessionLoading && user && !reviewMode),
+    initialUpdatedAt: initialBook?.updatedAt ?? null,
+    draft: { id: bookId, title, pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: coverDesign, createdAt: createdAt },
+    // Big pictures are uploaded once and saved as links (imageStore.ts); whatever can't be uploaded is saved embedded, as before.
+    prepare: (p, c) => externalize(p, c, uploadBookImage, uploadedImagesRef.current),
+    t,
+  });
 
-  useEffect(() => {
-    if (!bookId || sessionLoading || !user || reviewMode || conflict) return;
-    const timer = setTimeout(() => queueSave(), AUTOSAVE_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- queueSave reads these same values
-  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, user, reviewMode, conflict, t]);
-
-  // Comments + supervisor flag. Both degrade quietly: no migration yet
-  // means no comments table (a friendly note in the panel), not an error.
-  useEffect(() => {
-    if (sessionLoading || !user) return;
-    let cancelled = false;
-    supabase.rpc("is_admin").then(({ data }) => {
-      if (!cancelled) setIsSupervisor(data === true);
-    });
-    listComments(bookId)
-      .then((rows) => {
-        if (cancelled) return;
-        setComments(rows);
-        setCommentsError(null);
-      })
-      .catch((err: Error) => {
-        if (cancelled) return;
-        setCommentsError(isMissingCommentsTable(err.message) ? "Comments aren't set up yet — run the page_comments migration in Supabase." : err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setCommentsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId, user, sessionLoading]);
+  const bookComments = useBookComments(bookId, Boolean(user), sessionLoading, t);
+  const { comments, isSupervisor, openCounts: openCommentCounts } = bookComments;
 
   // Reviewers land on the comments panel.
   const openedForReviewRef = useRef(false);
@@ -421,51 +303,12 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     setSidePanel("comments");
   }, [reviewMode]);
 
-  async function handleAddComment(body: string) {
-    try {
-      const created = await addComment(bookId, activePageId, body);
-      setComments((prev) => [...prev, created]);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t("Could not post the comment."));
-      throw err;
-    }
-  }
-
-  function handleSetCommentResolved(id: string, resolved: boolean) {
-    setComments((prev) => prev.map((c) => (c.id === id ? { ...c, resolved } : c)));
-    setCommentResolved(id, resolved).catch((err: Error) => {
-      setComments((prev) => prev.map((c) => (c.id === id ? { ...c, resolved: !resolved } : c)));
-      window.alert(err.message);
-    });
-  }
-
-  function handleDeleteComment(id: string) {
-    const previous = comments;
-    setComments((prev) => prev.filter((c) => c.id !== id));
-    deleteComment(id).catch((err: Error) => {
-      setComments(previous);
-      window.alert(err.message);
-    });
-  }
-
-  const openCommentCounts = comments.reduce<Record<string, number>>((acc, c) => {
-    if (!c.resolved) acc[c.page_id] = (acc[c.page_id] ?? 0) + 1;
-    return acc;
-  }, {});
+  const handleAddComment = (body: string) => bookComments.add(activePageId, body);
 
   // ---------- History ----------
 
-  function snapshot(): Snapshot {
-    return structuredClone({ pages, cover: coverDesign });
-  }
-
-  function pushHistory() {
-    historyRef.current = [...historyRef.current, snapshot()].slice(-MAX_HISTORY);
-    redoRef.current = [];
-    setCanUndo(true);
-    setCanRedo(false);
-  }
-
+  // Undo/redo cover page content, page-list changes and the cover alike: each step is a full snapshot.
+  type Snapshot = { pages: BookPage[]; cover: CoverDesign | null };
   function restoreSnapshot({ pages: next, cover: nextCover }: Snapshot) {
     setPages(next);
     setCoverDesign(nextCover);
@@ -473,26 +316,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     const exists = (id: string) => next.some((p) => p.objects.some((o) => o.id === id)) || Boolean(nextCover?.page.objects.some((o) => o.id === id));
     setSelectedIds((ids) => ids.filter(exists));
   }
-
-  function handleUndo() {
-    const previous = historyRef.current.at(-1);
-    if (!previous) return;
-    historyRef.current = historyRef.current.slice(0, -1);
-    redoRef.current = [...redoRef.current, snapshot()].slice(-MAX_HISTORY);
-    setCanUndo(historyRef.current.length > 0);
-    setCanRedo(true);
-    restoreSnapshot(previous);
-  }
-
-  function handleRedo() {
-    const next = redoRef.current.at(-1);
-    if (!next) return;
-    redoRef.current = redoRef.current.slice(0, -1);
-    historyRef.current = [...historyRef.current, snapshot()].slice(-MAX_HISTORY);
-    setCanRedo(redoRef.current.length > 0);
-    setCanUndo(true);
-    restoreSnapshot(next);
-  }
+  const history = useUndoHistory<Snapshot>({ pages, cover: coverDesign }, restoreSnapshot, MAX_HISTORY);
+  const { push: pushHistory, undo: handleUndo, redo: handleRedo, canUndo, canRedo } = history;
 
   // ---------- Page content ----------
 
@@ -1333,10 +1158,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       setTitle(project.title || t(DEFAULT_TITLE));
       setSelectedIds([]);
       setPendingPlacement(null);
-      historyRef.current = [];
-      redoRef.current = [];
-      setCanUndo(false);
-      setCanRedo(false);
+      history.clear();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : t("Could not load that project file."));
     }
@@ -1616,7 +1438,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
           <button type="button" onClick={() => window.location.reload()} className="rounded-pill bg-accent px-3 py-1 font-semibold text-on-accent outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
             {t("Load their version")}
           </button>
-          <button type="button" onClick={() => queueSave(true)} className="rounded-pill px-3 py-1 font-semibold text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
+          <button type="button" onClick={() => saveNow(true)} className="rounded-pill px-3 py-1 font-semibold text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
             {t("Keep mine")}
           </button>
         </div>
@@ -1728,15 +1550,15 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       {sidePanel === "comments" && (
         <CommentsPanel
           comments={comments}
-          loading={commentsLoading && Boolean(user)}
-          loadError={!sessionLoading && !user ? t("Sign in to read and write comments.") : commentsError && t(commentsError)}
+          loading={bookComments.loading && Boolean(user)}
+          loadError={!sessionLoading && !user ? t("Sign in to read and write comments.") : bookComments.error && t(bookComments.error)}
           activePageId={activePageId}
           pageLabel={pageLabel}
           currentUserId={user?.id ?? null}
           isSupervisor={isSupervisor}
           onAdd={handleAddComment}
-          onSetResolved={handleSetCommentResolved}
-          onDelete={handleDeleteComment}
+          onSetResolved={bookComments.setResolved}
+          onDelete={bookComments.remove}
           onGoToPage={(id) => pages.some((p) => p.id === id) && handleSelectPage(id)}
           onClose={() => setSidePanel("default")}
         />
