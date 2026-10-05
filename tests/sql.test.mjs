@@ -120,6 +120,28 @@ check(await fails(alice, `insert into public.user_media (path, url, source) valu
 await as(bob, "delete from public.user_media");
 check((await as(alice, "select count(*)::int n from public.user_media"))[0].n === 1, "others can't delete your pictures");
 
+// ---- plans and bought credits (sql/09_billing.sql)
+const usage = async (uid) => (await as(uid, "select public.my_ai_usage() r"))[0].r;
+const take = async (uid, n) => (await as(uid, `select public.consume_ai_credit('ai_image', ${n}) r`))[0].r;
+check((await usage(alice)).plan === "free" && (await usage(alice)).limit === 20 && (await usage(alice)).extra === 0, "a new account is on Free: 20 a month, no bought credits");
+check(await fails(alice, `insert into public.subscriptions (user_id, plan) values ('${alice}', 'studio')`), "users can't give themselves a plan");
+check(await fails(alice, `insert into public.credit_purchases (user_id, credits, stripe_session_id) values ('${alice}', 999, 'cs_fake')`), "users can't add credits themselves");
+await db.exec(`insert into public.subscriptions (user_id, plan, status) values ('${alice}', 'pro', 'active')`);
+check((await usage(alice)).plan === "pro" && (await usage(alice)).limit === 300, "an active Pro subscription raises the limit to 300");
+await db.exec(`update public.subscriptions set status = 'canceled' where user_id = '${alice}'`);
+check((await usage(alice)).plan === "free" && (await usage(alice)).limit === 20, "a cancelled subscription falls back to Free");
+check((await as(bob, "select count(*)::int n from public.subscriptions"))[0].n === 0 && (await as(alice, "select count(*)::int n from public.subscriptions"))[0].n === 1, "each user reads only their own subscription");
+await db.exec(`insert into public.credit_purchases (user_id, credits, stripe_session_id) values ('${alice}', 10, 'cs_1')`);
+check((await db.query(`insert into public.credit_purchases (user_id, credits, stripe_session_id) values ('${alice}', 10, 'cs_1') on conflict (stripe_session_id) do nothing returning id`)).rows.length === 0, "the same Stripe session can't add credits twice");
+const a1 = await take(alice, 10), a2 = await take(alice, 10);
+check(a1.allowed && a2.allowed && (await usage(alice)).used === 20 && (await usage(alice)).extra === 10, "the monthly allowance is used first", JSON.stringify(await usage(alice)));
+const a3 = await take(alice, 6);
+check(a3.allowed && a3.extra === 4 && (await usage(alice)).used === 20, "then bought credits", JSON.stringify(a3));
+const a4 = await take(alice, 6);
+check(!a4.allowed && a4.extra === 4, "and when both run out, the request is refused", JSON.stringify(a4));
+await as(alice, `select public.refund_ai_credit(${a3.event_id})`);
+check((await usage(alice)).extra === 10, "a refund gives bought credits back too");
+
 const stats = (await as(admin, "select public.admin_stats() r"))[0].r;
 check(stats.users === 3 && stats.daily.length === 30, "admin_stats", `users ${stats.users}, ${stats.daily.length} days`);
 

@@ -114,6 +114,8 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       }
     }
     if (table === 'books' && method === 'DELETE') { db.books = db.books.filter((b) => b.id !== idEq); onWrite?.('books_delete', idEq); return json([]); }
+    // Billing (sql/09): the signed-in user's own row, if a test sets db.subscription.
+    if (table === 'subscriptions') return json(single ? db.subscription ?? null : db.subscription ? [db.subscription] : []);
     if (table === 'book_shares') {
       db.shares ??= [];
       if (method === 'GET') return json(db.shares.filter((s) => !s.revoked_at));

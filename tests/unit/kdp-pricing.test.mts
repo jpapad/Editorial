@@ -1,5 +1,5 @@
 import { billedPages, formatMoney, isLargeTrim, minimumExpandedPrice, minimumListPrice, priceIdeas, printingCost, royalty, royaltyRate } from "../../src/utils/kdpPricing";
-let fails = 0; const ok = (c: boolean, m: string) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) fails++; };
+let fails = 0; const ok = (c: boolean, m: string, detail = "") => { console.log((c ? "PASS " : "FAIL ") + m + (detail && !c ? ` — ${detail}` : "")); if (!c) fails++; };
 const near = (a: number | null, b: number) => a !== null && Math.abs(a - b) < 0.0051;
 
 ok(isLargeTrim(612, 792) && isLargeTrim(576, 720) && !isLargeTrim(432, 648), "8.5×11 and 8×10 are large trim, 6×9 is regular");

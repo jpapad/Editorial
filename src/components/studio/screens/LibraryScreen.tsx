@@ -420,8 +420,13 @@ function AiCredits() {
   const { usage } = useAiUsage();
   if (!usage || usage.limit === null) return null;
   const share = usage.limit ? Math.min(1, usage.used / usage.limit) : 1;
+  const extra = usage.extra ?? 0;
   return (
-    <div className="flex items-center gap-2 px-2" title={t("{left} of {limit} AI credits left this month", { left: Math.max(0, usage.limit - usage.used), limit: usage.limit })}>
+    <Link
+      href="/studio/billing"
+      className="flex h-9 items-center gap-2 rounded-[12px] px-2 outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent"
+      title={`${t("{left} of {limit} AI credits left this month", { left: Math.max(0, usage.limit - usage.used), limit: usage.limit })}${extra ? ` · ${t("{n} bought credits", { n: extra })}` : ""} · ${t("Plans & credits")}`}
+    >
       <span
         className="flex h-[26px] w-[26px] items-center justify-center rounded-pill"
         style={{ background: `conic-gradient(var(--color-accent) 0 ${share * 100}%, var(--color-inset) ${share * 100}% 100%)` }}
@@ -433,9 +438,9 @@ function AiCredits() {
         <span className="font-pw-mono text-mono text-ink">
           {usage.used} / {usage.limit}
         </span>
-        <span className="text-[10px] text-ink-muted">{t("AI images")}</span>
+        <span className="text-[10px] text-ink-muted">{extra ? `${t("AI images")} · +${extra}` : t("AI images")}</span>
       </span>
-    </div>
+    </Link>
   );
 }
 

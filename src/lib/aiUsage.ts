@@ -7,6 +7,9 @@ export interface AiUsage {
   used: number;
   /** null = unlimited (supervisors). */
   limit: number | null;
+  /** Bought credits left (sql/09_billing.sql; absent before it runs). */
+  extra?: number;
+  plan?: string;
 }
 
 /** This month's AI credits. null until loaded, or when the usage migration isn't installed. */

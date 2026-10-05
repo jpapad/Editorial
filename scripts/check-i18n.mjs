@@ -49,6 +49,7 @@ const DYNAMIC = [
   "src/utils/trimSizes.ts",
   "src/utils/digitalPack.ts",
   "src/utils/kdpPricing.ts",
+  "src/lib/plans.ts",
 ];
 const EXTRA = [
   // One-off keys passed to t() through variables.
@@ -64,6 +65,12 @@ const EXTRA = [
   // ageCheck advice strings (returned as keys, rendered via t(a)).
   "Draw or place something first.", "Merge or remove the circled areas — they're too small to color at this age.",
   "Use thicker lines (try the “Ages 3–5” or “Bold” brush).", "Simplify: there are more areas than this age will enjoy coloring on one page.",
+  // Plans (src/lib/plans.ts: features and prices rendered via t()) and the billing routes' error messages.
+  "Every editor tool", "Print-ready PDF and cover", "20 AI pictures a month", "Everything in Free", "300 AI pictures a month",
+  "Digital download packs and listing tools", "Everything in Pro", "1,500 AI pictures a month", "For publishers with many books",
+  "€0", "€9 / month", "€24 / month",
+  "Payments aren't set up yet.", "This option isn't on sale yet.", "Sign in first.", "Choose a plan or a credit pack.",
+  "You already have a plan — change it from “Manage subscription”.", "There's no subscription to manage yet.", "Could not open the subscription page.",
   "Rectangle", "Circle", "Triangle", "Star", "Heart", "Hexagon", "Line", "Arrow", "Left", "Center", "Right",
 ];
 

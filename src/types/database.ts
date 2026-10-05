@@ -133,6 +133,19 @@ export type Database = {
         Update: Partial<Omit<UserStampRow, "user_id" | "id">>;
         Relationships: [];
       };
+      // sql/09_billing.sql — written only by the Stripe webhook (service role).
+      subscriptions: {
+        Row: SubscriptionRow;
+        Insert: Partial<SubscriptionRow> & { user_id: string };
+        Update: Partial<SubscriptionRow>;
+        Relationships: [];
+      };
+      credit_purchases: {
+        Row: CreditPurchaseRow;
+        Insert: Omit<CreditPurchaseRow, "id" | "created_at">;
+        Update: never;
+        Relationships: [];
+      };
       // sql/08_user_media.sql
       user_media: {
         Row: UserMediaRow;
@@ -161,14 +174,33 @@ export type Database = {
       admin_list_users: { Args: Record<string, never>; Returns: AdminUserRow[] };
       admin_set_supervisor: { Args: { target_user: string; make_supervisor: boolean }; Returns: undefined };
       get_shared_book: { Args: { share_token: string }; Returns: SharedBook | null };
-      my_ai_usage: { Args: Record<string, never>; Returns: { used: number; limit: number | null } };
-      consume_ai_credit: { Args: { credit_kind: string; credit_units: number }; Returns: { allowed: boolean; used: number; limit: number | null; event_id?: number } };
+      my_ai_usage: { Args: Record<string, never>; Returns: { used: number; limit: number | null; extra?: number; plan?: string } };
+      consume_ai_credit: { Args: { credit_kind: string; credit_units: number }; Returns: { allowed: boolean; used: number; limit: number | null; extra?: number; event_id?: number } };
       refund_ai_credit: { Args: { credit_event: number; refund_units: number | null }; Returns: undefined };
       log_export: { Args: { export_kind: string }; Returns: undefined };
       admin_set_ai_limit: { Args: { target_user: string; new_limit: number }; Returns: undefined };
       admin_stats: { Args: Record<string, never>; Returns: AdminStats };
     };
   };
+};
+
+export type SubscriptionRow = {
+  user_id: string;
+  plan: "free" | "pro" | "studio";
+  status: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  updated_at: string;
+};
+
+export type CreditPurchaseRow = {
+  id: number;
+  user_id: string;
+  credits: number;
+  stripe_session_id: string;
+  created_at: string;
 };
 
 export type UserStampRow = {
