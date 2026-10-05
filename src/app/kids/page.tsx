@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LanguageToggle, useT } from "@/lib/i18n";
-import { normalizeCode } from "@/utils/kidGroups";
+import { normalizeCode } from "@/utils/groupCode";
 
 /** /kids: a child types the code their teacher or parent gave them. */
 export default function KidsJoinPage() {
