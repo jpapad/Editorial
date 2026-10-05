@@ -50,6 +50,7 @@ const DYNAMIC = [
   "src/utils/digitalPack.ts",
   "src/utils/kdpPricing.ts",
   "src/lib/plans.ts",
+  "src/components/kids/kidIcons.tsx",
 ];
 const EXTRA = [
   // One-off keys passed to t() through variables.
@@ -71,6 +72,8 @@ const EXTRA = [
   "€0", "€9 / month", "€24 / month",
   "Payments aren't set up yet.", "This option isn't on sale yet.", "Sign in first.", "Choose a plan or a credit pack.",
   "You already have a plan — change it from “Manage subscription”.", "There's no subscription to manage yet.", "Could not open the subscription page.",
+  // KidsGroupApp's not-found messages (rendered via t(stage.message)).
+  "We couldn't find that code. Check it with your teacher or parent.", "Classes aren't set up yet.",
   "Rectangle", "Circle", "Triangle", "Star", "Heart", "Hexagon", "Line", "Arrow", "Left", "Center", "Right",
 ];
 

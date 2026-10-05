@@ -142,6 +142,55 @@ check(!a4.allowed && a4.extra === 4, "and when both run out, the request is refu
 await as(alice, `select public.refund_ai_credit(${a3.event_id})`);
 check((await usage(alice)).extra === 10, "a refund gives bought credits back too");
 
+// ---- classes and families (sql/10_kid_groups.sql)
+const kidBook = (await as(alice, `insert into public.books (user_id, title, pages) values ('${alice}', 'Farm', '[{"id":"k1","fillDataUrl":"owner","objects":[]},{"id":"k2","objects":[]},{"id":"kb","isBlankBack":true}]') returning id`))[0].id;
+const bobBook = (await as(bob, `insert into public.books (user_id, title) values ('${bob}', 'Bob only') returning id`))[0].id;
+const grp = (await as(alice, "insert into public.kid_groups (name) values ('Class 2B') returning id, code"))[0];
+check(/^[A-HJ-KM-NP-Z2-9]{6}$/.test(grp.code), "a group gets a 6-letter code without look-alike characters", grp.code);
+const [maria] = await as(alice, `insert into public.kid_members (group_id, name, avatar) values ('${grp.id}', 'Μαρία', 3) returning id, pin, token`);
+await as(alice, `insert into public.kid_members (group_id, name) values ('${grp.id}', 'Νίκος')`);
+check(maria.pin.length === 2 && maria.pin.every((n) => n >= 0 && n <= 8), "each child gets a two-picture password");
+await as(alice, `insert into public.kid_group_books (group_id, book_id) values ('${grp.id}', '${kidBook}')`);
+check(await fails(alice, `insert into public.kid_group_books (group_id, book_id) values ('${grp.id}', '${bobBook}')`), "can't give someone else's book to your class");
+check(await fails(bob, `insert into public.kid_members (group_id, name) values ('${grp.id}', 'Intruder')`), "can't add children to someone else's group");
+check((await as(bob, "select count(*)::int n from public.kid_members"))[0].n === 0 && (await as(null, "select count(*)::int n from public.kid_groups").catch(() => [{ n: -1 }]))[0].n <= 0, "others (and anonymous visitors) can't read groups or children");
+
+const lookup = (await as(null, `select public.kid_group_lookup('${grp.code.toLowerCase()}') r`))[0].r;
+check(lookup.name === "Class 2B" && lookup.members.length === 2 && !("pin" in lookup.members[0]) && !("token" in lookup.members[0]), "the join screen lists names and avatars only — no passwords, no tokens", JSON.stringify(lookup.members[0]));
+check((await as(null, "select public.kid_group_lookup('ZZZZZZ') r"))[0].r === null, "an unknown code finds nothing");
+const wrongPin = [(maria.pin[0] + 1) % 9, maria.pin[1]];
+check((await as(null, `select public.kid_login('${grp.code}', '${maria.id}', array[${wrongPin}]) r`))[0].r === null, "wrong pictures: no token");
+const kidToken = (await as(null, `select public.kid_login('${grp.code}', '${maria.id}', array[${maria.pin}]) r`))[0].r;
+check(kidToken === maria.token, "right pictures: the child's token");
+
+const home = (await as(null, `select public.kid_home('${kidToken}') r`))[0].r;
+check(home.name === "Μαρία" && home.books.length === 1 && home.books[0].pages === 2 && home.books[0].done === 0, "the child's home lists the class's books with their page count (blank backs left out)", JSON.stringify(home.books));
+const kb = (await as(null, `select public.kid_book('${kidToken}', '${kidBook}') r`))[0].r;
+check(kb.pages.length === 2 && !("fillDataUrl" in kb.pages[0]) && Object.keys(kb.work).length === 0, "an assigned book comes clean: no owner's coloring");
+check((await as(null, `select public.kid_book('${kidToken}', '${bobBook}') r`))[0].r === null, "a book not given to the class can't be opened");
+
+const save = (page, done, fill = "data:fill") => as(null, `select public.kid_save('${kidToken}', '${kidBook}', '${page}', '${fill}', 'data:thumb', ${done}) r`).then((r) => r[0].r);
+check((await save("k1", false)) === true && (await save("k1", true)) === true, "the child saves a page, then finishes it");
+check((await save("nope", false)) === false, "a page that isn't in the book is refused");
+check((await as(null, `select public.kid_save(gen_random_uuid(), '${kidBook}', 'k1', 'x', null, true) r`))[0].r === false, "a made-up token saves nothing");
+check((await as(null, `select public.kid_save('${kidToken}', '${bobBook}', 'k1', 'x', null, true) r`))[0].r === false, "can't save into a book the class wasn't given");
+const firstDone = (await db.query(`select completed_at from public.kid_work where page_id = 'k1'`)).rows[0].completed_at;
+await save("k1", false, "data:fill2");
+const row = (await db.query(`select fill, completed_at from public.kid_work where page_id = 'k1'`)).rows[0];
+check(row.fill === "data:fill2" && String(row.completed_at) === String(firstDone), "coloring a finished page again keeps it finished");
+check((await as(null, `select public.kid_home('${kidToken}') r`))[0].r.books[0].done === 1, "progress shows on the child's home");
+
+check((await as(alice, "select count(*)::int n from public.kid_work"))[0].n === 1 && (await as(bob, "select count(*)::int n from public.kid_work"))[0].n === 0, "the grown-up sees the child's work; nobody else does");
+await as(alice, `update public.kid_work set sticker = 4, comment = 'Μπράβο!' where page_id = 'k1'`);
+check(await fails(alice, `update public.kid_work set fill = 'forged' where page_id = 'k1'`), "the grown-up can add a sticker and a note, not change the drawing");
+await as(bob, `update public.kid_work set comment = 'hacked'`);
+const after = (await as(null, `select public.kid_home('${kidToken}') r`))[0].r;
+check(after.stickers.join() === "4" && after.notes[0].comment === "Μπράβο!", "the child sees the sticker and the note (and not another user's edit)", JSON.stringify(after.notes));
+await as(alice, `update public.kid_members set token = gen_random_uuid() where id = '${maria.id}'`);
+check((await as(null, `select public.kid_home('${kidToken}') r`))[0].r === null, "resetting the token signs the old device out");
+await as(alice, `delete from public.kid_groups where id = '${grp.id}'`);
+check((await db.query("select count(*)::int n from public.kid_work")).rows[0].n === 0, "deleting the group removes its children and their work");
+
 const stats = (await as(admin, "select public.admin_stats() r"))[0].r;
 check(stats.users === 3 && stats.daily.length === 30, "admin_stats", `users ${stats.users}, ${stats.daily.length} days`);
 

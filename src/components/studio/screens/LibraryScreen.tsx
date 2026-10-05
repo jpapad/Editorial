@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, BookOpen, BookPlus, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowUp, BookOpen, BookPlus, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, Users } from "lucide-react";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
@@ -209,6 +209,13 @@ export default function LibraryScreen() {
 
         <div className={cn(ISLAND, "flex h-[52px] items-center gap-2 px-2")}>
           <AiCredits />
+          <Link
+            href="/studio/groups"
+            className="flex h-9 items-center gap-1.5 rounded-[12px] px-3 text-helper font-semibold text-ink-secondary outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <Users size={15} aria-hidden />
+            {t("Classes & families")}
+          </Link>
           {isSupervisor && (
             <Link
               href="/studio/admin"

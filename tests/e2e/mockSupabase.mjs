@@ -94,6 +94,7 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       const book = s && db.books.find((bk) => bk.id === s.book_id);
       return json(book ? { title: book.title, trim_size: book.trim_size, bleed: book.bleed, pages: book.pages.filter((pg) => !pg.isBlankBack).map((pg) => { const rest = { ...pg }; delete rest.fillDataUrl; delete rest.completedAt; delete rest.thumbnailDataUrl; return rest; }) } : null);
     }
+    if (db.kids && url.pathname.startsWith('/rest/v1/rpc/kid_')) return kidsRoute(db.kids, url, method, req, json, single, onWrite);
     if (url.pathname.startsWith('/rest/v1/rpc/')) return json(null);
     const table = url.pathname.replace('/rest/v1/', '');
     const idEq = url.searchParams.get('id')?.replace('eq.', '');
@@ -114,6 +115,8 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       }
     }
     if (table === 'books' && method === 'DELETE') { db.books = db.books.filter((b) => b.id !== idEq); onWrite?.('books_delete', idEq); return json([]); }
+    // Classes & families (sql/10): in-memory tables plus the kid_* functions, when a test sets db.kids = {}.
+    if (db.kids && (table.startsWith('kid_') || url.pathname.startsWith('/rest/v1/rpc/kid_'))) return kidsRoute(db.kids, url, method, req, json, single, onWrite);
     // Billing (sql/09): the signed-in user's own row, if a test sets db.subscription.
     if (table === 'subscriptions') return json(single ? db.subscription ?? null : db.subscription ? [db.subscription] : []);
     if (table === 'book_shares') {
@@ -147,4 +150,70 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
 
 export function bookRow(overrides = {}) {
   return { id: '22222222-2222-4222-8222-222222222222', user_id: TEST_USER.id, title: 'Test Book', status: 'draft', collection: null, trim_size: '8.5x11', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', bleed: false, paper: 'white', cover: null, pages: [], ...overrides };
+}
+
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+/** sql/10_kid_groups.sql in memory: just enough PostgREST filtering for kidGroups.ts. */
+function kidsRoute(k, url, method, req, json, single, onWrite) {
+  k.groups ??= []; k.members ??= []; k.groupBooks ??= []; k.work ??= [];
+  const body = () => JSON.parse(req.postData() || '{}');
+  const filters = [...url.searchParams].filter(([key]) => !['select', 'order', 'on_conflict', 'columns'].includes(key));
+  const match = (row) => filters.every(([key, v]) => v.startsWith('eq.') ? String(row[key]) === v.slice(3) : v.startsWith('in.(') ? v.slice(4, -1).split(',').map((x) => x.replace(/"/g, '')).includes(String(row[key])) : v.startsWith('is.') ? row[key] === null : true);
+  const rpc = url.pathname.replace('/rest/v1/rpc/', '');
+  const table = url.pathname.replace('/rest/v1/', '');
+  const books = () => k.books ?? [];
+  const byToken = (token) => k.members.find((m) => m.token === token);
+  const cleanPages = (b) => b.pages.filter((p) => !p.isBlankBack).map((p) => { const r = { ...p }; delete r.fillDataUrl; delete r.completedAt; delete r.thumbnailDataUrl; return r; });
+  if (rpc === 'kid_group_lookup') {
+    const g = k.groups.find((x) => x.code === body().group_code.toUpperCase());
+    return json(g ? { name: g.name, kind: g.kind, members: k.members.filter((m) => m.group_id === g.id).map(({ id, name, avatar }) => ({ id, name, avatar })) } : null);
+  }
+  if (rpc === 'kid_login') {
+    const b = body(); const g = k.groups.find((x) => x.code === b.group_code.toUpperCase());
+    const m = g && k.members.find((x) => x.id === b.member && x.group_id === g.id && x.pin.join() === b.picture_pin.join());
+    return json(m ? m.token : null);
+  }
+  if (rpc === 'kid_home') {
+    const m = byToken(body().kid_token); if (!m) return json(null);
+    const g = k.groups.find((x) => x.id === m.group_id);
+    const mine = k.work.filter((w) => w.member_id === m.id);
+    return json({ name: m.name, avatar: m.avatar, group: g.name,
+      books: k.groupBooks.filter((gb) => gb.group_id === g.id).map((gb) => books().find((b) => b.id === gb.book_id)).filter(Boolean).map((b) => ({ id: b.id, title: b.title, pages: cleanPages(b).length, done: mine.filter((w) => w.book_id === b.id && w.completed_at).length, cover: mine.find((w) => w.book_id === b.id && w.thumb)?.thumb ?? null })),
+      stickers: mine.filter((w) => w.sticker !== null && w.sticker !== undefined).map((w) => w.sticker), notes: mine.filter((w) => w.comment).map((w) => ({ book_id: w.book_id, page_id: w.page_id, comment: w.comment })) });
+  }
+  if (rpc === 'kid_book') {
+    const b = body(); const m = byToken(b.kid_token);
+    const ok = m && k.groupBooks.some((gb) => gb.group_id === m.group_id && gb.book_id === b.book);
+    const book = ok && books().find((x) => x.id === b.book);
+    if (!book) return json(null);
+    const work = Object.fromEntries(k.work.filter((w) => w.member_id === m.id && w.book_id === book.id).map((w) => [w.page_id, { fill: w.fill, thumb: w.thumb, completed_at: w.completed_at, sticker: w.sticker ?? null, comment: w.comment ?? null }]));
+    return json({ title: book.title, trim_size: book.trim_size, bleed: book.bleed ?? false, pages: cleanPages(book), work });
+  }
+  if (rpc === 'kid_save') {
+    const b = body(); const m = byToken(b.kid_token);
+    if (!m || !k.groupBooks.some((gb) => gb.group_id === m.group_id && gb.book_id === b.book)) return json(false);
+    let w = k.work.find((x) => x.member_id === m.id && x.book_id === b.book && x.page_id === b.page);
+    if (!w) { w = { member_id: m.id, book_id: b.book, page_id: b.page, fill: null, thumb: null, completed_at: null, sticker: null, comment: null }; k.work.push(w); }
+    w.fill = b.page_fill ?? w.fill; w.thumb = b.page_thumb ?? w.thumb; w.completed_at = w.completed_at ?? (b.done ? new Date().toISOString() : null); w.updated_at = new Date().toISOString();
+    onWrite?.('kid_save', b);
+    return json(true);
+  }
+  const store = { kid_groups: 'groups', kid_members: 'members', kid_group_books: 'groupBooks', kid_work: 'work' }[table];
+  if (!store) return json({ message: `unknown ${table}` }, 404);
+  if (method === 'GET') { const rows = k[store].filter(match); return json(single ? rows[0] ?? null : rows); }
+  if (method === 'POST') {
+    const rows = [body()].flat().map((r) => store === 'groups' ? { id: crypto.randomUUID(), kind: 'class', code: Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * 31)]).join(''), created_at: new Date().toISOString(), ...r }
+      : store === 'members' ? { id: crypto.randomUUID(), avatar: 0, pin: [Math.floor(Math.random() * 9), Math.floor(Math.random() * 9)], token: crypto.randomUUID(), created_at: new Date().toISOString(), ...r } : { ...r });
+    for (const r of rows) if (!(store === 'groupBooks' && k.groupBooks.some((x) => x.group_id === r.group_id && x.book_id === r.book_id))) k[store].push(r);
+    onWrite?.(table, rows);
+    return json(single ? rows[0] : rows, 201);
+  }
+  if (method === 'PATCH') { const changes = body(); const rows = k[store].filter(match); rows.forEach((r) => Object.assign(r, changes)); onWrite?.(table, changes); return json(single ? rows[0] ?? null : rows); }
+  if (method === 'DELETE') {
+    const gone = k[store].filter(match); k[store] = k[store].filter((r) => !match(r));
+    if (store === 'groups') for (const g of gone) k.members = k.members.filter((m) => m.group_id !== g.id);
+    if (store === 'members') for (const m of gone) k.work = k.work.filter((w) => w.member_id !== m.id);
+    return json([]);
+  }
+  return json([]);
 }

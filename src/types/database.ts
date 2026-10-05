@@ -146,6 +146,31 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      // sql/10_kid_groups.sql
+      kid_groups: {
+        Row: KidGroupRow;
+        Insert: Pick<KidGroupRow, "name"> & Partial<Pick<KidGroupRow, "kind">>;
+        Update: Partial<Pick<KidGroupRow, "name" | "kind" | "code">>;
+        Relationships: [];
+      };
+      kid_members: {
+        Row: KidMemberRow;
+        Insert: Pick<KidMemberRow, "group_id" | "name"> & Partial<Pick<KidMemberRow, "avatar">>;
+        Update: Partial<Pick<KidMemberRow, "name" | "avatar" | "pin" | "token">>;
+        Relationships: [];
+      };
+      kid_group_books: {
+        Row: { group_id: string; book_id: string; assigned_at: string };
+        Insert: { group_id: string; book_id: string };
+        Update: never;
+        Relationships: [];
+      };
+      kid_work: {
+        Row: KidWorkRow;
+        Insert: never;
+        Update: Partial<Pick<KidWorkRow, "sticker" | "comment">>;
+        Relationships: [];
+      };
       // sql/08_user_media.sql
       user_media: {
         Row: UserMediaRow;
@@ -180,8 +205,45 @@ export type Database = {
       log_export: { Args: { export_kind: string }; Returns: undefined };
       admin_set_ai_limit: { Args: { target_user: string; new_limit: number }; Returns: undefined };
       admin_stats: { Args: Record<string, never>; Returns: AdminStats };
+      // sql/10_kid_groups.sql — the child side (anon), by group code / device token.
+      kid_group_lookup: { Args: { group_code: string }; Returns: Json };
+      kid_login: { Args: { group_code: string; member: string; picture_pin: number[] }; Returns: string | null };
+      kid_home: { Args: { kid_token: string }; Returns: Json };
+      kid_book: { Args: { kid_token: string; book: string }; Returns: Json };
+      kid_save: { Args: { kid_token: string; book: string; page: string; page_fill: string | null; page_thumb: string | null; done: boolean }; Returns: boolean };
     };
   };
+};
+
+export type KidGroupRow = {
+  id: string;
+  owner_id: string;
+  kind: "class" | "family";
+  name: string;
+  code: string;
+  created_at: string;
+};
+
+export type KidMemberRow = {
+  id: string;
+  group_id: string;
+  name: string;
+  avatar: number;
+  pin: number[];
+  token: string;
+  created_at: string;
+};
+
+export type KidWorkRow = {
+  member_id: string;
+  book_id: string;
+  page_id: string;
+  fill: string | null;
+  thumb: string | null;
+  completed_at: string | null;
+  updated_at: string;
+  sticker: number | null;
+  comment: string | null;
 };
 
 export type SubscriptionRow = {
