@@ -1112,4 +1112,12 @@ export const EL: Record<string, string> = {
   "Apple": "Μήλο",
   "Sun": "Ήλιος",
   "Car": "Αυτοκίνητο",
+  "Read it to me": "Διάβασέ το μου",
+  "No internet — your coloring is kept on this tablet and sent when it's back.": "Δεν υπάρχει internet — η ζωγραφιά σου μένει σε αυτό το tablet και θα σταλεί μόλις επανέλθει.",
+  "Sound on": "Ήχος ανοιχτός",
+  "Sound off": "Ήχος κλειστός",
+  "Peach": "Ροδακινί",
+  "Sage green": "Φασκομηλί",
+  "Gray blue": "Γκριζογάλανο",
+  "Black": "Μαύρο",
 };

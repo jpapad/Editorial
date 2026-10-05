@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pagewright — εκτός σύνδεσης</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f4f5f8; --ink: #14151a; --muted: #5b6070; --accent: #3357d4; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #14151a; --ink: #f4f5f8; --muted: #a3a8b5; } }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; box-sizing: border-box; text-align: center; }
+  main { max-width: 420px; }
+  img { width: 88px; height: 88px; }
+  h1 { font-size: 24px; margin: 16px 0 8px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 6px; }
+  button { margin-top: 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 16px system-ui, sans-serif; padding: 12px 24px; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/icon.svg" alt="">
+  <h1>Δεν υπάρχει σύνδεση</h1>
+  <p>Αυτή η σελίδα δεν έχει ανοίξει ακόμα σε αυτή τη συσκευή. Μόλις επανέλθει το internet, ξαναδοκίμασε.</p>
+  <p lang="en">You're offline, and this page hasn't been opened on this device yet. Try again once you're back online.</p>
+  <button type="button" onclick="location.reload()">Ξανά / Try again</button>
+</main>
+</body>
+</html>

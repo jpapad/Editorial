@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Award, Check, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, Award, Check, CloudOff, MessageCircle, Volume2, X } from "lucide-react";
 import { ColoringBoard } from "@/components/studio/coloring/ColoringView";
 import { printPageImage, Sticker } from "@/components/studio/coloring/rewards";
 import { certificateImage, KidAvatar, PIN_PICTURES, PinPicture } from "@/components/kids/kidIcons";
 import { changedPages, forgetKid, isMissingGroupsTable, kidBook, kidHome, kidLogin, kidSave, lookupGroup, normalizeCode, rememberKid, savedKid, type KidHome, type KidLookup } from "@/utils/kidGroups";
 import { convertPages, interiorSpace } from "@/utils/pageGeometry";
 import type { BookPage, PageSpace } from "@/types/editor";
-import { LanguageToggle, useT } from "@/lib/i18n";
+import { LanguageToggle, useLanguage, useT } from "@/lib/i18n";
+import { playCheer, playOops, playTap, speak } from "@/lib/kidSound";
+import { deviceGet, deviceSet } from "@/utils/deviceStore";
 import { cn } from "@/utils/cn";
 
 type Stage =
@@ -65,9 +67,11 @@ export default function KidsGroupApp() {
     if (stage.kind !== "pin") return;
     const token = await kidLogin(code, stage.member.id, pin).catch(() => null);
     if (!token) {
+      playOops();
       setStage({ ...stage, wrong: true });
       return;
     }
+    playCheer();
     rememberKid(code, stage.member.id, token);
     const home = await kidHome(token);
     if (home) setStage({ kind: "home", home, token });
@@ -104,8 +108,9 @@ export default function KidsGroupApp() {
 
         {stage.kind === "pick" && (
           <section aria-labelledby="pick-title" className="flex flex-col gap-5">
-            <h1 id="pick-title" className="text-center text-[34px] font-extrabold tracking-[-0.02em]">
+            <h1 id="pick-title" className="flex items-center justify-center gap-3 text-center text-[34px] font-extrabold tracking-[-0.02em]">
               {t("Who are you?")}
+              <SayIt text={t("Who are you?")} />
             </h1>
             {stage.group.members.length === 0 ? (
               <p className="text-center text-body text-ink-secondary">{t("There are no names here yet. Ask your teacher or parent to add you.")}</p>
@@ -138,6 +143,7 @@ function PinPad({ name, avatar, wrong, onBack, onSubmit }: { name: string; avata
   }, [wrong]);
 
   function tap(i: number) {
+    playTap();
     const next = [...picked, i];
     setPicked(next);
     if (next.length === 2) onSubmit([next[0], next[1]]);
@@ -146,8 +152,9 @@ function PinPad({ name, avatar, wrong, onBack, onSubmit }: { name: string; avata
   return (
     <section aria-labelledby="pin-title" className="flex flex-col items-center gap-5">
       <KidAvatar index={avatar} size={72} />
-      <h1 id="pin-title" className="text-center text-[30px] font-extrabold tracking-[-0.02em]">
+      <h1 id="pin-title" className="flex items-center justify-center gap-3 text-center text-[30px] font-extrabold tracking-[-0.02em]">
         {t("Hi {name}! Tap your two pictures", { name })}
+        <SayIt text={t("Hi {name}! Tap your two pictures", { name })} />
       </h1>
       <div className="flex gap-3" aria-live="polite" aria-label={t("Pictures chosen: {n} of 2", { n: picked.length })}>
         {[0, 1].map((slot) => (
@@ -193,8 +200,9 @@ function KidHomeView({ home, code, onSignOut }: { home: KidHome; code: string; o
       <div className="flex items-center gap-4">
         <KidAvatar index={home.avatar} size={72} />
         <div className="flex flex-col">
-          <h1 id="home-title" className="text-[32px] font-extrabold tracking-[-0.02em]">
+          <h1 id="home-title" className="flex items-center gap-3 text-[32px] font-extrabold tracking-[-0.02em]">
             {t("Hi {name}!", { name: home.name })}
+            <SayIt text={`${t("Hi {name}!", { name: home.name })} ${t("Pick a book to color.")}`} />
           </h1>
           <p className="text-body text-ink-secondary">{t("Pick a book to color.")}</p>
         </div>
@@ -256,10 +264,45 @@ function KidHomeView({ home, code, onSignOut }: { home: KidHome; code: string; o
   );
 }
 
+/** A button that reads `text` aloud — for children who can't read yet. */
+function SayIt({ text }: { text: string }) {
+  const t = useT();
+  const { lang } = useLanguage();
+  return (
+    <button type="button" onClick={() => speak(text, lang)} aria-label={t("Read it to me")} title={t("Read it to me")} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-pill bg-white/90 text-accent shadow-resting", BIG_BUTTON)}>
+      <Volume2 size={20} />
+    </button>
+  );
+}
+
+type PendingPages = Record<string, Pick<BookPage, "id" | "fillDataUrl" | "thumbnailDataUrl" | "completedAt">>;
+
 function KidBookView({ token, bookId, code, onGone }: { token: string; bookId: string; code: string; onGone: () => void }) {
   const t = useT();
   const [book, setBook] = useState<{ title: string; pages: BookPage[]; space: PageSpace } | null | "gone">(null);
   const savedRef = useRef<BookPage[]>([]);
+  // Pages that couldn't be uploaded (no internet): kept on this tablet and sent when it's back.
+  const pendingKey = `kid-pending:${token}:${bookId}`;
+  const [waiting, setWaiting] = useState(0);
+
+  async function upload(pages: PendingPages): Promise<PendingPages> {
+    const left: PendingPages = {};
+    for (const page of Object.values(pages)) {
+      const ok = await kidSave(token, bookId, page).catch(() => null);
+      if (ok === null) left[page.id] = page; // offline / server unreachable: try again later
+      else if (!ok) throw new Error(t("Could not save this page."));
+    }
+    await deviceSet(pendingKey, left);
+    setWaiting(Object.keys(left).length);
+    return left;
+  }
+
+  useEffect(() => {
+    const retry = () => void deviceGet<PendingPages>(pendingKey).then((p) => (p && Object.keys(p).length ? upload(p) : undefined));
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- upload only closes over stable values
+  }, [pendingKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -270,16 +313,21 @@ function KidBookView({ token, bookId, code, onGone }: { token: string; bookId: s
         return;
       }
       const space = interiorSpace(data.trim_size ?? undefined, data.bleed);
+      // What this tablet colored while offline wins over the older copy on the server — and is sent now.
+      const pending = (await deviceGet<PendingPages>(pendingKey)) ?? {};
       const pages = (await convertPages(data.pages, space)).map((p) => {
         const w = data.work[p.id];
-        return w ? { ...p, fillDataUrl: w.fill ?? undefined, thumbnailDataUrl: w.thumb ?? undefined, completedAt: w.completed_at ?? undefined } : p;
+        const fromServer = w ? { ...p, fillDataUrl: w.fill ?? undefined, thumbnailDataUrl: w.thumb ?? undefined, completedAt: w.completed_at ?? undefined } : p;
+        return pending[p.id] ? { ...fromServer, ...pending[p.id] } : fromServer;
       });
+      if (Object.keys(pending).length) void upload(pending);
       savedRef.current = pages;
       if (!cancelled) setBook({ title: data.title, pages, space });
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingKey derives from token/bookId; upload only closes over them
   }, [token, bookId]);
 
   if (book === "gone") {
@@ -295,18 +343,26 @@ function KidBookView({ token, bookId, code, onGone }: { token: string; bookId: s
   if (!book) return <div data-theme="light" className="flex min-h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
 
   return (
-    <ColoringBoard
-      title={book.title}
-      initialPages={book.pages}
-      space={book.space}
-      backHref={`/kids/${code}`}
-      save={async (pages) => {
-        // Only what changed since the last save goes up — a page's fill is a big picture.
-        for (const page of changedPages(savedRef.current, pages)) {
-          if (!(await kidSave(token, bookId, page))) throw new Error(t("Could not save this page."));
-        }
-        savedRef.current = pages;
-      }}
-    />
+    <>
+      <ColoringBoard
+        title={book.title}
+        initialPages={book.pages}
+        space={book.space}
+        backHref={`/kids/${code}`}
+        save={async (pages) => {
+          // Only what changed since the last save goes up — a page's fill is a big picture.
+          const changed = changedPages(savedRef.current, pages);
+          savedRef.current = pages;
+          const queued = (await deviceGet<PendingPages>(pendingKey)) ?? {};
+          for (const p of changed) queued[p.id] = { id: p.id, fillDataUrl: p.fillDataUrl, thumbnailDataUrl: p.thumbnailDataUrl, completedAt: p.completedAt };
+          await upload(queued);
+        }}
+      />
+      {waiting > 0 && (
+        <p role="status" className="fixed bottom-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-pill bg-ink px-4 py-2 text-helper font-medium text-white shadow-toolbar">
+          <CloudOff size={14} aria-hidden /> {t("No internet — your coloring is kept on this tablet and sent when it's back.")}
+        </p>
+      )}
+    </>
   );
 }

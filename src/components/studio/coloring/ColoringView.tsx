@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type Konva from "konva";
-import { ChevronLeft, Undo2, Download, PaintBucket, Paintbrush, Printer, Images, PartyPopper, X } from "lucide-react";
+import { ChevronLeft, Undo2, Download, PaintBucket, Paintbrush, Printer, Images, PartyPopper, Volume2, VolumeX, X } from "lucide-react";
 import FillStylePicker from "@/components/studio/editor/FillStylePicker";
 import { printPageImage, Sticker, STICKERS } from "@/components/studio/coloring/rewards";
 import CanvasArea from "@/components/studio/editor/CanvasArea";
@@ -11,7 +11,8 @@ import { captureStage } from "@/components/editor/CanvasEditor";
 import ColorSwatch from "@/components/studio/ui/ColorSwatch";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import { cn } from "@/utils/cn";
-import { useT } from "@/lib/i18n";
+import { useLanguage, useT } from "@/lib/i18n";
+import { COLOR_NAMES, playCheer, playFill, playTap, setSoundOn, soundOn, speak } from "@/lib/kidSound";
 import { getBook, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import type { BookPage, FillStyle, PageSpace } from "@/types/editor";
 import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeometry";
@@ -24,6 +25,10 @@ const BRUSH_SIZES = [
   { label: "Thick", width: 28 },
 ];
 const THUMB_RATIO = 0.3;
+// The tablet-shaped board at its full size; smaller screens get a smaller board (see useBoardSize).
+const BOARD_W = 900;
+const BOARD_H = 660;
+const TOP_BAR_H = 46;
 const SWIPE_THRESHOLD_PX = 60;
 const AUTOSAVE_DEBOUNCE_MS = 500;
 
@@ -117,10 +122,41 @@ export interface ColoringBoardProps {
   backHref: string | null;
 }
 
-/** The child-facing coloring surface — used by /studio/color and by public share links. */
+/**
+ * The board's size for this window: the full 900 × 660 tablet where it
+ * fits, otherwise as much of the screen as there is (phones, small
+ * tablets) — never scaled with a CSS transform, which would throw off the
+ * canvas's pointer positions.
+ */
+function useBoardSize() {
+  const measure = () => {
+    if (typeof window === "undefined") return { width: BOARD_W, height: BOARD_H, compact: false };
+    const compact = window.innerWidth < BOARD_W + 80 || window.innerHeight < BOARD_H + 80;
+    const pad = compact ? 16 : 0;
+    return {
+      width: Math.max(320, Math.min(BOARD_W, window.innerWidth - pad)),
+      height: Math.max(480, Math.min(compact ? 1000 : BOARD_H, window.innerHeight - pad)),
+      compact,
+    };
+  };
+  const [size, setSize] = useState(measure);
+  useEffect(() => {
+    const onResize = () => setSize(measure());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return size;
+}
+
+/** The child-facing coloring surface — used by /studio/color, public share links and classes. */
 export function ColoringBoard({ title, initialPages, space, save, backHref }: ColoringBoardProps) {
   const router = useRouter();
   const t = useT();
+  const { lang } = useLanguage();
+  const board = useBoardSize();
+  // Narrow boards wrap the toolbar onto two rows.
+  const bottomH = board.width < 720 ? 168 : 104;
+  const [sound, setSound] = useState(soundOn);
   const [pages, setPages] = useState<BookPage[]>(initialPages);
   const [pageIndex, setPageIndex] = useState(() => {
     const requestedPageId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("page") : null;
@@ -156,6 +192,7 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
   }
 
   function handleFillChange(dataUrl: string) {
+    if (kidTool === "fill") playFill();
     setPages((prev) => {
       const next = prev.map((p, i) => (i === pageIndex ? { ...p, fillDataUrl: dataUrl } : p));
       persist(next);
@@ -195,6 +232,19 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
       return next;
     });
     if (!alreadyDone) setReward(finished.length);
+    playCheer();
+    speak(t("Well done!"), lang);
+  }
+
+  function pickColor(hex: string) {
+    setActiveColor(hex);
+    playTap();
+    if (COLOR_NAMES[hex]) speak(t(COLOR_NAMES[hex]), lang);
+  }
+
+  function toggleSound() {
+    setSoundOn(!sound);
+    setSound(!sound);
   }
 
   function handlePrintPage() {
@@ -228,11 +278,16 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
 
   if (!activePage) return null;
 
+  // The paper keeps the page's proportions inside whatever room the board leaves it.
+  const paperRoomH = quietMode ? board.height : board.height - TOP_BAR_H - bottomH;
+  const paperK = Math.min(paperRoomH / space.height, (board.width - 16) / space.width);
+  const paperSize = { width: Math.floor(space.width * paperK), height: Math.floor(space.height * paperK) };
+
   return (
-    <div data-theme="light" className="flex min-h-screen items-center justify-center bg-surface p-8">
-      {/* Tablet bezel */}
-      <div className="rounded-[34px] bg-[#15181d] p-4 shadow-canvas-dark">
-        <div className="relative overflow-hidden rounded-[22px] bg-tablet-ground" style={{ width: 900, height: 660 }}>
+    <div data-theme="light" className={cn("flex min-h-screen items-center justify-center bg-surface", board.compact ? "p-0" : "p-8")}>
+      {/* Tablet bezel (dropped on small screens, where the device itself is the tablet) */}
+      <div className={cn(board.compact ? "" : "rounded-[34px] bg-[#15181d] p-4 shadow-canvas-dark")}>
+        <div className={cn("relative overflow-hidden bg-tablet-ground", board.compact ? "rounded-[14px]" : "rounded-[22px]")} style={{ width: board.width, height: board.height }}>
           {/* Top bar — hidden in Quiet mode */}
           <div className={cn("flex h-[46px] items-center justify-between px-4 transition-opacity duration-200 motion-reduce:transition-none", quietMode && "pointer-events-none opacity-0")}>
             <button
@@ -246,12 +301,22 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
             >
               <ChevronLeft size={18} />
             </button>
-            <p className="text-body font-medium text-ink">{title}</p>
-            <div className="flex items-center gap-2">
+            <p className="min-w-0 truncate px-2 text-body font-medium text-ink">{title}</p>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSound}
+                aria-pressed={sound}
+                aria-label={sound ? t("Sound on") : t("Sound off")}
+                title={sound ? t("Sound on") : t("Sound off")}
+                className="flex h-8 w-8 items-center justify-center rounded-pill bg-[rgba(16,20,26,0.06)] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              >
+                {sound ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              </button>
               <button
                 type="button"
                 onClick={() => setQuietMode(true)}
-                className="rounded-pill bg-[rgba(16,20,26,0.06)] px-3.5 py-1.5 text-helper font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                className={cn("rounded-pill bg-[rgba(16,20,26,0.06)] px-3.5 py-1.5 text-helper font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2", board.width < 640 && "hidden")}
               >
                 {t("Quiet mode")}
               </button>
@@ -292,15 +357,15 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
           </div>
 
           {/* Quiet mode dims the shell (the tablet ground outside the paper), not the paper itself. */}
-          <div className={cn("absolute inset-0 bg-ink/0 transition-colors duration-200 motion-reduce:transition-none", quietMode && "bg-ink/15")} style={{ top: quietMode ? 0 : 46 }} aria-hidden />
+          <div className={cn("absolute inset-0 bg-ink/0 transition-colors duration-200 motion-reduce:transition-none", quietMode && "bg-ink/15")} style={{ top: quietMode ? 0 : TOP_BAR_H }} aria-hidden />
 
           {/* Paper — aspect-ratio locked to the real page size, not a fixed box, so it never stretches real book content. */}
-          <div className="flex items-center justify-center" style={{ height: quietMode ? 660 : 660 - 46 - 104 }}>
+          <div className="flex items-center justify-center" style={{ height: paperRoomH }}>
             <div
               onPointerDown={handlePaperPointerDown}
               onPointerUp={handlePaperPointerUp}
               className="relative flex items-center justify-center rounded-[6px] bg-white p-[18px] shadow-paper"
-              style={{ height: "100%", aspectRatio: `${space.width} / ${space.height}`, touchAction: "pan-y" }}
+              style={{ ...paperSize, touchAction: "pan-y" }}
             >
               {/* A definite box for the canvas viewport: CanvasArea sizes itself from its container, and a flex item with no height of its own would collapse to 0 here. */}
               <div className="absolute inset-[18px] flex">
@@ -336,15 +401,15 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
           </div>
 
           {/* Bottom zone: floating toolbar + mono caption — hidden in Quiet mode */}
-          <div className={cn("absolute inset-x-0 bottom-0 flex h-[104px] flex-col items-center justify-center gap-2 transition-opacity duration-200 motion-reduce:transition-none", quietMode && "pointer-events-none opacity-0")}>
-            <div className="flex items-center gap-2 rounded-pill bg-panel px-3 py-2 shadow-toolbar">
+          <div className={cn("absolute inset-x-0 bottom-0 flex flex-col items-center justify-center gap-2 transition-opacity duration-200 motion-reduce:transition-none", quietMode && "pointer-events-none opacity-0")} style={{ height: bottomH }}>
+            <div className={cn("flex max-w-[calc(100%-16px)] flex-wrap items-center justify-center gap-2 bg-panel px-3 py-2 shadow-toolbar", bottomH > 104 ? "rounded-[22px]" : "rounded-pill")}>
               <div className="grid grid-cols-6 gap-1.5">
                 {PALETTE.map((hex) => (
-                  <ColorSwatch key={hex} hex={hex} sizePx={26} context="toolbar" selected={activeColor === hex} onClick={() => setActiveColor(hex)} />
+                  <ColorSwatch key={hex} hex={hex} sizePx={26} context="toolbar" selected={activeColor === hex} onClick={() => pickColor(hex)} />
                 ))}
               </div>
 
-              <div className="mx-1 h-10 w-px bg-hairline" />
+              <div className={cn("mx-1 h-10 w-px bg-hairline", bottomH > 104 && "hidden")} />
 
               {(
                 [

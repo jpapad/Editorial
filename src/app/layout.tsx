@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Commissioner, Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
+import PwaRegister from "@/components/PwaRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,6 +30,12 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Pagewright",
   description: "Design, color and publish coloring books.",
+  appleWebApp: { capable: true, title: "Pagewright", statusBarStyle: "default" },
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#3357d4",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -43,7 +50,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Sets data-theme from the saved choice (or the OS setting) before first paint — no light flash for dark-theme users. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <PwaRegister />
+      </body>
     </html>
   );
 }
