@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Download, History, Images, Languages, PackageOpen, Printer, UserRound, LayoutTemplate, Loader2, ShoppingBag, Type } from "lucide-react";
+import { BookOpen, Calculator, Download, History, Images, Languages, PackageOpen, Printer, UserRound, LayoutTemplate, Loader2, ShoppingBag, Type } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -25,6 +25,7 @@ export function BookPrintCard({
   onOpenVersions,
   onOpenPrintAtHome,
   onOpenPack,
+  onOpenProfit,
   onOpenPersonalize,
   onOpenTranslate,
 }: {
@@ -38,6 +39,7 @@ export function BookPrintCard({
   onOpenVersions: () => void;
   onOpenPrintAtHome: () => void;
   onOpenPack: () => void;
+  onOpenProfit: () => void;
   onOpenPersonalize: () => void;
   onOpenTranslate: () => void;
 }) {
@@ -61,6 +63,9 @@ export function BookPrintCard({
       )}
       <Button variant="secondary" size="sm" icon={<ShoppingBag size={13} />} onClick={onOpenListing}>
         {t("Amazon listing kit")}
+      </Button>
+      <Button variant="secondary" size="sm" icon={<Calculator size={13} />} onClick={onOpenProfit}>
+        {t("Price & royalty")}
       </Button>
       <Button variant="secondary" size="sm" icon={<Images size={13} />} onClick={onOpenMockups}>
         {t("Listing mockups")}

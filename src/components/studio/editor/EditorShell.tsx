@@ -35,6 +35,7 @@ import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
 import DigitalPackDialog from "@/components/studio/editor/DigitalPackDialog";
+import ProfitDialog from "@/components/studio/editor/ProfitDialog";
 import { licenseText, packStem, readmeText, trimCrop, type PackOptions } from "@/utils/digitalPack";
 import { buildZip, dataUrlBytes, downloadBytes, pageFileName, type ZipEntry } from "@/utils/zip";
 import TranslateBookDialog from "@/components/studio/editor/TranslateBookDialog";
@@ -89,7 +90,7 @@ import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPa
 import { createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import { clampObjectsToMargin, pagesNeededForMultipleOf4, runEditorPreflightCheck, thickenThinStrokes, type EditorPreflightIssue } from "@/utils/editorPreflight";
 import { alignDeltas, distributeDeltas, flippedHorizontally, flippedVertically, objectBounds, unionBounds, type AlignEdge } from "@/utils/objectGeometry";
-import { DEFAULT_TRIM_SIZE_ID, trimShortLabel } from "@/utils/trimSizes";
+import { DEFAULT_TRIM_SIZE_ID, getTrimSize, trimShortLabel } from "@/utils/trimSizes";
 
 const MAX_HISTORY = 50;
 const DEFAULT_STAMP_SIZE = 120;
@@ -295,6 +296,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showVersions, setShowVersions] = useState(false);
   const [showPrintAtHome, setShowPrintAtHome] = useState(false);
   const [showPack, setShowPack] = useState(false);
+  const [showProfit, setShowProfit] = useState(false);
   const [showPersonalize, setShowPersonalize] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const pageLooks = usePageLooks(pages);
@@ -1818,7 +1820,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
                     updateActivePage({ traceImage });
                   }}
                 />
-                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPack={() => setShowPack(true)} onOpenPersonalize={() => setShowPersonalize(true)} onOpenTranslate={() => setShowTranslate(true)} />
+                <BookPrintCard trimLabel={trimShortLabel(trimSizeId)} bleed={bleed} onToggleBleed={(on) => void handleToggleBleed(on)} converting={convertingBleed} onOpenListing={() => setShowListing(true)} onShareTemplate={() => setShowPublishTemplate(true)} onOpenMockups={() => void handleOpenMockups()} onOpenVersions={() => setShowVersions(true)} onOpenPrintAtHome={() => setShowPrintAtHome(true)} onOpenPack={() => setShowPack(true)} onOpenProfit={() => setShowProfit(true)} onOpenPersonalize={() => setShowPersonalize(true)} onOpenTranslate={() => setShowTranslate(true)} />
               </>
             ) : null
           }
@@ -1842,6 +1844,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
       {showTranslate && <TranslateBookDialog pages={pages} coverPage={coverDesign ? fittedCover.page : null} onTranslated={handleTranslated} onClose={() => setShowTranslate(false)} />}
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
+      {showProfit && <ProfitDialog pageCount={pages.length} trimWidthPt={getTrimSize(trimSizeId).widthPt} trimHeightPt={getTrimSize(trimSizeId).heightPt} paper={paper} onClose={() => setShowProfit(false)} />}
       {showPack && <DigitalPackDialog pageCount={pages.filter((p) => !p.isBlankBack).length} onExport={handleDigitalPack} onClose={() => setShowPack(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}

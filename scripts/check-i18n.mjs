@@ -48,6 +48,7 @@ const DYNAMIC = [
   "src/utils/listingKit.ts",
   "src/utils/trimSizes.ts",
   "src/utils/digitalPack.ts",
+  "src/utils/kdpPricing.ts",
 ];
 const EXTRA = [
   // One-off keys passed to t() through variables.
