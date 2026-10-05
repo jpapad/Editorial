@@ -191,7 +191,4 @@ export function forgetKid(code: string) {
   }
 }
 
-/** Normalises what a child or grown-up typed as a code. */
-export function normalizeCode(input: string): string {
-  return input.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-}
+export { normalizeCode } from "@/utils/groupCode";
