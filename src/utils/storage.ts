@@ -39,7 +39,7 @@ function isProjectData(value: unknown): value is ProjectData {
   return typeof project.title === "string" && Array.isArray(project.pages) && project.pages.every(isBookPage);
 }
 
-function fromRow(row: BookRow): StoredBook {
+export function fromRow(row: BookRow): StoredBook {
   return {
     id: row.id,
     title: row.title,
@@ -80,19 +80,37 @@ function isMissingPrintSettings(message: string): boolean {
 }
 let printSettingsAvailable = true;
 
+/** Someone else saved this book after we last loaded or saved it (sql/11 collaborators, or the same user in another tab). */
+export class BookConflictError extends Error {
+  constructor() {
+    super("Someone else saved changes to this book.");
+  }
+}
+
+export interface SaveOptions {
+  /**
+   * The updated_at this copy was loaded with (or last saved as). When set,
+   * the save only goes through if the book hasn't been saved by anyone
+   * else since — otherwise BookConflictError, instead of quietly
+   * overwriting their work.
+   */
+  expectedUpdatedAt?: string | null;
+}
+
 /**
- * Upsert — used for both the initial create and every autosave. Optional
- * fields left undefined are left out of the write entirely, so an upsert
- * never clears a value the caller simply didn't have (e.g. the coloring
- * view saving a page used to reset the book's trim size to null).
+ * Used for both the initial create and every autosave. An existing book is
+ * updated in place — never its owner (an editor saving a shared book must
+ * not take it over); only a book that doesn't exist yet is inserted, as the
+ * signed-in user's. Optional fields left undefined are left out of the
+ * write entirely, so a save never clears a value the caller simply didn't
+ * have (e.g. the coloring view saving a page used to reset the book's trim
+ * size to null).
  */
-export async function saveBook(book: StoredBook): Promise<void> {
+export async function saveBook(book: StoredBook, options: SaveOptions = {}): Promise<void> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error("Not signed in.");
 
   const row: Record<string, unknown> = {
-    id: book.id,
-    user_id: userData.user.id,
     title: book.title,
     pages: book.pages,
     status: book.status,
@@ -106,14 +124,32 @@ export async function saveBook(book: StoredBook): Promise<void> {
     if (book.cover !== undefined) row.cover = book.cover;
   }
 
-  let { error } = await supabase.from("books").upsert(row as never);
-  if (error && isMissingPrintSettings(error.message)) {
+  let error = await writeBook(book.id, row, userData.user.id, options.expectedUpdatedAt ?? null);
+  if (error && isMissingPrintSettings(error)) {
     // Migration not run yet: keep saving everything else.
     printSettingsAvailable = false;
     for (const c of PRINT_SETTINGS_COLUMNS) delete row[c];
-    ({ error } = await supabase.from("books").upsert(row as never));
+    error = await writeBook(book.id, row, userData.user.id, options.expectedUpdatedAt ?? null);
   }
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(error);
+}
+
+/** Update if it's there (and unchanged since `expected`), insert if it's new. Returns an error message, or null. */
+async function writeBook(id: string, row: Record<string, unknown>, me: string, expected: string | null): Promise<string | null> {
+  let update = supabase.from("books").update(row as never).eq("id", id);
+  if (expected) update = update.eq("updated_at", expected);
+  const { data, error } = await update.select("id");
+  if (error) return error.message;
+  if (data && data.length > 0) return null;
+
+  // Nothing updated: a brand-new book, a newer save by someone else, or a book we may only read.
+  if (expected) {
+    const { data: existing } = await supabase.from("books").select("id").eq("id", id).maybeSingle();
+    if (existing) throw new BookConflictError();
+  }
+  const { error: insertError } = await supabase.from("books").insert({ ...row, id, user_id: me } as never);
+  if (!insertError) return null;
+  return /duplicate key|already exists|23505/.test(insertError.message) ? "You can look at this book, but not change it." : insertError.message;
 }
 
 export async function deleteBook(id: string): Promise<void> {

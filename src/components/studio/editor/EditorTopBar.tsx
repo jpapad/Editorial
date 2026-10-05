@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderOpen, Save, Loader2, Undo2, Redo2, Keyboard, BookOpen, MessageSquare, Share2, Eye } from "lucide-react";
+import { FolderOpen, Save, Loader2, Undo2, Redo2, Keyboard, BookOpen, MessageSquare, Share2, Eye, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Button from "@/components/studio/ui/Button";
 import SegmentedControl from "@/components/studio/ui/SegmentedControl";
@@ -32,6 +32,8 @@ export interface EditorTopBarProps {
   onToggleComments: () => void;
   /** Opens share-link management; hidden when there's no signed-in owner to share as. */
   onShare?: () => void;
+  /** Opens the people working on this book (sql/11) — shown when there is a book to share. */
+  onTeam?: () => void;
   onExport: () => void;
   isExporting: boolean;
   onPublish: () => void;
@@ -63,7 +65,7 @@ const MODE_OPTIONS: { value: EditorMode; label: string }[] = [
  * existing capability to "review before publishing" — there's no real
  * hosting/publish flow anywhere in this codebase, old or new).
  */
-export default function EditorTopBar({ title, onTitleChange, pages, activePageId, trimSizeLabel, mode, onModeChange, onSave, onLoad, onUndo, canUndo, onRedo, canRedo, onShowShortcuts, onPreview, commentCount, commentsActive, onToggleComments, onShare, onExport, isExporting, onPublish }: EditorTopBarProps) {
+export default function EditorTopBar({ title, onTitleChange, pages, activePageId, trimSizeLabel, mode, onModeChange, onSave, onLoad, onUndo, canUndo, onRedo, canRedo, onShowShortcuts, onPreview, commentCount, commentsActive, onToggleComments, onShare, onTeam, onExport, isExporting, onPublish }: EditorTopBarProps) {
   const pageIndex = pages.findIndex((p) => p.id === activePageId);
   const pageNumber = pageIndex === -1 ? 1 : pageIndex + 1;
   const t = useT();
@@ -136,6 +138,11 @@ export default function EditorTopBar({ title, onTitleChange, pages, activePageId
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-pill bg-error px-1 text-[9px] font-semibold text-on-ink">{commentCount}</span>
           )}
         </button>
+        {onTeam && (
+          <button type="button" aria-label={t("Work together")} title={t("Work together")} onClick={onTeam} className={ICON_BUTTON_CLASS}>
+            <Users size={16} />
+          </button>
+        )}
         {onShare && (
           <button type="button" aria-label={t("Share for coloring")} title={t("Share for coloring")} onClick={onShare} className={ICON_BUTTON_CLASS}>
             <Share2 size={16} />

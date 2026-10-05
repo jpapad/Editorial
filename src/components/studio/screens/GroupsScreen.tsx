@@ -243,10 +243,13 @@ function GroupDetail({ group, onChanged, onDeleted }: { group: KidGroup; onChang
             size="sm"
             icon={<Copy size={13} />}
             onClick={() => {
-              void navigator.clipboard?.writeText(joinUrl).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              });
+              void navigator.clipboard
+                ?.writeText(joinUrl)
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                })
+                .catch(() => undefined);
             }}
           >
             {copied ? t("Copied") : t("Copy the link")}

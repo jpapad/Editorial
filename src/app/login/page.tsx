@@ -1,5 +1,6 @@
 "use client";
 
+import { takeReturnTo } from "@/lib/returnTo";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import clsx from "clsx";
@@ -49,7 +50,7 @@ function LoginForm() {
   const callbackFailed = useSearchParams().get("error") === "auth_callback_failed";
 
   useEffect(() => {
-    if (!sessionLoading && user) router.replace("/studio");
+    if (!sessionLoading && user) router.replace(takeReturnTo() ?? "/studio");
   }, [sessionLoading, user, router]);
 
   function switchMode(next: Mode) {
@@ -101,7 +102,7 @@ function LoginForm() {
       return;
     }
     setStatus("signed-in");
-    router.replace("/studio");
+    router.replace(takeReturnTo() ?? "/studio");
   }
 
   async function handleGoogle() {

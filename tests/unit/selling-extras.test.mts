@@ -1,6 +1,6 @@
 import { applyCoverLayout, coverObjects, coverPictureFrom, COVER_STYLES } from "../../src/utils/coverTemplates";
 import { coverLayout, coverSafeAreas, emptyCover } from "../../src/utils/coverGeometry";
-import { isPicturePage, nextVolumePages, nextVolumeTitle } from "../../src/utils/volumes";
+import { inVolumeOrder, isPicturePage, nextVolumePages, nextVolumeTitle, volumeNumber } from "../../src/utils/volumes";
 import { applyPageNumbers, repeatOnAllPages } from "../../src/utils/pageNumbers";
 import { applyFrameToAll } from "../../src/utils/bookTools";
 import { createPageFromTemplate } from "../../src/components/editor/pageTemplates";
@@ -50,6 +50,8 @@ ok(coverPictureFrom([page("e", [])]) === undefined, "no picture in the book → 
 
 // ---- next volume
 ok(nextVolumeTitle("Ζωάκια") === "Ζωάκια 2" && nextVolumeTitle("Ζωάκια 2") === "Ζωάκια 3" && nextVolumeTitle("Farm Animals 19 ") === "Farm Animals 20", "titles count up");
+ok(volumeNumber("Ζωάκια") === 1 && volumeNumber("Ζωάκια 12") === 12, "a title's volume number (none = 1)");
+ok(inVolumeOrder([{ title: "Ζωάκια 10" }, { title: "Ζωάκια 2" }, { title: "Ζωάκια" }]).map((b) => b.title).join("|") === "Ζωάκια|Ζωάκια 2|Ζωάκια 10", "a series sorts by volume number, not alphabetically (10 after 2)");
 const belongs = createPageFromTemplate(1, space, "belongs-to");
 const stickers = createPageFromTemplate(2, space, "stickers");
 const art = page("art", [stamp("pic", 400)], { fillDataUrl: "data:paint", thumbnailDataUrl: "data:thumb", traceImage: { src: "x", opacity: 0.3 }, backgroundPatternId: "stars" });

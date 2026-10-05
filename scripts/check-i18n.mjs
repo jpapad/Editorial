@@ -55,7 +55,7 @@ const DYNAMIC = [
 ];
 const EXTRA = [
   // One-off keys passed to t() through variables.
-  "My Coloring Book", "All books", "Drafts", "Published", "Loose pages", "Templates", "Saddle stitch",
+  "My Coloring Book", "All books", "Drafts", "Published", "Shared with me", "Loose pages", "Templates", "Saddle stitch",
   "This link doesn't work any more. Ask your teacher for a new one.", "Sharing isn't set up yet.", "Something went wrong. Try again in a moment.",
   "Comments aren't set up yet — run the page_comments migration in Supabase.", "Sharing isn't set up yet — run the book_shares migration in Supabase.",
   "Enter your email address.", "That doesn't look like an email address.", "Choose a password.", "Enter your password.", "Use at least {n} characters.",

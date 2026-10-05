@@ -39,7 +39,7 @@ ok(ref.includes("attached image") && ref.includes("the turtle meets a crab") && 
 const space = interiorSpace("8.5x11", false);
 const geo = geometryFromSpace(space);
 const page = storyPageFromImage("data:pic", { width: 1024, height: 1536 }, space, "Η Λίνα κολυμπάει με τον φίλο της τον κάβουρα και γελάνε πολύ μαζί στη ζεστή θάλασσα.");
-const [pic, text] = page.objects as [{ y: number; height: number }, { kind: string; y: number; height: number; fontSize: number; text: string }];
+const [pic, text] = page.objects as unknown as [{ y: number; height: number }, { kind: string; y: number; height: number; fontSize: number; text: string }];
 const textTop = geo.safe.bottom - Math.round((geo.safe.bottom - geo.safe.top) * STORY_TEXT_SHARE);
 ok(pic.y + pic.height <= textTop + 0.5, "the picture stays above the story text");
 ok(text.kind === "text" && text.y >= textTop && text.y + text.height <= geo.safe.bottom + 0.5 && text.fontSize === 28, "the text sits in its band inside the safe area, sized to its length", JSON.stringify({ y: text.y, h: text.height, f: text.fontSize }));

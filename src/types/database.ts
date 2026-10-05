@@ -146,6 +146,19 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      // sql/11_book_members.sql
+      book_members: {
+        Row: BookMemberRow;
+        Insert: never;
+        Update: Pick<BookMemberRow, "role">;
+        Relationships: [];
+      };
+      book_invites: {
+        Row: BookInviteRow;
+        Insert: Pick<BookInviteRow, "book_id" | "role">;
+        Update: Pick<BookInviteRow, "revoked_at">;
+        Relationships: [];
+      };
       // sql/10_kid_groups.sql
       kid_groups: {
         Row: KidGroupRow;
@@ -205,6 +218,10 @@ export type Database = {
       log_export: { Args: { export_kind: string }; Returns: undefined };
       admin_set_ai_limit: { Args: { target_user: string; new_limit: number }; Returns: undefined };
       admin_stats: { Args: Record<string, never>; Returns: AdminStats };
+      // sql/11_book_members.sql
+      book_role: { Args: { target: string }; Returns: "owner" | "editor" | "viewer" | null };
+      accept_book_invite: { Args: { invite: string }; Returns: string | null };
+      books_shared_with_me: { Args: Record<string, never>; Returns: { book: BookRow; role: "editor" | "viewer" }[] };
       // sql/10_kid_groups.sql — the child side (anon), by group code / device token.
       kid_group_lookup: { Args: { group_code: string }; Returns: Json };
       kid_login: { Args: { group_code: string; member: string; picture_pin: number[] }; Returns: string | null };
@@ -213,6 +230,23 @@ export type Database = {
       kid_save: { Args: { kid_token: string; book: string; page: string; page_fill: string | null; page_thumb: string | null; done: boolean }; Returns: boolean };
     };
   };
+};
+
+export type BookMemberRow = {
+  book_id: string;
+  user_id: string;
+  role: "editor" | "viewer";
+  email: string | null;
+  added_at: string;
+};
+
+export type BookInviteRow = {
+  token: string;
+  book_id: string;
+  role: "editor" | "viewer";
+  created_by: string;
+  created_at: string;
+  revoked_at: string | null;
 };
 
 export type KidGroupRow = {

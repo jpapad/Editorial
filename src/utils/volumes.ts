@@ -32,3 +32,14 @@ export function nextVolumePages(pages: BookPage[]): BookPage[] {
     return { ...base, fillDataUrl: undefined, lines: [], objects: copy.objects.filter((o) => (o.kind === "stamp" && o.isFrame) || o.repeatId || o.role === "pageNumber") };
   });
 }
+
+/** "Farm Animals 3" → 3, "Farm Animals" → 1: a book's place in its series. */
+export function volumeNumber(title: string): number {
+  const match = /(\d+)\s*$/.exec(title.trim());
+  return match ? Number(match[1]) : 1;
+}
+
+/** A series (one collection) in reading order: volume 1, 2, 3…, then by title. */
+export function inVolumeOrder<T extends { title: string }>(books: T[]): T[] {
+  return [...books].sort((a, b) => volumeNumber(a.title) - volumeNumber(b.title) || a.title.localeCompare(b.title));
+}

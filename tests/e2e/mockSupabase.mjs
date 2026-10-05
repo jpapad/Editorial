@@ -95,6 +95,13 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
       return json(book ? { title: book.title, trim_size: book.trim_size, bleed: book.bleed, pages: book.pages.filter((pg) => !pg.isBlankBack).map((pg) => { const rest = { ...pg }; delete rest.fillDataUrl; delete rest.completedAt; delete rest.thumbnailDataUrl; return rest; }) } : null);
     }
     if (db.kids && url.pathname.startsWith('/rest/v1/rpc/kid_')) return kidsRoute(db.kids, url, method, req, json, single, onWrite);
+    if (url.pathname === '/rest/v1/rpc/book_role') return db.team ? json(db.team.role ?? 'owner') : json({ message: 'Could not find the function public.book_role' }, 404);
+    if (url.pathname === '/rest/v1/rpc/books_shared_with_me') return db.team ? json(db.team.shared ?? []) : json({ message: 'Could not find the function' }, 404);
+    if (url.pathname === '/rest/v1/rpc/accept_book_invite') {
+      const inv = db.team?.invites.find((i) => i.token === JSON.parse(req.postData()).invite && !i.revoked_at);
+      if (inv) onWrite?.('accept_invite', inv);
+      return json(inv ? inv.book_id : null);
+    }
     if (url.pathname.startsWith('/rest/v1/rpc/')) return json(null);
     const table = url.pathname.replace('/rest/v1/', '');
     const idEq = url.searchParams.get('id')?.replace('eq.', '');
@@ -103,7 +110,17 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
         const rows = idEq ? db.books.filter((b) => b.id === idEq) : db.books;
         return json(single ? rows[0] ?? null : rows, single && !rows[0] ? 406 : 200);
       }
-      if (method === 'POST' || method === 'PATCH') {
+      // An update (storage.saveBook): the row named in the URL, only if unchanged since `updated_at=eq.…` when given.
+      if (method === 'PATCH') {
+        const body = JSON.parse(req.postData() || '{}');
+        const i = db.books.findIndex((b) => b.id === idEq);
+        const expected = url.searchParams.get('updated_at')?.replace('eq.', '');
+        if (i < 0 || db.denyBookWrites || (expected && db.books[i].updated_at !== expected)) return json(single ? null : []);
+        db.books[i] = { ...db.books[i], ...body };
+        onWrite?.('books', body);
+        return json(single ? db.books[i] : [db.books[i]]);
+      }
+      if (method === 'POST') {
         const body = JSON.parse(req.postData() || '{}');
         const row = Array.isArray(body) ? body[0] : body;
         // insert() without an id: the database would assign one.
@@ -117,6 +134,20 @@ export async function mockSupabase(page, { books = [], isAdmin = false, comments
     if (table === 'books' && method === 'DELETE') { db.books = db.books.filter((b) => b.id !== idEq); onWrite?.('books_delete', idEq); return json([]); }
     // Classes & families (sql/10): in-memory tables plus the kid_* functions, when a test sets db.kids = {}.
     if (db.kids && (table.startsWith('kid_') || url.pathname.startsWith('/rest/v1/rpc/kid_'))) return kidsRoute(db.kids, url, method, req, json, single, onWrite);
+    // Working together (sql/11): when a test sets db.team = { members: [], invites: [], role, shared: [] }.
+    if (table === 'book_members') {
+      if (!db.team) return json({ message: 'relation "public.book_members" does not exist' }, 404);
+      const uid = url.searchParams.get('user_id')?.replace('eq.', '');
+      if (method === 'GET') return json(db.team.members);
+      if (method === 'PATCH') { const body = JSON.parse(req.postData()); db.team.members = db.team.members.map((m) => (m.user_id === uid ? { ...m, ...body } : m)); onWrite?.('book_members', { uid, ...body }); return json([]); }
+      if (method === 'DELETE') { db.team.members = db.team.members.filter((m) => m.user_id !== uid); onWrite?.('book_members_delete', uid); return json([]); }
+    }
+    if (table === 'book_invites') {
+      if (!db.team) return json({ message: 'relation "public.book_invites" does not exist' }, 404);
+      if (method === 'GET') return json(db.team.invites.filter((i) => !i.revoked_at));
+      if (method === 'POST') { const row = { token: crypto.randomUUID(), created_by: TEST_USER.id, created_at: new Date().toISOString(), revoked_at: null, ...JSON.parse(req.postData()) }; db.team.invites.push(row); onWrite?.('book_invites', row); return json(single ? row : [row], 201); }
+      if (method === 'PATCH') { const tok = url.searchParams.get('token')?.replace('eq.', ''); const body = JSON.parse(req.postData()); db.team.invites = db.team.invites.map((i) => (i.token === tok ? { ...i, ...body } : i)); return json([]); }
+    }
     // Billing (sql/09): the signed-in user's own row, if a test sets db.subscription.
     if (table === 'subscriptions') return json(single ? db.subscription ?? null : db.subscription ? [db.subscription] : []);
     if (table === 'book_shares') {

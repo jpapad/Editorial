@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { rememberReturnTo } from "@/lib/returnTo";
 
 /**
  * Client-side route gate for the whole /studio tree — this app has no
@@ -21,7 +22,10 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (loading || user) return;
+    // Back here after signing in (e.g. an invite link opened while signed out).
+    if (window.location.pathname !== "/studio") rememberReturnTo(window.location.pathname + window.location.search);
+    router.replace("/login");
   }, [loading, user, router]);
 
   if (loading || !user) {

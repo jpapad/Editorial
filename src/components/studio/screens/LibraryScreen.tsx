@@ -15,14 +15,16 @@ import { cn } from "@/utils/cn";
 import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
 import { ThemeToggle } from "@/lib/theme";
 import { useAiUsage } from "@/lib/aiUsage";
+import { takeReturnTo } from "@/lib/returnTo";
+import { listSharedBooks } from "@/utils/collaborators";
 import { trimShortLabel } from "@/utils/trimSizes";
 import { bookReadiness } from "@/utils/readiness";
 import { ReadinessRing, readinessLabel } from "@/components/studio/editor/ReadinessCard";
 import { supabase } from "@/lib/supabase/client";
-import { nextVolumePages, nextVolumeTitle } from "@/utils/volumes";
+import { inVolumeOrder, nextVolumePages, nextVolumeTitle } from "@/utils/volumes";
 import { createBook, deleteBook, duplicateBook, listBooks, readProjectFromFile, saveBook, type StoredBook } from "@/utils/storage";
 
-const NAV_ITEMS = ["All books", "Drafts", "Published", "Templates"] as const;
+const NAV_ITEMS = ["All books", "Drafts", "Published", "Shared with me", "Templates"] as const;
 type NavItem = (typeof NAV_ITEMS)[number];
 
 function bookThumbnail(book: StoredBook): string | undefined {
@@ -59,11 +61,18 @@ const CHIP =
  */
 export default function LibraryScreen() {
   const router = useRouter();
+  // Signed in through Google from a page that needed an account (an invite link): go back there.
+  useEffect(() => {
+    const back = takeReturnTo();
+    if (back) router.replace(back);
+  }, [router]);
   const t = useT();
   const [activeNav, setActiveNav] = useState<NavItem>(NAV_ITEMS[0]);
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [books, setBooks] = useState<StoredBook[] | null>(null);
+  // Books others invited me to (sql/11); empty before that migration.
+  const [shared, setShared] = useState<(StoredBook & { role: "editor" | "viewer" })[]>([]);
   const [isSupervisor, setIsSupervisor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [describe, setDescribe] = useState("");
@@ -79,6 +88,7 @@ export default function LibraryScreen() {
 
   useEffect(() => {
     refresh();
+    void listSharedBooks().then(setShared);
     // Only decides whether to show the Admin link; the admin page and RLS
     // enforce access on their own. An error (e.g. the admin_role migration
     // not run yet) just means no link.
@@ -160,17 +170,20 @@ export default function LibraryScreen() {
   const collections = Array.from(new Set((books ?? []).map((b) => b.collection).filter((c): c is string => Boolean(c)))).sort();
   const normalizedQuery = query.trim().toLowerCase();
 
-  const filtered = (books ?? []).filter((book) => {
+  const matching = (books ?? []).filter((book) => {
     if (activeNav === "Drafts" && book.status !== "draft") return false;
     if (activeNav === "Published" && book.status !== "published") return false;
     if (activeCollection && book.collection !== activeCollection) return false;
     if (normalizedQuery && !book.title.toLowerCase().includes(normalizedQuery)) return false;
     return true;
   });
+  // A collection is usually a series: show it volume by volume.
+  const filtered = activeCollection ? inVolumeOrder(matching) : matching;
   const counts: Record<NavItem, number | null> = {
     "All books": books?.length ?? 0,
     Drafts: (books ?? []).filter((b) => b.status === "draft").length,
     Published: (books ?? []).filter((b) => b.status === "published").length,
+    "Shared with me": shared.length,
     Templates: null,
   };
   // listBooks() is newest-edited first, so the first book is the one to continue.
@@ -246,7 +259,7 @@ export default function LibraryScreen() {
       {storyOpen && <StoryBookDialog onClose={() => setStoryOpen(false)} onCreated={handleOpen} />}
       {describeOpen !== null && <BookFromDescriptionDialog initialDescription={describeOpen} onClose={() => setDescribeOpen(null)} onCreated={handleOpen} />}
 
-      {!isLoading && (books?.length ?? 0) === 0 && activeNav !== "Templates" ? (
+      {!isLoading && (books?.length ?? 0) === 0 && shared.length === 0 && activeNav !== "Templates" ? (
         <div className="flex min-h-[70vh] items-center justify-center">
           <EmptyLibraryScreen onNewBook={handleNewBook} onFromTemplate={() => setActiveNav("Templates")} onImportSketch={() => fileInputRef.current?.click()} />
         </div>
@@ -367,12 +380,33 @@ export default function LibraryScreen() {
                 {c}
               </button>
             ))}
-            {activeNav !== "Templates" && (
+            {activeNav !== "Templates" && activeNav !== "Shared with me" && (
               <MetaLabel className="ml-auto">{t("{books} books · {pages} pages", { books: filtered.length, pages: filtered.reduce((n, b) => n + b.pages.length, 0) })}</MetaLabel>
             )}
           </div>
 
-          {activeNav === "Templates" ? (
+          {activeNav === "Shared with me" ? (
+            shared.length === 0 ? (
+              <p className="py-16 text-center text-body text-ink-secondary">{t("When someone invites you to a book, it shows up here.")}</p>
+            ) : (
+              <div className="grid grid-cols-6 gap-[18px]">
+                {shared
+                  .filter((b) => !normalizedQuery || b.title.toLowerCase().includes(normalizedQuery))
+                  .map((book) => (
+                    <div key={book.id} className="flex flex-col gap-2.5">
+                      <div className="relative">
+                        <Thumbnail src={bookThumbnail(book)} style={{ width: 138, height: 178, boxShadow: "var(--shadow-paper)" }} radius="paper-sm" onClick={() => handleOpen(book.id)} alt={book.title} />
+                        <span className="absolute left-2.5 top-2.5 rounded-pill bg-panel/90 px-2 py-0.5 text-[11px] font-semibold text-ink-secondary shadow-resting">{book.role === "editor" ? t("Can edit") : t("Can view and comment")}</span>
+                      </div>
+                      <button type="button" onClick={() => handleOpen(book.id)} className="min-w-0 px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        <p className="truncate text-body font-bold leading-8 text-ink">{book.title}</p>
+                      </button>
+                      <MetaLabel className="-mt-2 block px-1">{bookMeta(book, t)}</MetaLabel>
+                    </div>
+                  ))}
+              </div>
+            )
+          ) : activeNav === "Templates" ? (
             <div className="flex flex-col gap-4">
               <div>
                 <h1 className="text-page-title font-bold tracking-[-0.02em] text-ink">{t("Templates")}</h1>

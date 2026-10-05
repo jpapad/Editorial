@@ -87,7 +87,9 @@ import type {
   TextData,
 } from "@/types/editor";
 import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPage, renderPdf } from "@/utils/pdfExport";
-import { createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
+import { BookConflictError, createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
+import { myBookRole, type BookRole } from "@/utils/collaborators";
+import TeamDialog from "@/components/studio/editor/TeamDialog";
 import { clampObjectsToMargin, pagesNeededForMultipleOf4, runEditorPreflightCheck, thickenThinStrokes, type EditorPreflightIssue } from "@/utils/editorPreflight";
 import { alignDeltas, distributeDeltas, flippedHorizontally, flippedVertically, objectBounds, unionBounds, type AlignEdge } from "@/utils/objectGeometry";
 import { DEFAULT_TRIM_SIZE_ID, getTrimSize, trimShortLabel } from "@/utils/trimSizes";
@@ -202,22 +204,22 @@ export default function EditorShell({ darkSurround = false }: EditorShellProps) 
     const requested = new URLSearchParams(window.location.search).get("book");
     return requested && UUID_RE.test(requested) ? requested : crypto.randomUUID();
   });
-  const [loaded, setLoaded] = useState<{ book: StoredBook | null } | null>(null);
+  const [loaded, setLoaded] = useState<{ book: StoredBook | null; role: BookRole | null } | null>(null);
   const t = useT();
 
   useEffect(() => {
     if (!bookId) return;
     let cancelled = false;
-    getBook(bookId)
-      .then(async (book) => {
+    Promise.all([getBook(bookId), myBookRole(bookId)])
+      .then(async ([book, role]) => {
         // Pages drawn on the old fixed A4 canvas (or before bleed was
         // toggled) are re-expressed in this book's real page size first.
         const target = interiorSpace(book?.trimSize, book?.bleed ?? false);
         if (book && needsConversion(book.pages, target)) book = { ...book, pages: await convertPages(book.pages, target) };
-        if (!cancelled) setLoaded({ book });
+        if (!cancelled) setLoaded({ book, role });
       })
       .catch(() => {
-        if (!cancelled) setLoaded({ book: null });
+        if (!cancelled) setLoaded({ book: null, role: null });
       });
     return () => {
       cancelled = true;
@@ -228,15 +230,17 @@ export default function EditorShell({ darkSurround = false }: EditorShellProps) 
     return <div className="flex h-screen items-center justify-center bg-surface text-body text-ink-secondary">{t("Loading…")}</div>;
   }
 
-  return <EditorShellLoaded darkSurround={darkSurround} bookId={bookId} initialBook={loaded.book} />;
+  return <EditorShellLoaded darkSurround={darkSurround} bookId={bookId} initialBook={loaded.book} initialRole={loaded.role} />;
 }
 
 interface EditorShellLoadedProps extends EditorShellProps {
   bookId: string;
   initialBook: StoredBook | null;
+  /** My role on an existing book (sql/11); null for a new book, or before that migration. */
+  initialRole: BookRole | null;
 }
 
-function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: EditorShellLoadedProps) {
+function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialRole }: EditorShellLoadedProps) {
   const t = useT();
   const { lang } = useLanguage();
   const createdAtRef = useRef(initialBook?.createdAt ?? new Date().toISOString());
@@ -284,9 +288,16 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
   const [showPreflight, setShowPreflight] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { user, loading: sessionLoading } = useSession();
-  // A supervisor opening someone else's book: nothing autosaves (RLS would
-  // refuse the write anyway) and the comments panel is the point.
-  const reviewMode = Boolean(user && initialBook?.ownerId && initialBook.ownerId !== user.id);
+  // Someone else's book that I may only read — a supervisor, or a viewer
+  // invited to it: nothing autosaves (RLS would refuse the write anyway)
+  // and the comments panel is the point. An invited editor edits as usual.
+  const sharedEditor = initialRole === "editor";
+  const reviewMode = Boolean(user && initialBook?.ownerId && initialBook.ownerId !== user.id && !sharedEditor);
+  const [showTeam, setShowTeam] = useState(false);
+  // Last version of the book this tab knows about: a save only goes through if nobody saved since.
+  const lastSavedAtRef = useRef<string | null>(initialBook?.updatedAt ?? null);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const [conflict, setConflict] = useState(false);
   const [sidePanel, setSidePanel] = useState<"default" | "ai" | "comments">("default");
   const [isSupervisor, setIsSupervisor] = useState(false);
   const [showListing, setShowListing] = useState(false);
@@ -352,16 +363,29 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
 
   // Signed out (the local editor at /): nothing to save to, so don't try —
   // every attempt would fail with an alert.
-  useEffect(() => {
-    if (!bookId || sessionLoading || !user || reviewMode) return;
-    const timer = setTimeout(() => {
+  /** One save, after any still in flight (each needs the previous one's version to check against). `force` overwrites a newer save by someone else. */
+  function queueSave(force = false) {
+    saveChainRef.current = saveChainRef.current.then(async () => {
       // Big pictures are uploaded once and saved as links (imageStore.ts); whatever can't be uploaded is saved embedded, as before.
-      externalize(pages, coverDesign, uploadBookImage, uploadedImagesRef.current)
-        .then((stored) => saveBook({ id: bookId, title, pages: stored.pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: stored.cover, createdAt: createdAtRef.current, updatedAt: new Date().toISOString() }))
-        .catch((err) => window.alert(err instanceof Error ? err.message : t("Could not save this book.")));
-    }, AUTOSAVE_DEBOUNCE_MS);
+      const stored = await externalize(pages, coverDesign, uploadBookImage, uploadedImagesRef.current);
+      const updatedAt = new Date().toISOString();
+      try {
+        await saveBook({ id: bookId, title, pages: stored.pages, status: bookStatus, trimSize: trimSizeId, bleed, paper, cover: stored.cover, createdAt: createdAtRef.current, updatedAt }, { expectedUpdatedAt: force ? null : lastSavedAtRef.current });
+        lastSavedAtRef.current = updatedAt;
+        if (force) setConflict(false);
+      } catch (err) {
+        if (err instanceof BookConflictError) setConflict(true);
+        else window.alert(err instanceof Error ? err.message : t("Could not save this book."));
+      }
+    });
+  }
+
+  useEffect(() => {
+    if (!bookId || sessionLoading || !user || reviewMode || conflict) return;
+    const timer = setTimeout(() => queueSave(), AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, user, reviewMode, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- queueSave reads these same values
+  }, [bookId, title, pages, bookStatus, trimSizeId, bleed, paper, coverDesign, sessionLoading, user, reviewMode, conflict, t]);
 
   // Comments + supervisor flag. Both degrade quietly: no migration yet
   // means no comments table (a friendly note in the panel), not an error.
@@ -1573,7 +1597,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
         commentCount={Object.values(openCommentCounts).reduce((a, b) => a + b, 0)}
         commentsActive={sidePanel === "comments"}
         onToggleComments={() => setSidePanel((v) => (v === "comments" ? "default" : "comments"))}
-        onShare={user && !reviewMode ? () => setShowShare(true) : undefined}
+        onShare={user && !reviewMode && !sharedEditor ? () => setShowShare(true) : undefined}
+        onTeam={user && initialRole ? () => setShowTeam(true) : undefined}
         onExport={handleExport}
         isExporting={isExporting}
         onPublish={handlePublish}
@@ -1583,6 +1608,17 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {reviewMode && (
         <div role="status" className="absolute left-1/2 top-[80px] z-20 -translate-x-1/2 rounded-pill bg-warning px-4 py-1.5 text-helper font-medium text-ink shadow-toolbar">
           {t("Reviewing someone else's book — changes here aren't saved. Leave feedback in Comments.")}
+        </div>
+      )}
+      {conflict && (
+        <div role="alert" className="pw-glass absolute left-1/2 top-[80px] z-30 flex -translate-x-1/2 items-center gap-3 rounded-pill px-4 py-2 text-helper text-ink shadow-toolbar">
+          <span className="font-semibold">{t("Someone else saved changes to this book. Your latest changes aren't saved yet.")}</span>
+          <button type="button" onClick={() => window.location.reload()} className="rounded-pill bg-accent px-3 py-1 font-semibold text-on-accent outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
+            {t("Load their version")}
+          </button>
+          <button type="button" onClick={() => queueSave(true)} className="rounded-pill px-3 py-1 font-semibold text-ink-secondary outline-none hover:bg-inset-alt focus-visible:ring-2 focus-visible:ring-accent">
+            {t("Keep mine")}
+          </button>
         </div>
       )}
 
@@ -1813,6 +1849,18 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
 
       {showShare && <ShareDialog bookId={bookId} onClose={() => setShowShare(false)} />}
+      {showTeam && user && initialRole && (
+        <TeamDialog
+          bookId={bookId}
+          role={initialRole}
+          currentUserId={user.id}
+          onClose={() => setShowTeam(false)}
+          onLeft={() => {
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.assign("/studio");
+          }}
+        />
+      )}
 
       {notice && (
         <div role="status" className="pw-glass fixed left-1/2 top-24 z-40 flex -translate-x-1/2 items-center gap-3 rounded-pill px-4 py-2 text-helper text-ink shadow-toolbar">
