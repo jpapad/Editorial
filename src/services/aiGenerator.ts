@@ -29,6 +29,8 @@ export interface LineArtRequest {
   theme?: string;
   /** Physical aspect ratio hint — most providers only accept a coarse enum, not exact inches. */
   aspectRatio?: "square" | "portrait" | "landscape";
+  /** The book's recurring character, described in detail — repeated in every prompt so they look the same on each page. */
+  character?: string;
 }
 
 export interface LineArtResult {
@@ -66,11 +68,58 @@ export function buildLineArtPrompt(request: LineArtRequest): string {
   const themeClause = request.theme ? ` in a ${request.theme}-themed scene` : "";
   return [
     `A simple black-and-white line art coloring book illustration of ${request.subject}${themeClause}.`,
+    request.character ? `The main character is always drawn exactly like this, on every page of the book: ${request.character}. Same face, body shape, proportions, clothes and accessories — only the pose and expression may change.` : "",
     "Bold, thick, uniform black outlines only.",
     "Pure white background, no fill, no shading, no gradients, no color, no gray, no cross-hatching.",
     "Flat 2D vector-style illustration, clean closed outlines suitable for a child to color inside.",
     "No text, no watermark, no signature, no background scenery clutter — the subject only, centered.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** For a picture drawn with a reference image of the book's character (the image edit endpoint). */
+export function buildReferencePrompt(request: LineArtRequest): string {
+  return [
+    "The attached image shows the main character of a children's coloring book.",
+    `Draw a NEW coloring page with that very same character — identical face, body, proportions, clothes and accessories — in this scene: ${request.subject}.`,
+    request.character ? `Character notes: ${request.character}.` : "",
+    request.theme ? `Style: ${request.theme}.` : "",
+    "Bold, thick, uniform black outlines only. Pure white background, no fill, no shading, no gradients, no color, no gray.",
+    "Clean closed outlines a child can color inside. No text, no watermark.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * A page drawn from a reference picture of the character (OpenAI image
+ * edit, gpt-image-1): the strongest way to keep a character looking the
+ * same across a book. Returns the same shape as generateLineArtImage.
+ */
+export async function generateLineArtFromReference(request: LineArtRequest, reference: { data: Buffer; mimeType: string }): Promise<LineArtResult> {
+  const apiKey = requireEnv("OPENAI_API_KEY");
+  const prompt = buildReferencePrompt(request);
+  const size = request.aspectRatio === "landscape" ? "1536x1024" : request.aspectRatio === "square" ? "1024x1024" : "1024x1536";
+  const [w, h] = size.split("x").map(Number);
+  const form = new FormData();
+  form.append("model", "gpt-image-1");
+  form.append("prompt", prompt);
+  form.append("size", size);
+  form.append("image", new Blob([new Uint8Array(reference.data)], { type: reference.mimeType }), "character.png");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PHOTO_TIMEOUT_MS);
+  try {
+    const response = await fetch(OPENAI_IMAGE_EDIT_ENDPOINT, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: controller.signal });
+    if (!response.ok) throw await providerError("OpenAI", "image edit", response);
+    const body = (await response.json()) as OpenAiImageResponse;
+    const first = body.data?.[0];
+    if (!first) throw new Error("OpenAI response contained no image data");
+    const dataUri = first.b64_json ? `data:image/png;base64,${first.b64_json}` : await fetchAsDataUri(first.url ?? "", controller.signal);
+    return { provider: "openai", svgMarkup: wrapRasterAsSvg(dataUri, w, h), promptUsed: prompt };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function aspectRatioToFalSize(aspectRatio: LineArtRequest["aspectRatio"]): string {

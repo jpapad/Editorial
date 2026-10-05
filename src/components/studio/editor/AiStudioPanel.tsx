@@ -14,7 +14,8 @@ import { cleanSketchImage } from "@/components/studio/editor/sketchCleanup";
 import type { StampFilter } from "@/types/editor";
 import { aiErrorText, useT } from "@/lib/i18n";
 import { useAiUsage } from "@/lib/aiUsage";
-import { generateLineArtPicture, imageSize } from "@/lib/lineArt";
+import { generateLineArtPicture, imageSize, toPngDataUrl } from "@/lib/lineArt";
+import { autoVectorizeOn, setAutoVectorize } from "@/lib/vectorizeImage";
 import type { ImageSize } from "@/utils/imagePages";
 
 const MAX_SERIES = 12;
@@ -32,6 +33,8 @@ export interface AiStudioPanelProps {
   onAppendImagePage: (src: string, size: ImageSize, caption?: string) => void;
   /** What the AI picture on the current page shows — offers "more like this". */
   currentSubject?: string;
+  /** The one selected picture on the page, if any — offered as the series' character reference. */
+  selectedPictureSrc?: string;
 }
 
 type SeriesItem = { subject: string; status: "queued" | "running" | "done" | "failed"; error?: string };
@@ -250,9 +253,20 @@ function PhotoToPageSection({ onPickStamp, onPlaceFullPage, onUsed }: Pick<AiStu
  * time so each page lands as soon as it's ready and one failure doesn't
  * sink the rest.
  */
-function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed, currentSubject }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage" | "currentSubject"> & { onUsed: () => void }) {
+const CHARACTER_KEY = "pagewright-series-character";
+
+function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed, currentSubject, selectedPictureSrc }: Pick<AiStudioPanelProps, "onSeriesStart" | "onAppendImagePage" | "currentSubject" | "selectedPictureSrc"> & { onUsed: () => void }) {
   const t = useT();
   const [theme, setTheme] = useState("");
+  // The book's recurring character: described (remembered on this device) and, optionally, shown.
+  const [character, setCharacter] = useState(() => {
+    try {
+      return localStorage.getItem(CHARACTER_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [characterRef, setCharacterRef] = useState<string | null>(null);
   const [subjects, setSubjects] = useState("");
   const [captions, setCaptions] = useState(false);
   const [items, setItems] = useState<SeriesItem[] | null>(null);
@@ -278,7 +292,7 @@ function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed, currentSubjec
       if (stopRef.current) break;
       update(i, { status: "running" });
       try {
-        const { src, size } = await generateLineArtPicture(queue[i].subject, theme, t);
+        const { src, size } = await generateLineArtPicture(queue[i].subject, theme, t, { character, characterRef: characterRef ?? undefined });
         onAppendImagePage(src, size, captions ? queue[i].subject : undefined);
         update(i, { status: "done" });
       } catch (err) {
@@ -309,6 +323,41 @@ function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed, currentSubjec
         placeholder={t("Theme, e.g. Ancient Greece")}
         className="rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       />
+      <input
+        value={character}
+        onChange={(e) => {
+          setCharacter(e.target.value);
+          try {
+            localStorage.setItem(CHARACTER_KEY, e.target.value);
+          } catch {
+            // not remembered in private mode
+          }
+        }}
+        maxLength={400}
+        placeholder={t("Main character (optional), e.g. a small round bear with a striped scarf")}
+        aria-label={t("Main character")}
+        className="rounded-row-sm border border-hairline px-2.5 py-1.5 text-body text-ink outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+      />
+      {characterRef ? (
+        <div className="flex items-center gap-2 rounded-row-sm bg-inset-alt p-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- the chosen character picture (data URL) */}
+          <img src={characterRef} alt={t("Character picture")} className="h-12 w-12 rounded-row-sm bg-white object-contain" />
+          <p className="flex-1 text-helper text-ink-secondary">{t("Every page is drawn from this picture.")}</p>
+          <button type="button" aria-label={t("Remove the character picture")} onClick={() => setCharacterRef(null)} className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-secondary outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent">
+            <X size={13} />
+          </button>
+        </div>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!selectedPictureSrc || running}
+          title={selectedPictureSrc ? undefined : t("Select a picture on the page first")}
+          onClick={() => selectedPictureSrc && void toPngDataUrl(selectedPictureSrc).then(setCharacterRef)}
+        >
+          {t("Use the selected picture as the character")}
+        </Button>
+      )}
       <textarea
         value={subjects}
         onChange={(e) => setSubjects(e.target.value)}
@@ -362,6 +411,25 @@ function SeriesSection({ onSeriesStart, onAppendImagePage, onUsed, currentSubjec
   );
 }
 
+/** New AI pictures traced to vector on arrival (per device; on by default). */
+function AutoVectorizeToggle() {
+  const t = useT();
+  const [on, setOn] = useState(autoVectorizeOn);
+  return (
+    <div className="shrink-0 px-1">
+      <Toggle
+        checked={on}
+        onChange={(next) => {
+          setAutoVectorize(next);
+          setOn(next);
+        }}
+        label={t("Sharp vector lines for AI pictures")}
+      />
+      <p className="mt-1 text-helper text-ink-muted">{t("Traced as they arrive: crisp at any print size, and the line checks can read them.")}</p>
+    </div>
+  );
+}
+
 /** The tool rail's AI panel: sketch cleanup, AI page series and single AI stamps, in the right-hand column. */
 /** "12 of 20 AI credits left this month" — hidden until the usage migration exists. */
 export default function AiStudioPanel(props: AiStudioPanelProps) {
@@ -385,6 +453,7 @@ export default function AiStudioPanel(props: AiStudioPanelProps) {
           {usage.limit === null ? t("AI: unlimited (supervisor)") : t("{left} of {limit} AI credits left this month", { left: Math.max(0, usage.limit - usage.used), limit: usage.limit })}
         </p>
       )}
+      <AutoVectorizeToggle />
       <div className="shrink-0">
         <SketchCleanupSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} />
       </div>
@@ -392,7 +461,7 @@ export default function AiStudioPanel(props: AiStudioPanelProps) {
         <PhotoToPageSection onPickStamp={props.onPickStamp} onPlaceFullPage={props.onPlaceFullPage} onUsed={refresh} />
       </div>
       <div className="shrink-0">
-        <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} onUsed={refresh} currentSubject={props.currentSubject} />
+        <SeriesSection onSeriesStart={props.onSeriesStart} onAppendImagePage={props.onAppendImagePage} onUsed={refresh} currentSubject={props.currentSubject} selectedPictureSrc={props.selectedPictureSrc} />
       </div>
       <Card className="shrink-0 p-4">
         <AiGeneratePanel onPickStamp={props.onPickStamp} onUsed={refresh} />

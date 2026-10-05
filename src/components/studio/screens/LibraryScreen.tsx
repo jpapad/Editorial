@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, BookOpen, BookPlus, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, Users } from "lucide-react";
+import { ArrowUp, BookHeart, BookOpen, Lightbulb, BookPlus, Copy, LayoutTemplate, Palette, Plus, Search, ShieldCheck, Sparkles, Trash2, Upload, Users } from "lucide-react";
 import Thumbnail from "@/components/studio/ui/Thumbnail";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import EmptyLibraryScreen from "@/components/studio/modals/EmptyLibraryScreen";
 import TemplatesGallery from "@/components/studio/screens/TemplatesGallery";
 import BookFromDescriptionDialog from "@/components/studio/screens/BookFromDescriptionDialog";
+import StoryBookDialog from "@/components/studio/screens/StoryBookDialog";
+import NicheIdeasDialog from "@/components/studio/screens/NicheIdeasDialog";
 import { cn } from "@/utils/cn";
 import { LanguageToggle, useT, type TFunction } from "@/lib/i18n";
 import { ThemeToggle } from "@/lib/theme";
@@ -66,6 +68,8 @@ export default function LibraryScreen() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [describe, setDescribe] = useState("");
   const [describeOpen, setDescribeOpen] = useState<string | null>(null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [nicheOpen, setNicheOpen] = useState(false);
 
   function refresh() {
     listBooks()
@@ -230,6 +234,16 @@ export default function LibraryScreen() {
         </div>
       </header>
 
+      {nicheOpen && (
+        <NicheIdeasDialog
+          onClose={() => setNicheOpen(false)}
+          onPlan={(description) => {
+            setNicheOpen(false);
+            setDescribeOpen(description);
+          }}
+        />
+      )}
+      {storyOpen && <StoryBookDialog onClose={() => setStoryOpen(false)} onCreated={handleOpen} />}
       {describeOpen !== null && <BookFromDescriptionDialog initialDescription={describeOpen} onClose={() => setDescribeOpen(null)} onCreated={handleOpen} />}
 
       {!isLoading && (books?.length ?? 0) === 0 && activeNav !== "Templates" ? (
@@ -272,11 +286,17 @@ export default function LibraryScreen() {
               </div>
 
               <div className={cn(ISLAND, "flex w-[400px] shrink-0 flex-col gap-3 rounded-[26px] p-5")}>
-                <p className="text-section-title font-extrabold text-ink">{t("Start something new")}</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-section-title font-extrabold text-ink">{t("Start something new")}</p>
+                  <button type="button" onClick={() => setNicheOpen(true)} className="flex items-center gap-1 rounded-pill px-2.5 py-1 text-helper font-semibold text-accent outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent">
+                    <Lightbulb size={13} aria-hidden /> {t("Find a book idea")}
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
                   <QuickStart icon={<Plus size={20} />} label={t("New book")} onClick={handleNewBook} />
                   <QuickStart icon={<LayoutTemplate size={20} />} label={t("From template")} onClick={() => setActiveNav("Templates")} />
                   <QuickStart icon={<Upload size={20} />} label={t("Import art")} onClick={() => fileInputRef.current?.click()} />
+                  <QuickStart icon={<BookHeart size={20} />} label={t("Story book")} onClick={() => setStoryOpen(true)} />
                 </div>
                 <form
                   className="mt-auto flex flex-col gap-2"

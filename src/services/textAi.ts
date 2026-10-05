@@ -3,7 +3,9 @@
 // forces one. Pictures are always made by the image providers
 // (services/aiGenerator.ts) — Claude doesn't generate images.
 
-import { claudeEditorCommand, claudeListingIdeas, claudePlanBook, claudeTranslate } from "@/services/claudeText";
+import { claudeEditorCommand, claudeListingIdeas, claudeNicheIdeas, claudePlanBook, claudePlanStory, claudeTranslate } from "@/services/claudeText";
+import { buildNichePrompt, parseNicheIdeas, type NicheIdea, type NicheRequest } from "@/services/nicheIdeas";
+import { buildStoryPrompt, parseStoryPlan, type StoryPlan } from "@/services/storyBook";
 import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parseTranslations, type ListingIdeas, type ListingIdeasInput, type TranslateCode } from "@/services/bookTexts";
 import { openAiJson } from "@/services/openAiJson";
 import { planBook as openAiPlanBook, type BookPlan } from "@/services/bookPlanner";
@@ -49,4 +51,16 @@ export async function translateWithAi(texts: string[], target: TranslateCode): P
   const provider = textProvider();
   if (!provider) throw new NoTextProviderError();
   return provider === "anthropic" ? claudeTranslate(texts, target) : parseTranslations(await openAiJson(buildTranslatePrompt(texts, target), "translation request", 8000), texts);
+}
+
+export async function planStoryWithAi(idea: string, lang: "el" | "en"): Promise<StoryPlan> {
+  const provider = textProvider();
+  if (!provider) throw new NoTextProviderError();
+  return provider === "anthropic" ? claudePlanStory(idea, lang) : parseStoryPlan(await openAiJson(buildStoryPrompt(idea, lang), "story request", 3000));
+}
+
+export async function nicheIdeasWithAi(req: NicheRequest): Promise<NicheIdea[]> {
+  const provider = textProvider();
+  if (!provider) throw new NoTextProviderError();
+  return provider === "anthropic" ? claudeNicheIdeas(req) : parseNicheIdeas(await openAiJson(buildNichePrompt(req), "niche request", 3000));
 }

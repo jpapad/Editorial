@@ -19,7 +19,7 @@ import PreflightBlockingModal, { type FlaggedPage, type PreflightIssue } from "@
 import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from "@/components/editor/pageTemplates";
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
 import { eraseSegment, moveStrokes } from "@/components/editor/strokeTools";
-import { vectorize } from "@/components/studio/editor/vectorize";
+import { vectorizeImageSrc } from "@/lib/vectorizeImage";
 import { captureInk, captureRegion, captureStage, type GuideSpec } from "@/components/editor/CanvasEditor";
 import { deleteMyStamp, listMyStamps, placeMyStamp, saveMyStamp, toMyStamp, type MyStamp } from "@/utils/myStamps";
 import { BookPrintCard, CoverCard } from "@/components/studio/editor/PrintSettingsCards";
@@ -521,35 +521,15 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
     const stamp = selectedObjects[0];
     if (selectedObjects.length !== 1 || stamp.kind !== "stamp") return;
     setNotice(t("Tracing the lines…"));
-    try {
-      const img = new window.Image();
-      img.crossOrigin = "anonymous"; // a picture stored as a link must still be readable pixel by pixel
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("unreadable"));
-        img.src = stamp.src;
-      });
-      const longest = Math.max(img.naturalWidth, img.naturalHeight) || 1024;
-      const k = Math.min(1800, Math.max(900, longest)) / longest;
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round((img.naturalWidth || 1024) * k);
-      canvas.height = Math.round((img.naturalHeight || 1024) * k);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("no canvas");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const threshold = stamp.filter === "lineArt" ? 255 - (stamp.threshold ?? 0.5) * 255 : 128;
-      const result = vectorize({ width: pixels.width, height: pixels.height, data: pixels.data }, { threshold });
-      if (result.paths === 0) {
-        setNotice(t("No dark lines found in this picture."));
-        return;
-      }
-      pushHistory();
-      patchActiveObject(stamp.id, { src: `data:image/svg+xml;utf8,${encodeURIComponent(result.svg)}`, filter: "none" });
-      setNotice(t("Lines sharpened: the picture is now vector and prints crisp at any size."));
-    } catch {
-      setNotice(t("This picture could not be traced."));
+    const threshold = stamp.filter === "lineArt" ? 255 - (stamp.threshold ?? 0.5) * 255 : 128;
+    const traced = await vectorizeImageSrc(stamp.src, threshold);
+    if (!traced) {
+      setNotice(t("No dark lines found in this picture."));
+      return;
     }
+    pushHistory();
+    patchActiveObject(stamp.id, { src: traced.src, filter: "none" });
+    setNotice(t("Lines sharpened: the picture is now vector and prints crisp at any size."));
   }
 
   function handleEraseSegment(lineId: string, x: number, y: number) {
@@ -1734,6 +1714,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook }: Editor
           onSeriesStart={handleSeriesStart}
           onAppendImagePage={handleAppendImagePage}
           currentSubject={activePage.objects.flatMap((o) => (o.kind === "stamp" && o.label ? [o.label] : []))[0]}
+          selectedPictureSrc={selectedObjects.length === 1 && selectedObjects[0].kind === "stamp" && !selectedObjects[0].isFrame ? selectedObjects[0].src : undefined}
         />
       )}
 

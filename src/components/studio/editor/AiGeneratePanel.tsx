@@ -7,6 +7,7 @@ import MetaLabel from "@/components/studio/ui/MetaLabel";
 import AiGeneratingModal, { type AiTile } from "@/components/studio/modals/AiGeneratingModal";
 import AiFailureModal from "@/components/studio/modals/AiFailureModal";
 import { aiErrorText, useT } from "@/lib/i18n";
+import { sharpen } from "@/lib/lineArt";
 
 interface GenerateResultItem {
   ok: boolean;
@@ -119,7 +120,7 @@ export default function AiGeneratePanel({ onPickStamp, onUsed }: AiGeneratePanel
                 <button
                   key={i}
                   type="button"
-                  onClick={() => onPickStamp(svgMarkupToDataUri(r.svgMarkup as string))}
+                  onClick={() => void sharpen(svgMarkupToDataUri(r.svgMarkup as string)).then(onPickStamp)}
                   className="aspect-square rounded-row-sm border border-hairline bg-inset bg-cover bg-center outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   style={{ backgroundImage: `url(${svgMarkupToDataUri(r.svgMarkup as string)})` }}
                   aria-label={t("Use generated option {n}", { n: i + 1 })}

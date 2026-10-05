@@ -7,6 +7,8 @@ import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parse
 import Anthropic from "@anthropic-ai/sdk";
 import { buildBookPlanPrompt, MAX_PLAN_PAGES, parseBookPlan, type BookPlan } from "@/services/bookPlanner";
 import { buildCommandPrompt } from "@/services/editorCommandAi";
+import { buildStoryPrompt, parseStoryPlan, STORY_SCHEMA, type StoryPlan } from "@/services/storyBook";
+import { buildNichePrompt, NICHE_SCHEMA, parseNicheIdeas, type NicheIdea, type NicheRequest } from "@/services/nicheIdeas";
 import { COMMAND_FRAMES, COMMAND_PATTERNS, COMMAND_SHAPES, parseCommandResult, type CommandResult, type PageSummary } from "@/utils/editorCommand";
 
 /** Claude Opus 5.5 unless ANTHROPIC_MODEL says otherwise. */
@@ -105,4 +107,12 @@ export async function claudePlanBook(description: string, lang: "el" | "en"): Pr
 export async function claudeEditorCommand(command: string, summary: PageSummary, lang: "el" | "en"): Promise<CommandResult> {
   // Low effort: a command should feel quick, and the action set is small.
   return parseCommandResult(await claudeJson(buildCommandPrompt(command, summary, lang), COMMAND_SCHEMA, "low"), summary.objects.map((o) => o.id));
+}
+
+export async function claudePlanStory(idea: string, lang: "el" | "en"): Promise<StoryPlan> {
+  return parseStoryPlan(await claudeJson(buildStoryPrompt(idea, lang), STORY_SCHEMA, "medium"));
+}
+
+export async function claudeNicheIdeas(req: NicheRequest): Promise<NicheIdea[]> {
+  return parseNicheIdeas(await claudeJson(buildNichePrompt(req), NICHE_SCHEMA, "medium"));
 }

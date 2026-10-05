@@ -67,3 +67,34 @@ export function pageFromImage(src: string, size: ImageSize, space: PageSpace, ca
   page.objects = caption ? [fullPageStamp(src, size, geo, CAPTION_SPACE), captionText(caption, geo)] : [fullPageStamp(src, size, geo)];
   return page;
 }
+
+/** Room kept under the picture of a story page for its text (a share of the safe area's height). */
+export const STORY_TEXT_SHARE = 0.26;
+
+/** A story page: the picture on top, one or two sentences of the story below it, left to color around. */
+export function storyPageFromImage(src: string, size: ImageSize, space: PageSpace, story: string): BookPage {
+  const geo = geometryFromSpace(space);
+  const { safe } = geo;
+  const textSpace = Math.round((safe.bottom - safe.top) * STORY_TEXT_SHARE);
+  const fontSize = story.length > 140 ? 24 : story.length > 80 ? 28 : 32;
+  const text: TextData = {
+    kind: "text",
+    id: makeId("text"),
+    text: story,
+    fontFamily: '"Fredoka", "Comic Sans MS", cursive',
+    fontSize,
+    align: "center",
+    x: safe.left + 12,
+    y: safe.bottom - textSpace + 16,
+    width: safe.right - safe.left - 24,
+    height: textSpace - 24,
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
+    fill: "#111827",
+    isDragging: false,
+  };
+  const page = createPageFromTemplate(0, space);
+  page.objects = [fullPageStamp(src, size, geo, textSpace), text];
+  return page;
+}
