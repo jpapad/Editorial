@@ -2,7 +2,7 @@
 // printer-safe margin — for a test print before ordering a proof, and for
 // selling the book as a digital download.
 
-import type { ExportPage } from "@/utils/rasterPdfExporter";
+import type { ExportPage } from "@/utils/pdfExport";
 import type { PageSpace } from "@/types/editor";
 
 export type SheetId = "a4" | "letter";

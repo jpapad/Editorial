@@ -1,6 +1,6 @@
 // Real KDP interior trim sizes — plain data, no side effects, safe to
 // import from both the browser (Onboarding's picker, EditorShell) and
-// Node (rasterPdfExporter.ts's Route Handler). The editor's own drawing
+// Node. The editor's own drawing
 // canvas stays a fixed 595x842pt working surface (CanvasEditor.tsx) —
 // changing THAT per book would mean threading page dimensions through
 // dozens of call sites (Stage sizing, pointer math, print-margin overlay,

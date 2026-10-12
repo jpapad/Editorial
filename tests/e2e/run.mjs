@@ -4,9 +4,10 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { BASE } from "./harness.mjs";
 
-const dir = path.dirname(new URL(import.meta.url).pathname);
+const dir = path.dirname(fileURLToPath(import.meta.url));
 const only = process.argv.slice(2);
 const files = fs.readdirSync(dir).filter((f) => f.endsWith(".test.mjs") && (only.length === 0 || only.some((o) => f.includes(o)))).sort();
 

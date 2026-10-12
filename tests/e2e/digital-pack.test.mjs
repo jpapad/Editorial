@@ -14,13 +14,6 @@ await p.getByRole("button", { name: /Full Drawing Page/ }).click();
 await p.waitForTimeout(400);
 await draw(p, cb, [[200, 300], [400, 500]]);
 
-const pdfRequests = [];
-await p.route("**/api/export-editor-pdf", async (route) => {
-  const body = route.request().postDataJSON();
-  pdfRequests.push({ title: body.title, pages: body.pages.length, w: Math.round(body.pages[0].pageWidth) });
-  await route.fulfill({ status: 200, contentType: "application/pdf", body: Buffer.from("%PDF-1.4\n%%EOF") });
-});
-
 await side("Digital download pack").scrollIntoViewIfNeeded();
 await side("Digital download pack").click();
 const dialog = p.getByRole("dialog");
@@ -32,7 +25,6 @@ await dialog.waitFor({ state: "detached", timeout: 30000 });
 const zipPath = shot("pack.zip");
 await download.saveAs(zipPath);
 check(/-printables\.zip$/.test(download.suggestedFilename()), "the download is a printables ZIP", download.suggestedFilename());
-check(pdfRequests.length === 2 && pdfRequests.every((r) => r.pages === 2) && pdfRequests[0].w === 595 && pdfRequests[1].w === 612, "an A4 and a Letter PDF, each with both pages", JSON.stringify(pdfRequests));
 
 const list = spawnSync("unzip", ["-Z1", zipPath], { encoding: "utf8" });
 if (list.error) console.log("SKIP unzip not installed");
@@ -41,6 +33,11 @@ else {
   check(spawnSync("unzip", ["-tq", zipPath]).status === 0, "the ZIP is valid");
   check(names.some((n) => n.endsWith("/pages/page-01.png")) && names.some((n) => n.endsWith("/pages/page-02.png")), "one PNG per page, in order", names.join(", "));
   check(names.some((n) => n.endsWith("-A4.pdf")) && names.some((n) => n.endsWith("-US-Letter.pdf")), "both PDFs are inside");
+  // Page widths of a PDF inside the ZIP, from its MediaBoxes.
+  const widths = (suffix) => [...spawnSync("unzip", ["-p", zipPath, names.find((n) => n.endsWith(suffix))]).stdout.toString("latin1").matchAll(/\/MediaBox \[([^\]]+)\]/g)].map((m) => Math.round(Number(m[1].trim().split(/\s+/)[2])));
+  const a4 = widths("-A4.pdf");
+  const letter = widths("-US-Letter.pdf");
+  check(a4.length === 2 && a4.every((w) => w === 595) && letter.length === 2 && letter.every((w) => w === 612), "an A4 and a Letter PDF, each with both pages", JSON.stringify({ a4, letter }));
   const license = spawnSync("unzip", ["-p", zipPath, names.find((n) => n.endsWith("LICENSE.txt"))], { encoding: "utf8" }).stdout;
   check(license.includes("Maria's Prints") && license.includes("Commercial use"), "the license names the shop and the chosen license");
   const png = spawnSync("unzip", ["-p", zipPath, names.find((n) => n.endsWith("page-01.png"))]).stdout;
