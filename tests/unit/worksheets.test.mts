@@ -33,4 +33,33 @@ ok(sd.made === 5, `spot the difference: ${sd.made} changes`);
 const circles = sd.answers.objects.filter(o => o.kind === "shape" && (o as { stroke: string }).stroke === "#c4453f").length;
 ok(circles === 5, `answer page circles all ${circles} changes`);
 ok(spotTheDifference({ ...src, objects: src.objects.slice(0, 1) }, space, 5, 1) === null, "too-sparse page is refused (null)");
+
+// Stroke-traced letters: every Latin letter has strokes that stay inside its box and between the lines
+const { LETTER_STROKES, sampleStroke } = await import("../../src/components/editor/letterStrokes");
+const latin = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"];
+ok(latin.every((ch) => LETTER_STROKES[ch]), "all 52 Latin letters have stroke data");
+const outside = latin.filter((ch) => {
+  const g = LETTER_STROKES[ch];
+  const descends = "gjpqy".includes(ch);
+  return g.strokes.some((s) => {
+    const pts = sampleStroke(s);
+    for (let i = 0; i < pts.length; i += 2) if (pts[i] < -0.02 || pts[i] > g.w + 0.02 || pts[i + 1] < -0.02 || pts[i + 1] > (descends ? 1.52 : ch === "Q" ? 1.07 : 1.02)) return true;
+    return false;
+  });
+});
+ok(outside.length === 0, `strokes stay inside each letter's box${outside.length ? ` (outside: ${outside.join("")})` : ""}`);
+const lowerOnMidline = [..."acemnorsuvwxz"].filter((ch) => LETTER_STROKES[ch].strokes.some((s) => sampleStroke(s).some((v, i) => i % 2 === 1 && v < 0.48)));
+ok(lowerOnMidline.length === 0, `short lowercase letters stay below the midline${lowerOnMidline.length ? ` (${lowerOnMidline.join("")})` : ""}`);
+const square = interiorSpace("8.5x8.5", true);
+const pa = letterTracingPage(square, "a");
+const dotted = pa.lines.filter((l) => l.style === "dotted");
+const numbered = pa.objects.filter((o) => o.kind === "text" && /^\d$/.test((o as { text: string }).text)).map((o) => (o as { text: string }).text);
+const arrows = pa.objects.filter((o) => o.kind === "shape" && (o as { shapeKind: string }).shapeKind === "arrow").length;
+ok(pa.objects.some((o) => o.kind === "text" && (o as { text: string; outline?: boolean }).text === "Aa" && (o as { outline?: boolean }).outline), "Latin letter page: hollow 'Aa' to color on top");
+ok(dotted.length > 0 && dotted.length % 5 === 0, `dotted strokes along the letters (A has 3 strokes + a has 2, ${dotted.length / 5} pairs)`);
+ok(numbered.join(",") === "1,2,3,1,2" && arrows === 5, `first pair numbered in stroke order with an arrow each (got ${numbered.join(",")}, ${arrows} arrows)`);
+ok(pa.lines.every((l) => l.points.every((v, i) => (i % 2 ? v >= 0 && v <= square.height : v >= 0 && v <= square.width))), "every dotted stroke is on the page");
+ok(!pa.objects.some((o) => o.kind === "text" && (o as { dashed?: boolean }).dashed), "no font-outline dashed rows on a stroke-traced page");
+const pi = letterTracingPage(square, "i");
+ok(pi.objects.filter((o) => o.kind === "text" && /^\d$/.test((o as { text: string }).text)).map((o) => (o as { text: string }).text).join(",") === "1,2,3,1,2", "i: its dot is numbered after its stroke");
 console.log(fails ? `${fails} FAILED` : "ALL PASSED"); process.exit(fails ? 1 : 0);

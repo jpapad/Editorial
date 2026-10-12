@@ -30,7 +30,7 @@ npm run dev                        # http://localhost:3000
 ```
 
 1. **Supabase**: τρέξε το `sql/00_ALL.sql` στο SQL Editor (λεπτομέρειες στο [sql/README.md](sql/README.md)).
-2. **AI** (προαιρετικά): `OPENAI_API_KEY` ή `FAL_KEY` για εικόνες, `ANTHROPIC_API_KEY` για τα κείμενα (σχεδιασμός βιβλίου, ιστορίες, command bar). Ο σταθερός χαρακτήρας από εικόνα αναφοράς χρειάζεται `OPENAI_API_KEY`.
+2. **AI** (προαιρετικά): `OPENAI_API_KEY` ή `FAL_KEY` για εικόνες (με το κλειδί του OpenAI, αυτό προτιμάται· μοντέλο `gpt-image-2.5-flare`, ποιότητα `medium`, αλλάζουν με `OPENAI_IMAGE_MODEL` / `OPENAI_IMAGE_QUALITY`), `ANTHROPIC_API_KEY` για τα κείμενα (σχεδιασμός βιβλίου, ιστορίες, command bar). Ο σταθερός χαρακτήρας από εικόνα αναφοράς χρειάζεται `OPENAI_API_KEY`.
 3. **Πληρωμές** (προαιρετικά): τα `STRIPE_*` και `SUPABASE_SERVICE_ROLE_KEY`. Τα βήματα είναι στο `.env.local.example`. Χωρίς αυτά όλοι μένουν στο Free.
 
 Ό,τι δεν έχει ρυθμιστεί (κλειδί ή migration) απενεργοποιείται ήσυχα, με μήνυμα στη σχετική οθόνη. Η υπόλοιπη εφαρμογή συνεχίζει να δουλεύει.

@@ -334,7 +334,8 @@ function ShapeNode({ obj, draggable, listening, isSelected, onSelect, onDragStar
     // Open strokes ignore `fill`. The invisible Rect gives the thin
     // stroke a full-box hit area so it's easy to click and drag.
     const strokeProps = { points: [0, h / 2, w, h / 2], stroke: obj.stroke, strokeWidth: obj.strokeWidth, lineCap: "round" as const, ...shadowProps };
-    const head = Math.max(obj.strokeWidth * 3, 12);
+    // The 12pt floor keeps heads visible on thin arrows; short ones (stroke-order arrows) cap it so the head isn't most of the arrow.
+    const head = Math.max(obj.strokeWidth * 3, Math.min(12, w * 0.3));
     body = (
       <>
         <Rect width={w} height={h} fill="transparent" />

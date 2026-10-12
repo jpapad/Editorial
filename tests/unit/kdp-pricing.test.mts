@@ -3,6 +3,7 @@ let fails = 0; const ok = (c: boolean, m: string, detail = "") => { console.log(
 const near = (a: number | null, b: number) => a !== null && Math.abs(a - b) < 0.0051;
 
 ok(isLargeTrim(612, 792) && isLargeTrim(576, 720) && !isLargeTrim(432, 648), "8.5×11 and 8×10 are large trim, 6×9 is regular");
+ok(isLargeTrim(612, 612), "8.5×8.5 square is large trim (wider than 6.12in)");
 ok(billedPages(41) === 42 && billedPages(40) === 40, "odd page counts are billed one page up");
 
 // Hand-worked from KDP's tables.

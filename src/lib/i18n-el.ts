@@ -10,6 +10,7 @@ export const EL: Record<string, string> = {
   "6 × 9 in": "6 × 9 in",
   "8 × 10 in": "8 × 10 in",
   "8.5 × 11 in (US Letter)": "8.5 × 11 in (US Letter)",
+  "8.5 × 8.5 in (square)": "8.5 × 8.5 in (τετράγωνο)",
   "A book to print or sell": "Βιβλίο για τύπωμα ή πώληση",
   "A decorative frame around the margins": "Διακοσμητική κορνίζα γύρω γύρω",
   "a forest with hundreds of leaves, tiny fairies, thick outline": "δάσος με εκατοντάδες φύλλα, μικρές νεράιδες, χοντρό περίγραμμα",

@@ -35,12 +35,9 @@ const QUEUED_TILES: AiTile[] = [{ status: "queued" }, { status: "queued" }, { st
 
 /**
  * Real UI for services/aiGenerator.ts (via /api/generate-line-art) — not a
- * static mock of 3c/3d. Genuinely un-exercisable end to end in this
- * environment though: there's no FAL_KEY/OPENAI_API_KEY configured here,
- * so every real request will fail with "FAL_KEY is not set..." (aiGenerator's
- * own loud-failure-over-silent-fallback design) until a real key is added
- * — that failure path IS AiFailureModal's real job, so it's at least a
- * true exercise of that screen, just not of a successful generation.
+ * static mock of 3c/3d. The route picks the provider from whichever key is
+ * set (aiGenerator's imageProvider); with neither key every request fails
+ * loudly — that failure path IS AiFailureModal's real job.
  */
 export default function AiGeneratePanel({ onPickStamp, onUsed }: AiGeneratePanelProps) {
   const t = useT();

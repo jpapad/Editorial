@@ -58,6 +58,31 @@ const OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/generations";
 export const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 export const REQUEST_TIMEOUT_MS = 30_000;
 
+// gpt-image-1 shuts down on 2026-10-23 (OpenAI deprecations page); its listed
+// replacements are gpt-image-2.5-flare and gpt-image-2.5-sunburst. Quality is
+// always sent: left out, the API picks one itself, and the price per picture
+// differs more than tenfold between low and high.
+export const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-flare";
+export const OPENAI_IMAGE_QUALITY = process.env.OPENAI_IMAGE_QUALITY || "medium";
+/** OpenAI's guide: "Complex prompts may take up to 2 minutes to process." */
+const OPENAI_IMAGE_TIMEOUT_MS = 120_000;
+
+export type ImageProvider = "fal" | "openai";
+
+/**
+ * Which provider draws pictures: OpenAI when OPENAI_API_KEY is set, else
+ * Fal; AI_IMAGE_PROVIDER=fal|openai forces one. Null when neither key is
+ * set. Same shape as textProvider in textAi.ts.
+ */
+export function imageProvider(env: Record<string, string | undefined> = process.env): ImageProvider | null {
+  const has = { openai: Boolean(env.OPENAI_API_KEY), fal: Boolean(env.FAL_KEY) };
+  const forced = env.AI_IMAGE_PROVIDER;
+  if ((forced === "openai" || forced === "fal") && has[forced]) return forced;
+  if (has.openai) return "openai";
+  if (has.fal) return "fal";
+  return null;
+}
+
 /**
  * The actual prompt-engineering: every clause here exists to push the
  * model away from its default behavior (filled color illustration) toward
@@ -94,7 +119,7 @@ export function buildReferencePrompt(request: LineArtRequest): string {
 
 /**
  * A page drawn from a reference picture of the character (OpenAI image
- * edit, gpt-image-1): the strongest way to keep a character looking the
+ * edit, OPENAI_IMAGE_MODEL): the strongest way to keep a character looking the
  * same across a book. Returns the same shape as generateLineArtImage.
  */
 export async function generateLineArtFromReference(request: LineArtRequest, reference: { data: Buffer; mimeType: string }): Promise<LineArtResult> {
@@ -103,12 +128,13 @@ export async function generateLineArtFromReference(request: LineArtRequest, refe
   const size = request.aspectRatio === "landscape" ? "1536x1024" : request.aspectRatio === "square" ? "1024x1024" : "1024x1536";
   const [w, h] = size.split("x").map(Number);
   const form = new FormData();
-  form.append("model", "gpt-image-1");
+  form.append("model", OPENAI_IMAGE_MODEL);
+  form.append("quality", OPENAI_IMAGE_QUALITY);
   form.append("prompt", prompt);
   form.append("size", size);
   form.append("image", new Blob([new Uint8Array(reference.data)], { type: reference.mimeType }), "character.png");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PHOTO_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), OPENAI_IMAGE_TIMEOUT_MS);
   try {
     const response = await fetch(OPENAI_IMAGE_EDIT_ENDPOINT, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: controller.signal });
     if (!response.ok) throw await providerError("OpenAI", "image edit", response);
@@ -206,13 +232,13 @@ async function generateViaOpenAi(prompt: string, aspectRatio: LineArtRequest["as
   const apiKey = requireEnv("OPENAI_API_KEY");
   const size = aspectRatio === "portrait" ? "1024x1536" : aspectRatio === "landscape" ? "1536x1024" : "1024x1024";
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), OPENAI_IMAGE_TIMEOUT_MS);
 
   try {
     const response = await fetch(OPENAI_IMAGE_ENDPOINT, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-image-1", prompt, size, n: 1 }),
+      body: JSON.stringify({ model: OPENAI_IMAGE_MODEL, quality: OPENAI_IMAGE_QUALITY, prompt, size, n: 1 }),
       signal: controller.signal,
     });
     if (!response.ok) throw await providerError("OpenAI", "image request", response);
@@ -230,7 +256,6 @@ async function generateViaOpenAi(prompt: string, aspectRatio: LineArtRequest["as
 }
 
 const OPENAI_IMAGE_EDIT_ENDPOINT = "https://api.openai.com/v1/images/edits";
-const PHOTO_TIMEOUT_MS = 90_000; // edits of a real photo take noticeably longer than text-to-image
 
 /** Same line-art rules as buildLineArtPrompt, but for redrawing a given photo. */
 export function buildPhotoToLineArtPrompt(note?: string): string {
@@ -247,7 +272,7 @@ export function buildPhotoToLineArtPrompt(note?: string): string {
 }
 
 /**
- * Photo → coloring page via OpenAI's image edit endpoint (gpt-image-1),
+ * Photo → coloring page via OpenAI's image edit endpoint (OPENAI_IMAGE_MODEL),
  * which takes a source image plus instructions. Returns a PNG data URI.
  * UNVERIFIED AGAINST THE LIVE API in this repo (no key configured) — same
  * caveat as the rest of this module.
@@ -256,13 +281,14 @@ export async function photoToLineArt(photo: { data: Buffer; mimeType: string }, 
   const apiKey = requireEnv("OPENAI_API_KEY");
   const prompt = buildPhotoToLineArtPrompt(note);
   const form = new FormData();
-  form.append("model", "gpt-image-1");
+  form.append("model", OPENAI_IMAGE_MODEL);
+  form.append("quality", OPENAI_IMAGE_QUALITY);
   form.append("prompt", prompt);
   form.append("size", "1024x1536");
   form.append("image", new Blob([new Uint8Array(photo.data)], { type: photo.mimeType }), photo.mimeType === "image/png" ? "photo.png" : "photo.jpg");
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PHOTO_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), OPENAI_IMAGE_TIMEOUT_MS);
   try {
     const response = await fetch(OPENAI_IMAGE_EDIT_ENDPOINT, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: controller.signal });
     if (!response.ok) throw await providerError("OpenAI", "image edit", response);
@@ -277,13 +303,14 @@ export async function photoToLineArt(photo: { data: Buffer; mimeType: string }, 
 }
 
 /**
- * Generates a coloring-book-style line-art image for one subject. Picks
- * whichever provider is requested (default "fal", cheaper/faster for bulk
- * per-letter generation); throws if that provider's API key isn't set
- * rather than silently falling back, so a missing key fails loudly at the
- * call site instead of producing a confusing downstream error.
+ * Generates a coloring-book-style line-art image for one subject. Uses the
+ * provider asked for, else imageProvider()'s pick from the keys that are
+ * set; throws if that provider's API key isn't set rather than silently
+ * falling back, so a missing key fails loudly at the call site instead of
+ * producing a confusing downstream error.
  */
-export async function generateLineArtImage(request: LineArtRequest, provider: "fal" | "openai" = "fal"): Promise<LineArtResult> {
+export async function generateLineArtImage(request: LineArtRequest, provider: ImageProvider | null = imageProvider()): Promise<LineArtResult> {
+  if (!provider) throw new Error("No image AI key is set — add OPENAI_API_KEY or FAL_KEY to .env.local.");
   const prompt = buildLineArtPrompt(request);
   return provider === "fal" ? generateViaFal(prompt, request.aspectRatio) : generateViaOpenAi(prompt, request.aspectRatio);
 }
