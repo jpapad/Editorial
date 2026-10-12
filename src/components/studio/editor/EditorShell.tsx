@@ -1267,16 +1267,6 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
   }
 
   function mapPreflightIssue(issue: EditorPreflightIssue): PreflightIssue {
-    if (issue.code === "PAGE_COUNT") {
-      const toAdd = pagesNeededForMultipleOf4(pages.length);
-      return {
-        severity: issue.severity,
-        cause: t("Total pages: {n}. Saddle stitch binding needs a multiple of 4.", { n: issue.count }),
-        explanation: t("Saddle-stitch binding requires the total page count to be a multiple of 4."),
-        autoFixLabel: toAdd === 1 ? t("Add 1 blank page") : t("Add {n} blank pages", { n: toAdd }),
-        onAutoFix: fixPageCount,
-      };
-    }
     if (issue.code === "THIN_STROKE") {
       return {
         severity: issue.severity,
@@ -1295,8 +1285,17 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     };
   }
 
-  const preflightIssues = runEditorPreflightCheck(pages);
-  const preflightModalIssues: PreflightIssue[] = preflightIssues.map(mapPreflightIssue);
+  // The export dialog's KDP check. KDP paperbacks are glued, not stapled, so the multiple-of-4 rule (saddle stitch —
+  // still on the readiness card) doesn't apply; KDP's own floor is its minimum page count, and it pads an odd count itself.
+  const kdpMinPages = pageRange("us", inkForPaper(paper)).from;
+  const kdpIssues: PreflightIssue[] = [
+    ...(pages.length < kdpMinPages
+      ? [{ severity: "warning" as const, cause: t("Total pages: {n}. KDP prints paperbacks from {min} pages.", { n: pages.length, min: kdpMinPages }), explanation: t("Add pages before you upload. An odd count is fine: KDP adds a blank page at the end itself."), autoFixLabel: "" }]
+      : []),
+    ...runEditorPreflightCheck(pages)
+      .filter((issue) => issue.code !== "PAGE_COUNT")
+      .map(mapPreflightIssue),
+  ];
   // The export dialog's line about KDP: the printing cost per copy, or the page range KDP prints when this book is outside it.
   const kdpNote = (() => {
     const trim = getTrimSize(trimSizeId);
@@ -1753,7 +1752,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
           printLabel={`${trimShortLabel(trimSizeId)}${bleed ? ` + ${t("bleed")}` : ""}`}
           singleSided={pages.some((p) => p.isBlankBack)}
           onToggleSingleSided={handleToggleBlankBacks}
-          issues={preflightModalIssues}
+          issues={kdpIssues}
           kdpNote={kdpNote}
           onExport={handleExportRequest}
           onOpenPack={() => {

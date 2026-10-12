@@ -35,8 +35,9 @@ check(copyText.includes('ISBN: [ISBN]'), 'copyright page template');
 await p.getByRole('button', { name: 'Export', exact: true }).first().click(); await p.waitForTimeout(800);
 const modal = p.getByRole('dialog');
 check(await modal.getByRole('radio', { name: /Amazon KDP/ }).getAttribute('aria-checked') === 'true', 'the export dialog opens on Amazon KDP');
-check(await modal.getByRole('button', { name: 'Download 2 PDFs' }).isDisabled(), 'KDP export waits for the blocking page-count issue');
-await modal.getByRole('button', { name: /Add \d blank page/ }).click(); await p.waitForTimeout(400);
+// KDP paperbacks are glued: no multiple-of-4 rule, only a warning under KDP's 24-page minimum.
+check(await modal.getByText('Total pages: 2. KDP prints paperbacks from 24 pages.').isVisible(), 'KDP warns under its 24-page minimum');
+check(!(await modal.getByText(/multiple of 4/).count()) && await modal.getByRole('button', { name: 'Download 2 PDFs' }).isEnabled(), '…without blocking export on a multiple of 4');
 await modal.getByRole('button', { name: 'Download 2 PDFs' }).click();
 for (let i = 0; i < 120 && pdfs.length < 2; i++) await p.waitForTimeout(250);
 const interior = pdfs[0] ?? [];
