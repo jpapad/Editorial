@@ -3,17 +3,19 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dir = path.join(root, "tests", "unit");
 const only = process.argv.slice(2);
 const files = fs.readdirSync(dir).filter((f) => f.endsWith(".test.mts") && (only.length === 0 || only.some((o) => f.includes(o)))).sort();
-const tsx = path.join(root, "node_modules", ".bin", "tsx");
+// tsx's own JS entry, run with this Node: node_modules/.bin/tsx is a shell script Windows can't spawn.
+const tsx = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
 
 const failed = [];
 for (const f of files) {
   console.log(`\n── unit/${f}`);
-  const r = spawnSync(tsx, ["--tsconfig", path.join(root, "tsconfig.json"), path.join(dir, f)], { stdio: "inherit", cwd: root });
+  const r = spawnSync(process.execPath, [tsx, "--tsconfig", path.join(root, "tsconfig.json"), path.join(dir, f)], { stdio: "inherit", cwd: root });
   if (r.status !== 0) failed.push(f);
 }
 console.log(`\nunit: ${files.length - failed.length}/${files.length} files passed${failed.length ? ` — failed: ${failed.join(", ")}` : ""}`);

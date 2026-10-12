@@ -1,8 +1,9 @@
 // Print at home, personalise, the certificate/sticker templates, and the look-alike check.
+import fs from "node:fs";
 import { launch, newPage, openEditor, check, shot, noPageErrors } from "./harness.mjs";
 
 const b = await launch();
-const p = await newPage(b);
+const p = await newPage(b, { acceptDownloads: true });
 const cb = await openEditor(p);
 const pageCount = () => p.locator('button[aria-label^="Page "]').count();
 const texts = () => p.evaluate(() => window.Konva.stages[0].findOne(".ink-layer").find("Text").map((t) => t.text()));
@@ -48,13 +49,14 @@ await p.waitForTimeout(300);
 check((await texts()).includes("Νίκος") && !(await texts()).includes("Μαρία"), "and it can be changed for the next child");
 await p.screenshot({ path: shot("personalized.png") });
 
-// ---- print at home: the PDF request carries sheet-sized pages
-const requests = [];
-await p.route("**/api/export-editor-pdf", async (route) => {
-  const body = route.request().postDataJSON();
-  requests.push({ title: body.title, pages: body.pages.map((pg) => ({ w: Math.round(pg.pageWidth), h: Math.round(pg.pageHeight), x: pg.x, iw: pg.imageWidth })) });
-  await route.fulfill({ status: 200, contentType: "application/pdf", body: Buffer.from("%PDF-1.4\n%%EOF") });
+// ---- print at home: sheet-sized PDFs, built in the browser (where each page lands on the sheet: unit/book-extras)
+const pdfs = [];
+p.on("download", async (d) => {
+  const buf = fs.readFileSync(await d.path());
+  const pages = [...buf.toString("latin1").matchAll(/\/MediaBox \[([^\]]+)\]/g)].map((m) => m[1].trim().split(/\s+/).map(Number));
+  pdfs.push({ name: d.suggestedFilename(), pages: pages.map(([, , w, h]) => ({ w: Math.round(w), h: Math.round(h) })) });
 });
+const settle = async (n) => { for (let i = 0; i < 100 && pdfs.length < n; i++) await p.waitForTimeout(100); };
 await side("Print at home").scrollIntoViewIfNeeded();
 await side("Print at home").click();
 dialog = p.getByRole("dialog");
@@ -62,16 +64,20 @@ await dialog.getByRole("button", { name: "US Letter" }).click();
 check(await dialog.getByRole("button", { name: "Download 2 PDFs" }).isVisible(), "two paper sizes → two PDFs");
 await dialog.getByRole("button", { name: "Download 2 PDFs" }).click();
 await dialog.waitFor({ state: "detached", timeout: 60000 });
-check(requests.length === 2 && requests[0].pages.length === 2 && requests[0].pages.every((pg) => pg.w === 595 && pg.h === 842 && pg.x >= 17.9) && requests[1].pages.every((pg) => pg.w === 612 && pg.h === 792), "test print: the 2 drawn pages (the empty one is skipped) on A4 and on Letter, inside the printer margin", JSON.stringify(requests.map((r) => [r.title, r.pages.length])));
-check(/test-print-a4$/.test(requests[0].title) && /test-print-letter$/.test(requests[1].title), "files are named by purpose and paper size");
-requests.length = 0;
+await settle(2);
+const a4 = pdfs.find((f) => /-a4\.pdf$/.test(f.name));
+const letter = pdfs.find((f) => /-letter\.pdf$/.test(f.name));
+check(pdfs.length === 2 && a4?.pages.length === 2 && a4.pages.every((pg) => pg.w === 595 && pg.h === 842) && letter?.pages.length === 2 && letter.pages.every((pg) => pg.w === 612 && pg.h === 792), "test print: the 2 drawn pages (the empty one is skipped) on A4 and on Letter", JSON.stringify(pdfs.map((f) => [f.name, f.pages.length])));
+check(/test-print-a4\.pdf$/.test(a4?.name ?? "") && /test-print-letter\.pdf$/.test(letter?.name ?? ""), "files are named by purpose and paper size");
+pdfs.length = 0;
 await side("Print at home").click();
 dialog = p.getByRole("dialog");
 await dialog.getByRole("radio", { name: /Whole book/ }).click();
 check(await dialog.getByText("Start with a “how to print” page").isVisible(), "the whole-book pack offers an instructions page");
 await dialog.getByRole("button", { name: "Download PDF" }).click();
 await dialog.waitFor({ state: "detached", timeout: 90000 });
-check(requests.length === 1 && requests[0].pages.length === 4 && requests[0].pages[0].x === 0 && requests[0].pages[0].iw > 590, "whole book: instructions page first (full sheet), then all 3 pages", JSON.stringify(requests[0]?.pages.length));
+await settle(1);
+check(pdfs.length === 1 && pdfs[0].pages.length === 4, "whole book: the instructions page, then all 3 pages", JSON.stringify(pdfs.map((f) => [f.name, f.pages.length])));
 
 // ---- look-alike: duplicate a page, nudge one thing → not identical, but flagged as near-copy once previews exist
 await p.getByRole("button", { name: "Page 1", exact: true }).click();

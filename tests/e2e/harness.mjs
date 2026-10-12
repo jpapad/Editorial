@@ -1,21 +1,25 @@
 // Shared helpers for the browser tests. Each test prints PASS/FAIL lines
 // and exits non-zero if any check failed; run.mjs runs them all.
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 export const BASE = (process.env.BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-export const OUT = new URL("./.output/", import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: on Windows the latter is "/C:/…", which isn't a usable path.
+export const OUT = fileURLToPath(new URL("./.output/", import.meta.url));
 fs.mkdirSync(OUT, { recursive: true });
 
 /** Where a screenshot goes (tests/e2e/.output/, git-ignored). */
-export const shot = (name) => OUT + name;
+export const shot = (name) => path.join(OUT, name);
 
 export function check(cond, name, detail = "") {
   console.log(`${cond ? "PASS" : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
   if (!cond) process.exitCode = 1;
 }
 
-export const launch = () => chromium.launch();
+/** PW_CHANNEL=msedge (or chrome) uses an installed browser instead of Playwright's own download. */
+export const launch = () => chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 
 /**
  * A page with its own error log (`page.errors`). `lang` is written to
