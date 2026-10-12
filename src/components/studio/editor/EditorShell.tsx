@@ -13,7 +13,8 @@ import CommentsPanel from "@/components/studio/editor/CommentsPanel";
 import { useSession } from "@/lib/auth";
 import BookAssemblyScreen from "@/components/studio/screens/BookAssemblyScreen";
 import BookPreviewModal from "@/components/editor/BookPreviewModal";
-import PreflightBlockingModal, { type FlaggedPage, type PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
+import type { PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
+import ExportDialog, { type ExportRequest } from "@/components/studio/editor/ExportDialog";
 import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from "@/components/editor/pageTemplates";
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
 import { eraseSegment, moveStrokes } from "@/components/editor/strokeTools";
@@ -34,6 +35,7 @@ import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
 import DigitalPackDialog from "@/components/studio/editor/DigitalPackDialog";
 import ProfitDialog from "@/components/studio/editor/ProfitDialog";
+import { billedPages, formatMoney, INK_OPTIONS, inkForPaper, isLargeTrim, pageRange, printingCost } from "@/utils/kdpPricing";
 import { licenseText, packStem, readmeText, trimCrop, type PackOptions } from "@/utils/digitalPack";
 import { buildZip, dataUrlBytes, downloadBytes, pageFileName, type ZipEntry } from "@/utils/zip";
 import TranslateBookDialog from "@/components/studio/editor/TranslateBookDialog";
@@ -220,7 +222,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
-  const [showPreflight, setShowPreflight] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { user, loading: sessionLoading } = useSession();
   // Someone else's book that I may only read — a supervisor, or a viewer
@@ -1024,16 +1026,28 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     setSelectedIds([spineText.id]);
   }
 
-  const [isExportingCover, setIsExportingCover] = useState(false);
-  async function handleExportCover() {
-    const stage = stageRef.current;
-    if (!stage || !editingCover || isExportingCover) return;
-    setIsExportingCover(true);
+  /** The cover as a picture, from whichever mode the editor is in (shown in Cover mode for the capture, then back). */
+  async function renderCover(pixelRatio: number): Promise<string> {
+    const originalMode = mode;
     setSelectedIds([]);
+    if (mode !== "cover") setMode("cover");
     try {
       await waitForNextPaint();
-      await waitForPictures(stage, activePage);
-      const src = captureStage(stage, EXPORT_PIXEL_RATIO);
+      const stage = stageRef.current;
+      if (!stage) throw new Error(t("Could not export the cover."));
+      await waitForPictures(stage, fittedCover.page);
+      return captureStage(stage, pixelRatio);
+    } finally {
+      setMode(originalMode);
+    }
+  }
+
+  const [isExportingCover, setIsExportingCover] = useState(false);
+  async function handleExportCover() {
+    if (!editingCover || isExportingCover) return;
+    setIsExportingCover(true);
+    try {
+      const src = await renderCover(EXPORT_PIXEL_RATIO);
       await exportPagesToPdf([coverExportPage(src, cover.space)], `${slugify(title)}-cover.pdf`);
       logExport("export_cover");
     } catch (err) {
@@ -1194,32 +1208,41 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     return images;
   }
 
-  async function runExport() {
-    if (isExporting || pages.length === 0) return;
+  /** The export dialog's request: KDP interior (+ cover), home-printer sheets, or a small sample. Errors go back to the dialog. */
+  async function handleExportRequest(request: ExportRequest) {
+    if (isExporting) return;
     setIsExporting(true);
     try {
-      const dataUrls = await renderAllPages(EXPORT_PIXEL_RATIO);
-      await exportPagesToPdf(
-        dataUrls.map((src, i) => interiorExportPage(src, space, i + 1)),
-        `${slugify(title)}.pdf`
-      );
+      const picked = pages.slice(request.from - 1, request.to);
+      const pixelRatio = request.dpi / 72;
+      const stem = slugify(title);
+      if (request.purpose === "home") {
+        const images = await renderAllPages(pixelRatio, picked);
+        for (const sheet of request.sheets) {
+          const intro = request.instructions[sheet];
+          await exportPagesToPdf([...(intro ? [fullSheet(intro, sheet)] : []), ...images.map((src) => fitOnSheet(src, space, sheet))], `${stem}-printable-${sheet}.pdf`);
+        }
+      } else {
+        const images = await renderAllPages(pixelRatio, picked);
+        // Page numbers stay the book's own, so bleed is dropped on the right (gutter) side.
+        await exportPagesToPdf(
+          images.map((src, i) => interiorExportPage(src, space, request.from + i)),
+          request.purpose === "sample" ? `${stem}-sample.pdf` : `${stem}.pdf`
+        );
+        if (request.cover) {
+          await exportPagesToPdf([coverExportPage(await renderCover(pixelRatio), cover.space)], `${stem}-cover.pdf`);
+          logExport("export_cover");
+        }
+      }
       logExport("export_pdf");
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t("Could not export this book to PDF."));
     } finally {
       setIsExporting(false);
     }
   }
 
-  /** Export's real gate: blocking preflight issues stop export outright; any issue at all (blocking or warning) surfaces the modal first. */
   function handleExport() {
     if (isExporting || pages.length === 0) return;
-    const issues = runEditorPreflightCheck(pages);
-    if (issues.length === 0) {
-      void runExport();
-      return;
-    }
-    setShowPreflight(true);
+    setShowExport(true);
   }
 
   function pageLabel(id: string) {
@@ -1274,10 +1297,15 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
 
   const preflightIssues = runEditorPreflightCheck(pages);
   const preflightModalIssues: PreflightIssue[] = preflightIssues.map(mapPreflightIssue);
-  const preflightFlaggedPages: FlaggedPage[] = preflightIssues
-    .flatMap((issue) => issue.pageIds.map((id) => ({ id, ringColor: issue.severity === "blocking" ? ("error" as const) : ("warning" as const) })))
-    .filter((entry, index, all) => all.findIndex((e) => e.id === entry.id) === index)
-    .map((entry) => ({ ringColor: entry.ringColor, label: pageLabel(entry.id) }));
+  // The export dialog's line about KDP: the printing cost per copy, or the page range KDP prints when this book is outside it.
+  const kdpNote = (() => {
+    const trim = getTrimSize(trimSizeId);
+    const ink = inkForPaper(paper);
+    const cost = printingCost("us", ink, isLargeTrim(trim.widthPt, trim.heightPt), pages.length);
+    if (cost !== null) return t("KDP printing cost (US): {cost} a copy.", { cost: formatMoney("us", cost) });
+    const range = pageRange("us", ink);
+    return t("KDP prints {ink} books from {from} to {to} pages; this one has {n}.", { ink: t(INK_OPTIONS.find((o) => o.value === ink)!.label).toLowerCase(), from: range.from, to: range.to, n: billedPages(pages.length) });
+  })();
 
   /**
    * "Publish" — marks the book published (real status, not just a
@@ -1321,7 +1349,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
     keyHandlerRef.current = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target) || showPreflight || previewImages) return;
+      if (isTypingTarget(e.target) || showExport || previewImages) return;
       const key = e.key.toLowerCase();
       const mod = isPrimaryModifier(e);
 
@@ -1717,19 +1745,24 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
       {showPublishTemplate && <PublishTemplateDialog title={title} pages={pages} trimSize={trimSizeId} bleed={bleed} onClose={() => setShowPublishTemplate(false)} />}
 
-      {showPreflight && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6" onClick={() => setShowPreflight(false)}>
-          <div onClick={(e) => e.stopPropagation()}>
-            <PreflightBlockingModal
-              issues={preflightModalIssues}
-              flaggedPages={preflightFlaggedPages}
-              onExport={() => {
-                setShowPreflight(false);
-                void runExport();
-              }}
-            />
-          </div>
-        </div>
+      {showExport && (
+        <ExportDialog
+          title={title}
+          pageCount={pages.length}
+          currentPage={Math.max(1, pages.findIndex((p) => p.id === activePageId) + 1)}
+          printLabel={`${trimShortLabel(trimSizeId)}${bleed ? ` + ${t("bleed")}` : ""}`}
+          singleSided={pages.some((p) => p.isBlankBack)}
+          onToggleSingleSided={handleToggleBlankBacks}
+          issues={preflightModalIssues}
+          kdpNote={kdpNote}
+          onExport={handleExportRequest}
+          onOpenPack={() => {
+            setShowExport(false);
+            setShowPack(true);
+          }}
+          onOpenProfit={() => setShowProfit(true)}
+          onClose={() => setShowExport(false)}
+        />
       )}
     </div>
   );

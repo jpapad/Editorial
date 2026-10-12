@@ -6,7 +6,7 @@ import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Toggle from "@/components/studio/ui/Toggle";
 import { cn } from "@/utils/cn";
-import { useT } from "@/lib/i18n";
+import { useT, type TFunction } from "@/lib/i18n";
 import { SHEETS, type SheetId } from "@/utils/printables";
 
 export interface PrintAtHomeRequest {
@@ -18,7 +18,7 @@ export interface PrintAtHomeRequest {
 }
 
 /** The "how to print" page, drawn as a picture so it goes through the same image-based PDF export as the pages. */
-function instructionImage(sheet: SheetId, title: string, heading: string, lines: string[], footer: string): string {
+export function instructionImage(sheet: SheetId, title: string, heading: string, lines: string[], footer: string): string {
   const { width, height } = SHEETS[sheet];
   const k = 2.5;
   const canvas = document.createElement("canvas");
@@ -59,6 +59,22 @@ function instructionImage(sheet: SheetId, title: string, heading: string, lines:
   return canvas.toDataURL("image/png");
 }
 
+/** The "how to print" first page for one paper size. */
+export function howToPrintPage(sheet: SheetId, title: string, t: TFunction): string {
+  return instructionImage(
+    sheet,
+    title,
+    t("How to print your coloring pages"),
+    [
+      t("Print on {size} paper, single-sided, so colors don't show through.", { size: SHEETS[sheet].label }),
+      t("In the print window choose “Actual size” or 100% — not “Fit to page”."),
+      t("Thicker paper (120 g or more) works best with markers."),
+      t("Print any page again as often as you like."),
+    ],
+    t("For personal use only. Please don't share or resell the file.")
+  );
+}
+
 /**
  * PDFs for a home printer: a quick test print of a few pages before
  * ordering a proof, or the whole book on A4 and US Letter to sell as a
@@ -81,20 +97,7 @@ export default function PrintAtHomeDialog({ title, pageCount, onExport, onClose 
     try {
       const instructions: PrintAtHomeRequest["instructions"] = {};
       if (includeInstructions) {
-        for (const sheet of sheets) {
-          instructions[sheet] = instructionImage(
-            sheet,
-            title,
-            t("How to print your coloring pages"),
-            [
-              t("Print on {size} paper, single-sided, so colors don't show through.", { size: SHEETS[sheet].label }),
-              t("In the print window choose “Actual size” or 100% — not “Fit to page”."),
-              t("Thicker paper (120 g or more) works best with markers."),
-              t("Print any page again as often as you like."),
-            ],
-            t("For personal use only. Please don't share or resell the file.")
-          );
-        }
+        for (const sheet of sheets) instructions[sheet] = howToPrintPage(sheet, title, t);
       }
       await onExport({ sheets, scope, instructions });
       onClose();

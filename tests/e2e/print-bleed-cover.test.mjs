@@ -33,10 +33,12 @@ const copyText = await p.evaluate(() => window.Konva.stages[0].find('Text').map(
 check(copyText.includes('ISBN: [ISBN]'), 'copyright page template');
 
 await p.getByRole('button', { name: 'Export', exact: true }).first().click(); await p.waitForTimeout(800);
-const modal = p.locator('div.fixed.inset-0.z-50');
+const modal = p.getByRole('dialog');
+check(await modal.getByRole('radio', { name: /Amazon KDP/ }).getAttribute('aria-checked') === 'true', 'the export dialog opens on Amazon KDP');
+check(await modal.getByRole('button', { name: 'Download 2 PDFs' }).isDisabled(), 'KDP export waits for the blocking page-count issue');
 await modal.getByRole('button', { name: /Add \d blank page/ }).click(); await p.waitForTimeout(400);
-await modal.getByRole('button', { name: 'Export', exact: true }).click();
-await p.waitForTimeout(8000);
+await modal.getByRole('button', { name: 'Download 2 PDFs' }).click();
+for (let i = 0; i < 120 && pdfs.length < 2; i++) await p.waitForTimeout(250);
 const interior = pdfs[0] ?? [];
 // KDP bleed: trim + 0.125in outside edge = 621×810pt per page
 check(interior.length >= 2 && interior.every(([, , w, h]) => w === 621 && h === 810), 'interior PDF: every page 621×810pt (trim + outside bleed)', `${interior.length} pages, first ${JSON.stringify(interior[0])}`);
@@ -47,8 +49,10 @@ const expectedW = Math.round(2 * 612 + 24 * 0.002252 * 72 + 18);
 check(n[0] === expectedW && n[1] === 810, 'cover canvas = back + spine + front + bleed', `${n} (expected ${expectedW}×810)`);
 check(await p.getByRole('button', { name: 'Add spine title' }).isDisabled(), 'spine title disabled under 80 pages');
 await p.screenshot({ path: shot('cover.png') });
+const dialogCover = pdfs[1]?.[0];
+check(pdfs[1]?.length === 1 && dialogCover && Math.abs(dialogCover[2] - n[0]) <= 1 && dialogCover[3] === 810, 'the KDP export also made the cover PDF, the size of the cover canvas', JSON.stringify(dialogCover));
 await p.getByRole('button', { name: 'Export cover PDF' }).click(); await p.waitForTimeout(5000);
-const coverBox = pdfs[1]?.[0];
+const coverBox = pdfs[2]?.[0];
 check(coverBox && Math.abs(coverBox[2] - n[0]) <= 1 && coverBox[3] === 810, 'cover PDF matches the cover canvas', JSON.stringify(coverBox));
 
 await p.getByRole('tab', { name: 'Draw' }).click(); await p.waitForTimeout(500);

@@ -92,8 +92,10 @@ await p.waitForSelector("canvas", { timeout: 30000 });
 await p.waitForTimeout(1000);
 await p.getByRole("button", { name: "Export", exact: true }).first().click();
 await p.waitForTimeout(800);
-const modal = p.locator("div.fixed.inset-0.z-50");
-if (await modal.getByRole("button", { name: "Export", exact: true }).count()) await modal.getByRole("button", { name: "Export", exact: true }).click();
+const dialog = p.getByRole("dialog");
+// KDP, the interior only.
+await dialog.getByRole("switch", { name: /The cover too/ }).click();
+await dialog.getByRole("button", { name: "Download PDF" }).click();
 for (let i = 0; i < 240 && !pdf; i++) await p.waitForTimeout(250);
 
 check(pdf !== null, "the PDF downloads");
