@@ -23,6 +23,8 @@ export const TRIM_SIZES: TrimSize[] = [
   { id: "8.5x11", label: "8.5 × 11 in (US Letter)", widthPt: 612, heightPt: 792 },
   { id: "8x10", label: "8 × 10 in", widthPt: 576, heightPt: 720 },
   { id: "6x9", label: "6 × 9 in", widthPt: 432, heightPt: 648 },
+  // Square: the usual shape for alphabet and toddler books.
+  { id: "8.5x8.5", label: "8.5 × 8.5 in (square)", widthPt: 612, heightPt: 612 },
 ];
 
 export const DEFAULT_TRIM_SIZE_ID = "8.5x11";

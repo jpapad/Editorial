@@ -31,6 +31,12 @@ const L = coverLayout("8.5x11", 100, "white");
 ok(near(L.space.width / 72, 17.4752, 1e-6) && near(L.space.height / 72, 11.25), `cover 17.4752×11.25in (got ${(L.space.width/72).toFixed(4)}×${(L.space.height/72).toFixed(4)})`);
 ok(!coverLayout("8.5x11", 79, "white").spineTextAllowed && coverLayout("8.5x11", 80, "white").spineTextAllowed, "spine text from 80 pages");
 
+// Square 8.5x8.5 (alphabet books): 630×630 with bleed; cover is two 8.5in panels + spine, 8.75in tall
+const square = interiorSpace("8.5x8.5", true);
+ok(square.width === 630 && square.height === 630 && square.bleed === 9, "square + bleed canvas 630×630");
+const S = coverLayout("8.5x8.5", 54, "white");
+ok(near(S.space.width, 9 + 612 + spineWidthPt(54, "white") + 612 + 9) && near(S.space.height / 72, 8.75), `square cover ${(S.space.width/72).toFixed(4)}×${(S.space.height/72).toFixed(4)}in`);
+
 // Refit: front-cover object moves by the full spine change, back stays, spine by half
 const c0 = emptyCover(coverLayout("8.5x11", 100, "white"), "c");
 const mk = (id: string, x: number) => ({ kind: "shape" as const, id, shapeKind: "rectangle" as const, x, y: 100, width: 20, height: 20, rotation: 0, scaleX: 1, scaleY: 1, fill: "#fff", stroke: "#000", strokeWidth: 1 });

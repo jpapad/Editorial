@@ -12,7 +12,7 @@
 // expects, that would only surface once a real key is set.
 
 import { NextResponse } from "next/server";
-import { generateLineArtFromReference, generateLineArtImage, type LineArtRequest } from "@/services/aiGenerator";
+import { generateLineArtFromReference, generateLineArtImage, imageProvider, type LineArtRequest } from "@/services/aiGenerator";
 import { reserveCredits } from "@/lib/aiCredits";
 
 interface GenerateRequestBody extends LineArtRequest {
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   };
   // With a reference picture of the character (and an OpenAI key), every page is drawn from it.
   const reference = process.env.OPENAI_API_KEY ? referenceImage(body.characterRef) : null;
-  const requests = Array.from({ length: count }, () => (reference ? generateLineArtFromReference(lineArt, reference) : generateLineArtImage(lineArt, body.provider ?? "fal")));
+  const requests = Array.from({ length: count }, () => (reference ? generateLineArtFromReference(lineArt, reference) : generateLineArtImage(lineArt, body.provider ?? imageProvider())));
 
   const settled = await Promise.allSettled(requests);
   const results: GenerateResultItem[] = settled.map((r) =>

@@ -6,6 +6,7 @@
 import type { BookPage, LineData, PageObject, PageSpace, ShapeData } from "@/types/editor";
 import { makeId, rule, shape, text } from "@/components/editor/pageTemplates";
 import { polygonPoints } from "@/components/editor/shapeGeometry";
+import { hasStrokes, LETTER_STROKES, sampleStroke, type StrokeGlyph } from "@/components/editor/letterStrokes";
 import { flippedHorizontally, objectBounds } from "@/utils/objectGeometry";
 import { geometryFromSpace, type Rect } from "@/utils/pageGeometry";
 import { identityT, type TFunction } from "@/lib/i18n-core";
@@ -36,6 +37,15 @@ export function seededRandom(seed: number): () => number {
 
 // ---------- Tracing ----------
 
+/** One handwriting row's three guide lines: top and midline in gray, baseline in ink. */
+function guideRules(left: number, top: number, width: number, letterHeight: number): ShapeData[] {
+  const topRule = rule(left, top, width, 1.5);
+  const mid = rule(left, top + letterHeight / 2, width, 1);
+  topRule.stroke = GUIDE_GRAY;
+  mid.stroke = GUIDE_GRAY;
+  return [topRule, mid, rule(left, top + letterHeight, width, 2.5)];
+}
+
 /** Three-line handwriting rows (top, dashed-looking mid in gray, baseline) with dashed glyphs to trace. */
 function tracingRows(glyph: string, area: Rect, rows: number): PageObject[] {
   const out: PageObject[] = [];
@@ -47,10 +57,7 @@ function tracingRows(glyph: string, area: Rect, rows: number): PageObject[] {
   const perRow = Math.max(3, Math.floor(width / (fontSize * 1.05)));
   for (let r = 0; r < rows; r++) {
     const top = area.top + r * rowHeight + rowHeight * 0.12;
-    const base = top + letterHeight;
-    out.push(rule(area.left, top, width, 1.5), rule(area.left, top + letterHeight / 2, width, 1), rule(area.left, base, width, 2.5));
-    (out.at(-2) as ShapeData).stroke = GUIDE_GRAY;
-    (out.at(-3) as ShapeData).stroke = GUIDE_GRAY;
+    out.push(...guideRules(area.left, top, width, letterHeight));
     const glyphs = Array.from({ length: perRow }, () => glyph).join(" ");
     out.push(
       text({
@@ -70,6 +77,110 @@ function tracingRows(glyph: string, area: Rect, rows: number): PageObject[] {
   return out;
 }
 
+/** A letter's strokes as dotted pen lines along their centre; the letter is `h` tall from the top line at `top`. */
+function dottedLetter(glyph: StrokeGlyph, x: number, top: number, h: number): { lines: LineData[]; objects: PageObject[] } {
+  const dot = Math.max(2.5, h * 0.065);
+  const lines = glyph.strokes.map((s) => ({ ...line(sampleStroke(s).map((v, i) => (i % 2 ? top + v * h : x + v * h)), dot), style: "dotted" as const }));
+  const r = Math.max(3, h * 0.05);
+  const objects = (glyph.dots ?? []).map(([dx, dy]) => shape({ shapeKind: "circle", x: x + dx * h - r, y: top + dy * h - r, width: 2 * r, height: 2 * r, strokeWidth: dot * 0.6 }));
+  return { lines, objects };
+}
+
+type Pt = { x: number; y: number };
+
+/** What stroke-order marks keep clear of: dots and arrow points, and the number circles already placed (radius `r`). */
+interface Obstacles {
+  points: Pt[];
+  discs: Pt[];
+}
+
+/** Every sampled point of a letter's strokes, on the page. */
+function letterPoints(glyph: StrokeGlyph, x: number, top: number, h: number): Pt[] {
+  return glyph.strokes.flatMap((s) => {
+    const pts = sampleStroke(s);
+    return pts.flatMap((v, i) => (i % 2 ? [] : [{ x: x + v * h, y: top + pts[i + 1] * h }]));
+  });
+}
+
+const nearest = (list: Pt[], p: Pt) => list.reduce((best, o) => Math.min(best, Math.hypot(o.x - p.x, o.y - p.y)), Infinity);
+
+/**
+ * Stroke order: a numbered circle beside where each stroke starts and an
+ * arrow showing which way to go. Both sit just off the dotted line — pen
+ * lines draw above objects, so a number on the line itself would be covered
+ * by its dots — on whichever side, slid a little along the stroke if need
+ * be, keeps them clearest of the pair's letters and of the marks already
+ * placed (each mark is added to `obstacles`).
+ */
+function strokeOrderMarks(glyph: StrokeGlyph, x: number, top: number, h: number, obstacles: Obstacles): PageObject[] {
+  const toPage = (ux: number, uy: number): Pt => ({ x: x + ux * h, y: top + uy * h });
+  const strokes = glyph.strokes.map((s) => sampleStroke(s));
+  const r = Math.max(5, h * 0.085);
+  // How much room is left around a point that is itself `size` wide (a circle's radius, or 0 for a point of an arrow).
+  const clearance = (p: Pt, size: number) => Math.min(nearest(obstacles.points, p) - size, nearest(obstacles.discs, p) - r - size);
+  const fontSize = r * 1.35;
+  const arrowLength = Math.max(22, h * 0.42);
+  // Centre of the number circle from the stroke: its radius, the dot's radius (dottedLetter) and a small gap.
+  const offset = r + Math.max(2.5, h * 0.065) / 2 + r * 0.4;
+  const out: PageObject[] = [];
+  const marker = (n: number, at: Pt) => {
+    out.push(
+      shape({ shapeKind: "circle", x: at.x - r, y: at.y - r, width: 2 * r, height: 2 * r, fill: INK, stroke: INK, strokeWidth: 1 }),
+      text({ text: String(n), x: at.x - r, y: at.y - fontSize * 0.5, width: 2 * r, fontSize, fill: "#ffffff", fontFamily: KID_FONT })
+    );
+  };
+  strokes.forEach((pts, k) => {
+    // Direction from the start to a point a little way along the stroke.
+    let j = 2;
+    while (j < pts.length - 2 && Math.hypot(pts[j] - pts[0], pts[j + 1] - pts[1]) < 0.12) j += 2;
+    const theta = Math.atan2(pts[j + 1] - pts[1], pts[j] - pts[0]);
+    const dir = { x: Math.cos(theta), y: Math.sin(theta) };
+    const start = toPage(pts[0], pts[1]);
+    const arrowPoints = (at: Pt) => Array.from({ length: 7 }, (_, i) => ({ x: at.x + dir.x * (r * 1.5 + (arrowLength * i) / 6), y: at.y + dir.y * (r * 1.5 + (arrowLength * i) / 6) }));
+    let best = { at: start, score: -Infinity };
+    for (const side of [1, -1])
+      for (let slide = -2; slide < 4; slide++) {
+        const at = { x: start.x - dir.y * side * offset + dir.x * slide * r * 1.2, y: start.y + dir.x * side * offset + dir.y * slide * r * 1.2 };
+        // How close the circle's edge and the arrow come to anything; sliding away from the start costs a little.
+        const score = Math.min(clearance(at, r), ...arrowPoints(at).map((p) => clearance(p, 0))) - Math.abs(slide) * h * 0.02;
+        if (score > best.score) best = { at, score };
+      }
+    const at = best.at;
+    marker(k + 1, at);
+    // Later marks keep clear of this one.
+    obstacles.discs.push(at);
+    obstacles.points.push(...arrowPoints(at));
+    // The arrow starts just past the number and runs the way the stroke goes.
+    const from = { x: at.x + dir.x * r * 1.5, y: at.y + dir.y * r * 1.5 };
+    const boxHeight = 10;
+    out.push(
+      shape({
+        shapeKind: "arrow",
+        // An open stroke runs from (0, height/2) to (width, height/2) of its box, rotated about the box's corner.
+        x: from.x + (boxHeight / 2) * Math.sin(theta),
+        y: from.y - (boxHeight / 2) * Math.cos(theta),
+        width: arrowLength,
+        height: boxHeight,
+        rotation: (theta * 180) / Math.PI,
+        fill: "transparent",
+        strokeWidth: Math.max(1.5, h * 0.025),
+      })
+    );
+  });
+  (glyph.dots ?? []).forEach(([dx, dy], k) => {
+    const at = toPage(dx - 0.15, dy - 0.05);
+    marker(strokes.length + k + 1, at);
+    obstacles.discs.push(at);
+  });
+  return out;
+}
+
+/**
+ * Like a printed handwriting book: the letter pair big and hollow to color,
+ * then two rows of dotted letters to trace (the first pair numbered with
+ * arrows for the stroke order) and two empty rows to write on. Letters
+ * without stroke data (Greek, for now) keep the font-traced layout.
+ */
 export function letterTracingPage(space: PageSpace, letter: string): BookPage {
   const geo = geometryFromSpace(space);
   const { safe } = geo;
@@ -77,12 +188,53 @@ export function letterTracingPage(space: PageSpace, letter: string): BookPage {
   const upper = letter.toLocaleUpperCase();
   const lower = letter.toLocaleLowerCase();
   const pair = upper === lower ? upper : `${upper}${lower}`;
+  if (hasStrokes(upper) && hasStrokes(lower) && upper !== lower) return strokeTracingPage(space, upper, lower);
   const heroHeight = (safe.bottom - safe.top) * 0.32;
   return blank(space, [
     text({ text: pair, x: safe.left, y: safe.top, width, fontSize: heroHeight * 0.9, height: heroHeight, outline: true, fontFamily: KID_FONT }),
     ...tracingRows(upper, { ...safe, top: safe.top + heroHeight + 10, bottom: safe.top + heroHeight + 10 + (safe.bottom - safe.top - heroHeight) / 2 }, 2),
     ...(upper === lower ? [] : tracingRows(lower, { ...safe, top: safe.top + heroHeight + 10 + (safe.bottom - safe.top - heroHeight) / 2 }, 2)),
   ]);
+}
+
+function strokeTracingPage(space: PageSpace, upper: string, lower: string): BookPage {
+  const { safe } = geometryFromSpace(space);
+  const width = safe.right - safe.left;
+  const heroHeight = (safe.bottom - safe.top) * 0.28;
+  const rowsTop = safe.top + heroHeight + 10;
+  const rows = 4;
+  const rowHeight = (safe.bottom - rowsTop) / rows;
+  const h = rowHeight * 0.62;
+  const big = LETTER_STROKES[upper];
+  const small = LETTER_STROKES[lower];
+  // In letter heights: the gap inside a pair (room for the stroke-order arrows between the two) and between pairs.
+  const inner = 0.45;
+  const between = 0.7;
+  const pairWidth = big.w + inner + small.w;
+  const perRow = Math.max(1, Math.floor((width + between * h) / ((pairWidth + between) * h)));
+  const rowWidth = perRow * pairWidth * h + (perRow - 1) * between * h;
+  const left = safe.left + (width - rowWidth) / 2;
+
+  const objects: PageObject[] = [text({ text: `${upper}${lower}`, x: safe.left, y: safe.top, width, fontSize: heroHeight * 0.9, height: heroHeight, outline: true, fontFamily: KID_FONT })];
+  const lines: LineData[] = [];
+  for (let r = 0; r < rows; r++) {
+    const top = rowsTop + r * rowHeight + rowHeight * 0.12;
+    objects.push(...guideRules(safe.left, top, width, h));
+    if (r >= 2) continue; // the last two rows are left empty to write on
+    for (let c = 0; c < perRow; c++) {
+      const x = left + c * (pairWidth + between) * h;
+      const pair = [[big, x], [small, x + (big.w + inner) * h]] as const;
+      // The first pair shows the stroke order; its marks keep clear of both letters and of each other.
+      const obstacles = r === 0 && c === 0 ? { points: pair.flatMap(([glyph, gx]) => letterPoints(glyph, gx, top, h)), discs: [] } : null;
+      for (const [glyph, gx] of pair) {
+        const letter = dottedLetter(glyph, gx, top, h);
+        lines.push(...letter.lines);
+        objects.push(...letter.objects);
+        if (obstacles) objects.push(...strokeOrderMarks(glyph, gx, top, h, obstacles));
+      }
+    }
+  }
+  return blank(space, objects, lines);
 }
 
 export function numberTracingPage(space: PageSpace, n: number): BookPage {
