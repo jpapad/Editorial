@@ -88,7 +88,7 @@ import { coverExportPage, EXPORT_PIXEL_RATIO, exportPagesToPdf, interiorExportPa
 import { createBook, downloadProjectAsJson, getBook, readProjectFromFile, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
 import { myBookRole, type BookRole } from "@/utils/collaborators";
 import TeamDialog from "@/components/studio/editor/TeamDialog";
-import { computeStampDimensions, coverGuides, cropImage, logExport, renumber, slugify, waitForNextPaint } from "@/components/studio/editor/editorHelpers";
+import { computeStampDimensions, coverGuides, cropImage, logExport, renumber, slugify, waitForNextPaint, waitForPictures } from "@/components/studio/editor/editorHelpers";
 import { useBookComments } from "@/components/studio/editor/useBookComments";
 import { useBookAutosave } from "@/components/studio/editor/useBookAutosave";
 import { useUndoHistory } from "@/components/studio/editor/useUndoHistory";
@@ -1032,6 +1032,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     setSelectedIds([]);
     try {
       await waitForNextPaint();
+      await waitForPictures(stage, activePage);
       const src = captureStage(stage, EXPORT_PIXEL_RATIO);
       await exportPagesToPdf([coverExportPage(src, cover.space)], `${slugify(title)}-cover.pdf`);
       logExport("export_cover");
@@ -1180,6 +1181,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
         await waitForNextPaint();
         const stage = stageRef.current;
         if (stage) {
+          await waitForPictures(stage, page);
           images.push(captureStage(stage, pixelRatio));
           thumbnails[page.id] = captureStage(stage, THUMBNAIL_PIXEL_RATIO);
         }
