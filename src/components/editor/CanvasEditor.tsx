@@ -98,6 +98,32 @@ export function captureStage(stage: Konva.Stage, pixelRatio: number): string {
 }
 
 /**
+ * The page's lines on white paper as a PNG, its longest side `maxPx`: no
+ * paint, no editor overlays. The kids' app colors this picture (utils/pageArt.ts).
+ */
+export function capturePageArt(stage: Konva.Stage, maxPx: number): string {
+  const hidden = stage.find(`.${OVERLAY_NAME}, .${PAINT_NAME}`).filter((n) => n.visible());
+  hidden.forEach((n) => n.hide());
+  try {
+    const nativeWidth = stage.width() / stage.scaleX();
+    const nativeHeight = stage.height() / stage.scaleY();
+    const pixelRatio = maxPx / Math.max(nativeWidth, nativeHeight) / stage.scaleX();
+    const drawn = stage.toCanvas({ pixelRatio });
+    const paper = document.createElement("canvas");
+    paper.width = drawn.width;
+    paper.height = drawn.height;
+    const ctx = paper.getContext("2d");
+    if (!ctx) return drawn.toDataURL("image/png");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, paper.width, paper.height);
+    ctx.drawImage(drawn, 0, 0);
+    return paper.toDataURL("image/png");
+  } finally {
+    hidden.forEach((n) => n.show());
+  }
+}
+
+/**
  * A small PNG of one part of the page (page points), without editor
  * overlays, paint or the selection glow — the preview of a saved stamp.
  */

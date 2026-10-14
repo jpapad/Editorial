@@ -53,7 +53,8 @@ await a.waitForTimeout(400);
 await a.mouse.click(cb.x + 300 * scale, cb.y + 560 * scale);
 await a.waitForTimeout(4500); // autosave
 const saved = db.books.find((bk) => bk.id === BOOK).pages[0].objects.find((o) => o.kind === "stamp");
-const files = Object.keys(db.storage);
+// The user's pictures, not the page art the editor also keeps (in art/, for the kids' app).
+const files = Object.keys(db.storage).filter((k) => !k.includes("/art/"));
 check(Boolean(saved) && /^http.*\/storage\/v1\/object\/public\/book-images\/.+\.png$/.test(saved.src), "the saved book holds a link to the picture, not the picture itself", saved?.src.slice(0, 90));
 check(files.length === 1 && files[0].startsWith("book-images/11111111-1111-4111-8111-111111111111/") && db.storage[files[0]].body.length === png.length, "the picture file is in the user's own storage folder, byte for byte");
 const live = await a.evaluate(() => window.Konva.stages[0].findOne(".ink-layer").find("Image").filter((n) => n.name() !== "paint").map((n) => n.image()?.src.slice(0, 22))[0]);

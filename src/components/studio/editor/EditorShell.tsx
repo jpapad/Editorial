@@ -15,6 +15,7 @@ import BookAssemblyScreen from "@/components/studio/screens/BookAssemblyScreen";
 import BookPreviewModal from "@/components/editor/BookPreviewModal";
 import type { PreflightIssue } from "@/components/studio/modals/PreflightBlockingModal";
 import ExportDialog, { type ExportRequest } from "@/components/studio/editor/ExportDialog";
+import { usePageArt } from "@/components/studio/editor/PageArtRenderer";
 import { createFrameStamp, createPageFromTemplate, duplicatePage, makeId } from "@/components/editor/pageTemplates";
 import { defaultShapeSize, isOpenStroke } from "@/components/editor/shapeGeometry";
 import { eraseSegment, moveStrokes } from "@/components/editor/strokeTools";
@@ -293,6 +294,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     prepare: (p, c) => externalize(p, c, uploadBookImage, uploadedImagesRef.current),
     t,
   });
+  // Each page's lines as a picture for the kids' mobile app — same conditions as saving (utils/pageArt.ts).
+  const pageArtRenderer = usePageArt({ pages, setPages, space, enabled: Boolean(bookId && !sessionLoading && user && !reviewMode) });
 
   const bookComments = useBookComments(bookId, Boolean(user), sessionLoading, t);
   const { comments, isSupervisor, openCounts: openCommentCounts } = bookComments;
@@ -1763,6 +1766,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
           onClose={() => setShowExport(false)}
         />
       )}
+      {/* Last, so the editor's own canvas stays the first one on the page. */}
+      {pageArtRenderer}
     </div>
   );
 }

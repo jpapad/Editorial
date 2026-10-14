@@ -8,6 +8,8 @@ const B = "33333333-3333-4333-8333-333333333333";
 const space = { width: 612, height: 792, bleed: 0 };
 const blank = (id) => [{ id, pageNumber: 1, space, lines: [], objects: [] }];
 const db = { books: [bookRow({ id: A, title: "First", trim_size: "8.5x11", pages: blank("a1") }), bookRow({ id: B, title: "Second", trim_size: "8.5x11", pages: blank("b1") })], comments: [], storage: {}, media: [] };
+// The user's pictures, not the page art the editor also keeps (in art/, for the kids' app).
+const pictureFiles = () => Object.keys(db.storage).filter((k) => !k.includes("/art/"));
 const open = async (page, id) => {
   await page.goto(`${BASE}/studio/editor?book=${id}`);
   await page.waitForSelector("canvas", { timeout: 30000 });
@@ -40,12 +42,12 @@ const png = Buffer.from(
 await p.locator('input[type="file"][accept*="svg"]').setInputFiles({ name: "farm_cow-photo.png", mimeType: "image/png", buffer: png });
 await p.waitForTimeout(1500);
 check(db.media.length === 1 && db.media[0].name === "farm cow photo" && db.media[0].source === "upload" && db.media[0].width === 400 && db.media[0].height === 300, "an uploaded picture is catalogued: tidy name, size, source", JSON.stringify(db.media[0] && { name: db.media[0].name, source: db.media[0].source }));
-check(Object.keys(db.storage).length === 1 && db.media[0].path === Object.keys(db.storage)[0].replace("book-images/", "") && db.media[0].path.startsWith("11111111-1111-4111-8111-111111111111/"), "its file is in the user's own storage folder");
+check(pictureFiles().length === 1 && db.media[0].path === pictureFiles()[0].replace("book-images/", "") && db.media[0].path.startsWith("11111111-1111-4111-8111-111111111111/"), "its file is in the user's own storage folder");
 check((await list().getByRole("listitem").count()) === 1, "it shows under My pictures straight away");
 // The same file again: still one entry, one file.
 await p.locator('input[type="file"][accept*="svg"]').setInputFiles({ name: "again.png", mimeType: "image/png", buffer: png });
 await p.waitForTimeout(1200);
-check(db.media.length === 1 && Object.keys(db.storage).length === 1, "uploading the same picture again adds nothing");
+check(db.media.length === 1 && pictureFiles().length === 1, "uploading the same picture again adds nothing");
 await p.keyboard.press("Escape");
 await p.screenshot({ path: shot("media-library.png") });
 noPageErrors(p);
@@ -68,7 +70,7 @@ const exportable = await q.evaluate(() => { try { return window.Konva.stages[0].
 check(exportable === true, "the page can still be exported", String(exportable));
 await q.waitForTimeout(4000); // autosave
 const saved = db.books.find((bk) => bk.id === B).pages[0].objects[0];
-check(saved?.src === db.media[0].url && Object.keys(db.storage).length === 1, "the book saves the link — no second copy of the file");
+check(saved?.src === db.media[0].url && pictureFiles().length === 1, "the book saves the link — no second copy of the file");
 
 // ---- delete: asks first
 q.removeAllListeners("dialog");
@@ -83,7 +85,7 @@ check(asked.length === 1 && asked[0].includes("will lose the picture") && db.med
 answer = true;
 await q.getByRole("button", { name: "Delete farm cow photo" }).click();
 await q.waitForTimeout(800);
-check(db.media.length === 0 && Object.keys(db.storage).length === 0 && (await q.getByRole("list", { name: "My pictures" }).count()) === 0, "confirming removes the entry and the file");
+check(db.media.length === 0 && pictureFiles().length === 0 && (await q.getByRole("list", { name: "My pictures" }).count()) === 0, "confirming removes the entry and the file");
 noPageErrors(q);
 await q.context().close();
 

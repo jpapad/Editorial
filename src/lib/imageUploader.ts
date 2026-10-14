@@ -19,7 +19,7 @@ async function sha256(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export const uploadBookImage: Uploader = async (dataUrl) => {
+export const uploadBookImage: Uploader = async (dataUrl, folder) => {
   if (off) return null;
   const decoded = decodeDataUrl(dataUrl);
   const ext = decoded && EXTENSIONS[decoded.mime];
@@ -29,7 +29,7 @@ export const uploadBookImage: Uploader = async (dataUrl) => {
   if (!userId) return null;
 
   // Named by content: the same picture used on ten pages (or in ten books) is one file.
-  const path = `${userId}/${await sha256(decoded.bytes)}.${ext}`;
+  const path = `${userId}/${folder ? `${folder}/` : ""}${await sha256(decoded.bytes)}.${ext}`;
   const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, new Blob([decoded.bytes as BlobPart], { type: decoded.mime }), { contentType: decoded.mime, cacheControl: "31536000", upsert: false });
   if (error && !/already exists|duplicate/i.test(error.message)) {
     // No bucket, no permission, too big…: stop trying; everything stays embedded.

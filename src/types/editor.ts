@@ -120,6 +120,8 @@ export interface BookPage {
   completedAt?: string; // the child tapped "I'm done!" in the coloring view — earns a sticker, shows in their gallery
   isBlankBack?: boolean; // an intentionally empty reverse side (single-sided coloring pages) — inserted/removed as a set by the filmstrip's "Blank backs" action
   thumbnailDataUrl?: string; // Low-res snapshot of the full rendered page (ink + fills + objects), captured on page-switch/export — real preview art for Library/Assemble instead of the striped placeholder
+  artUrl?: string; // Storage link to a clean picture of the page's lines (no paint) for the kids' mobile app — see utils/pageArt.ts
+  artKey?: string; // pageArtKey() of the content artUrl shows; a page whose key no longer matches gets new art
 }
 
 export type PageTemplate = "blank" | "storybook" | "border-frame" | "belongs-to" | "color-test" | "copyright" | "certificate" | "stickers";

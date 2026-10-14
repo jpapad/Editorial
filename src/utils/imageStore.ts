@@ -14,7 +14,8 @@ import type { BookPage, CoverDesign } from "@/types/editor";
 export const MIN_UPLOAD_CHARS = 12_000;
 
 /** Uploads one picture, returning its public link — or null to leave it embedded. */
-export type Uploader = (dataUrl: string) => Promise<string | null>;
+/** `folder`: a subfolder inside the user's own one (e.g. "art" for page art, kept apart from their pictures). */
+export type Uploader = (dataUrl: string, folder?: string) => Promise<string | null>;
 
 const worthUploading = (src: string | undefined): src is string => typeof src === "string" && src.startsWith("data:image/") && src.length >= MIN_UPLOAD_CHARS;
 
