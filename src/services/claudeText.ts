@@ -7,7 +7,7 @@ import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parse
 import Anthropic from "@anthropic-ai/sdk";
 import { buildBookPlanPrompt, MAX_PLAN_PAGES, parseBookPlan, type BookPlan } from "@/services/bookPlanner";
 import { buildCommandPrompt } from "@/services/editorCommandAi";
-import { buildStoryPrompt, parseStoryPlan, STORY_SCHEMA, type StoryPlan } from "@/services/storyBook";
+import { buildStoryPrompt, parseStoryPlan, STORY_SCHEMA, type StoryLanguage, type StoryPlan } from "@/services/storyBook";
 import { buildNichePrompt, NICHE_SCHEMA, parseNicheIdeas, type NicheIdea, type NicheRequest } from "@/services/nicheIdeas";
 import { COMMAND_FRAMES, COMMAND_PATTERNS, COMMAND_SHAPES, parseCommandResult, type CommandResult, type PageSummary } from "@/utils/editorCommand";
 
@@ -109,7 +109,7 @@ export async function claudeEditorCommand(command: string, summary: PageSummary,
   return parseCommandResult(await claudeJson(buildCommandPrompt(command, summary, lang), COMMAND_SCHEMA, "low"), summary.objects.map((o) => o.id));
 }
 
-export async function claudePlanStory(idea: string, lang: "el" | "en"): Promise<StoryPlan> {
+export async function claudePlanStory(idea: string, lang: StoryLanguage): Promise<StoryPlan> {
   return parseStoryPlan(await claudeJson(buildStoryPrompt(idea, lang), STORY_SCHEMA, "medium"));
 }
 

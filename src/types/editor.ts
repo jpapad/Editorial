@@ -41,7 +41,8 @@ interface Placeable {
   groupId?: string; // objects sharing a groupId select and move together
   // "pageNumber": the automatic page number (utils/pageNumbers.ts), re-stamped when pages move.
   // "coverLayout": placed by a ready-made cover layout (utils/coverTemplates.ts), swapped out when another is chosen.
-  role?: "pageNumber" | "coverLayout";
+  // "storyText": the words of a story page — what "Read it to me" reads aloud (utils/storyPack.ts).
+  role?: "pageNumber" | "coverLayout" | "storyText";
   repeatId?: string; // copies of one element repeated on every page share this (utils/pageNumbers.ts)
 }
 
@@ -87,6 +88,7 @@ export interface TextData extends Placeable {
   template?: string; // the wording with its {name} placeholder, kept so the book can be personalised again (utils/personalize.ts)
   arc?: number; // degrees the line of text is bent: > 0 arches up, < 0 sags (absent/0 = straight)
   dashed?: boolean; // tracing letters: a dashed outline only (worksheets)
+  lang?: string; // the language the text is written in (e.g. "el", "de"), for reading it aloud
 }
 
 // Everything a user can click-select, resize, rotate, and reorder on a page.

@@ -26,7 +26,7 @@ ok(throws(() => parseStoryPlan({ pages: [] })), "a story without pages is refuse
 const sp = buildStoryPrompt("μια χελώνα που θέλει να δει τη θάλασσα", "el");
 ok(sp.includes("in Greek") && sp.includes('"character"') && sp.includes("happy ending"), "the story prompt asks for Greek text, a fixed character and a happy ending");
 ok(sp.includes("do NOT invent a different one") && sp.includes("same order"), "a pasted story is split into pages as written, not replaced by a new one");
-ok(JSON.stringify(STORY_SCHEMA.required) === JSON.stringify(["title", "ageGroup", "theme", "character", "pages"]), "the structured-output schema requires every field");
+ok(JSON.stringify(STORY_SCHEMA.required) === JSON.stringify(["title", "ageGroup", "theme", "character", "pages", "questions", "words", "moral", "discussion"]), "the structured-output schema requires every field, the story pack's included");
 
 // ---- character in picture prompts
 const plain = buildLineArtPrompt({ subject: "a turtle swimming" });

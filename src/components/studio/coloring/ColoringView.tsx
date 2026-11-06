@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type Konva from "konva";
-import { ChevronLeft, Undo2, Download, PaintBucket, Paintbrush, Printer, Images, PartyPopper, Volume2, VolumeX, X } from "lucide-react";
+import { BookOpenText, ChevronLeft, Undo2, Download, PaintBucket, Paintbrush, Printer, Images, PartyPopper, Volume2, VolumeX, X } from "lucide-react";
 import FillStylePicker from "@/components/studio/editor/FillStylePicker";
 import { printPageImage, Sticker, STICKERS } from "@/components/studio/coloring/rewards";
 import CanvasArea from "@/components/studio/editor/CanvasArea";
@@ -14,7 +14,7 @@ import { cn } from "@/utils/cn";
 import { useLanguage, useT } from "@/lib/i18n";
 import { COLOR_NAMES, playCheer, playFill, playTap, setSoundOn, soundOn, speak } from "@/lib/kidSound";
 import { getBook, saveBook, type BookStatus, type StoredBook } from "@/utils/storage";
-import type { BookPage, FillStyle, PageSpace } from "@/types/editor";
+import type { BookPage, FillStyle, PageSpace, TextData } from "@/types/editor";
 import { convertPages, interiorSpace, needsConversion } from "@/utils/pageGeometry";
 
 // Bright first (what kids reach for), then the softer studio tones.
@@ -242,6 +242,19 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
     if (COLOR_NAMES[hex]) speak(t(COLOR_NAMES[hex]), lang);
   }
 
+  // A story page's words, read aloud — on opening the page, and from the "Read it to me" button.
+  const storyTexts = (activePage?.objects ?? []).filter((o): o is TextData => o.kind === "text" && o.role === "storyText" && !o.hidden);
+  const storyWords = storyTexts.map((o) => o.text).join(" ");
+  const storyLang = storyTexts[0]?.lang ?? lang;
+  function readAloud() {
+    if (storyWords) speak(storyWords, storyLang);
+  }
+  useEffect(() => {
+    if (storyWords) speak(storyWords, storyLang);
+    // Only when the child turns to another page — not on every repaint of the same one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage?.id]);
+
   function toggleSound() {
     setSoundOn(!sound);
     setSound(!sound);
@@ -303,6 +316,18 @@ export function ColoringBoard({ title, initialPages, space, save, backHref }: Co
             </button>
             <p className="min-w-0 truncate px-2 text-body font-medium text-ink">{title}</p>
             <div className="flex shrink-0 items-center gap-2">
+              {storyWords && (
+                <button
+                  type="button"
+                  onClick={readAloud}
+                  aria-label={t("Read it to me")}
+                  title={t("Read it to me")}
+                  className="flex h-8 items-center gap-1.5 rounded-pill bg-accent px-3 text-helper font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                >
+                  <BookOpenText size={14} aria-hidden />
+                  {board.width >= 640 && t("Read it to me")}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={toggleSound}

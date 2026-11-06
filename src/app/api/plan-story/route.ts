@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { requesterKey, takeRate, tooManyRequests } from "@/lib/rateLimit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NoTextProviderError, planStoryWithAi } from "@/services/textAi";
+import { isStoryLanguage } from "@/services/storyBook";
 
 // Enough for a whole short story pasted in, not just an idea.
 const MAX_IDEA = 4000;
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   if (!rate.ok) return tooManyRequests(rate.retryAfter);
 
   try {
-    const story = await planStoryWithAi(idea, body.lang === "en" ? "en" : "el");
+    const story = await planStoryWithAi(idea, isStoryLanguage(body.lang) ? body.lang : "el");
     return NextResponse.json({ story });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Writing the story failed";

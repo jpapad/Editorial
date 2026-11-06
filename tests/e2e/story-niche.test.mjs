@@ -53,7 +53,8 @@ check(drawn.length === 3 && drawn.every((d) => d.character === story.character &
 check(drawn[0].characterRef === undefined && drawn.slice(1).every((d) => /^data:image\/png;base64,/.test(d.characterRef ?? "")), "pages 2 and 3 are drawn from page 1's picture (as a PNG reference)");
 const book = db.books.find((x) => x.title === "Lina sees the sea");
 const texts = book?.pages.map((pg) => pg.objects.find((o) => o.kind === "text")?.text);
-check(book?.pages.length === 3 && texts[1] === "She walks slowly to the water.", "the book has a page per sentence, with the edited text", JSON.stringify(texts));
+check(book?.pages.length >= 3 && texts.slice(0, 3).join("|") === "Lina lives on the sand.|She walks slowly to the water.|Splash! She swims with a crab.", "the book starts with a page per sentence, with the edited text", JSON.stringify(texts));
+check(texts.slice(3).includes("Put it in order") && texts.slice(3).includes("Certificate"), "the story pack follows the story");
 const stamp = book?.pages[0].objects.find((o) => o.kind === "stamp");
 const svg = decodeURIComponent(stamp?.src.replace(/^data:image\/svg\+xml;utf8,/, "") ?? "");
 check(/<path/.test(svg) && !/<image/.test(svg), "AI pictures arrive traced to vector outlines (no embedded pixels)");
