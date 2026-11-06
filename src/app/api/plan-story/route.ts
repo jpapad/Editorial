@@ -7,7 +7,8 @@ import { requesterKey, takeRate, tooManyRequests } from "@/lib/rateLimit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NoTextProviderError, planStoryWithAi } from "@/services/textAi";
 
-const MAX_IDEA = 500;
+// Enough for a whole short story pasted in, not just an idea.
+const MAX_IDEA = 4000;
 
 export async function POST(request: Request) {
   let body: { idea?: unknown; lang?: unknown };
