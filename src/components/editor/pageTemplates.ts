@@ -158,8 +158,9 @@ function createCertificatePage(id: string, pageNumber: number, space: PageSpace,
     text({ text: tx("This certifies that"), x: left, y: top + 240, width, fontSize: 22, fontFamily: plain }),
     rule(left + 40, top + 345, width - 80),
     text({ text: tx("colored every page of this book!"), x: left, y: top + 372, width, fontSize: 22, fontFamily: plain }),
-    text({ text: tx("Date"), x: left, y: top + 470, width: 60, fontSize: 16, align: "left", fontFamily: plain }),
-    rule(left + 60, top + 490, width / 2 - 70),
+    // Room for the word in any language ("Date", "Ημερομηνία", "Datum"…), the line after it.
+    text({ text: tx("Date"), x: left, y: top + 470, width: 130, fontSize: 16, align: "left", fontFamily: plain }),
+    rule(left + 135, top + 490, width / 2 - 70),
   ]);
 }
 

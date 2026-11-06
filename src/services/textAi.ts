@@ -5,7 +5,7 @@
 
 import { claudeEditorCommand, claudeListingIdeas, claudeNicheIdeas, claudePlanBook, claudePlanStory, claudeTranslate } from "@/services/claudeText";
 import { buildNichePrompt, parseNicheIdeas, type NicheIdea, type NicheRequest } from "@/services/nicheIdeas";
-import { buildStoryPrompt, parseStoryPlan, type StoryPlan } from "@/services/storyBook";
+import { buildStoryPrompt, parseStoryPlan, type StoryLanguage, type StoryPlan } from "@/services/storyBook";
 import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parseTranslations, type ListingIdeas, type ListingIdeasInput, type TranslateCode } from "@/services/bookTexts";
 import { openAiJson } from "@/services/openAiJson";
 import { planBook as openAiPlanBook, type BookPlan } from "@/services/bookPlanner";
@@ -53,7 +53,7 @@ export async function translateWithAi(texts: string[], target: TranslateCode): P
   return provider === "anthropic" ? claudeTranslate(texts, target) : parseTranslations(await openAiJson(buildTranslatePrompt(texts, target), "translation request", 8000), texts);
 }
 
-export async function planStoryWithAi(idea: string, lang: "el" | "en"): Promise<StoryPlan> {
+export async function planStoryWithAi(idea: string, lang: StoryLanguage): Promise<StoryPlan> {
   const provider = textProvider();
   if (!provider) throw new NoTextProviderError();
   return provider === "anthropic" ? claudePlanStory(idea, lang) : parseStoryPlan(await openAiJson(buildStoryPrompt(idea, lang), "story request", 3000));

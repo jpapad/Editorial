@@ -52,6 +52,8 @@ const DYNAMIC = [
   "src/lib/plans.ts",
   "src/components/kids/kidIcons.tsx",
   "src/components/studio/screens/NicheIdeasDialog.tsx",
+  "src/utils/storyPack.ts",
+  "src/data/fairyTales.ts",
 ];
 const EXTRA = [
   // One-off keys passed to t() through variables.

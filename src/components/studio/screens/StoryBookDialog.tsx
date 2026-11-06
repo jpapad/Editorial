@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { BookHeart, CheckCircle2, Circle, Loader2, Sparkles, X, XCircle } from "lucide-react";
+import { BookHeart, CheckCircle2, Circle, Library, Loader2, PenLine, Sparkles, X, XCircle } from "lucide-react";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
 import Toggle from "@/components/studio/ui/Toggle";
@@ -14,7 +14,9 @@ import { storyPageFromImage } from "@/utils/imagePages";
 import { interiorSpace } from "@/utils/pageGeometry";
 import { DEFAULT_TRIM_SIZE_ID } from "@/utils/trimSizes";
 import { createBook } from "@/utils/storage";
-import { MAX_STORY_INPUT, type StoryPlan } from "@/services/storyBook";
+import { MAX_STORY_INPUT, STORY_LANGUAGES, isStoryLanguage, type StoryLanguage, type StoryPlan } from "@/services/storyBook";
+import { AGE_OPTIONS, FAIRY_TALES, TALE_THEMES, taleRequest, type FairyTale, type StoryAge, type TaleTheme } from "@/data/fairyTales";
+import { buildStoryPack, PACK_PARTS, type PackPart } from "@/utils/storyPack";
 import type { BookPage } from "@/types/editor";
 
 type Step = "idea" | "writing" | "story" | "drawing";
@@ -34,6 +36,14 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
   const { usage, refresh } = useAiUsage();
   const [step, setStep] = useState<Step>("idea");
   const [idea, setIdea] = useState("");
+  // Where the story comes from: the user's own idea or text, or a tale from the library.
+  const [source, setSource] = useState<"own" | "library">("own");
+  const [tale, setTale] = useState<FairyTale | null>(null);
+  const [themeFilter, setThemeFilter] = useState<TaleTheme | null>(null);
+  const [storyLang, setStoryLang] = useState<StoryLanguage>(isStoryLanguage(lang) ? lang : "el");
+  const [age, setAge] = useState<StoryAge | "auto">("auto");
+  const [pageCount, setPageCount] = useState(8);
+  const [packParts, setPackParts] = useState<PackPart[]>(PACK_PARTS.map((p) => p.value));
   const [story, setStory] = useState<StoryPlan | null>(null);
   const [followFirst, setFollowFirst] = useState(true);
   const [statuses, setStatuses] = useState<{ status: Status; error?: string }[]>([]);
@@ -44,10 +54,13 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
     setError(null);
     setStep("writing");
     try {
-      const response = await fetch("/api/plan-story", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: idea.trim(), lang }) });
+      const ageLine = age === "auto" ? "" : `Write it ${AGE_OPTIONS.find((a) => a.value === age)!.request}.\n\n`;
+      const request = source === "library" && tale ? taleRequest(tale, age === "auto" ? (tale.minAge === 6 ? "6-8" : "3-5") : age, pageCount) : `${ageLine}${idea.trim()}`;
+      const response = await fetch("/api/plan-story", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: request, lang: storyLang }) });
       const body = (await response.json().catch(() => null)) as { story?: StoryPlan; error?: string } | null;
       if (!response.ok || !body?.story) throw new Error(aiErrorText(t, response.status, body?.error ?? t("Writing the story failed")));
-      setStory(body.story);
+      // A reply without the pack fields (an older server) still gives a usable, empty pack.
+      setStory({ ...body.story, questions: body.story.questions ?? [], words: body.story.words ?? [], moral: body.story.moral ?? "", discussion: body.story.discussion ?? [] });
       setStep("story");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Writing the story failed"));
@@ -66,6 +79,7 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
     const update = (i: number, patch: { status: Status; error?: string }) => setStatuses((prev) => prev.map((s, j) => (j === i ? patch : s)));
     const space = interiorSpace(DEFAULT_TRIM_SIZE_ID, false);
     const pages: BookPage[] = [];
+    const pictures: { src: string; width: number; height: number }[] = [];
     let reference: string | undefined;
     for (let i = 0; i < story.pages.length; i++) {
       if (stopRef.current) break;
@@ -74,7 +88,8 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
         const { src, size } = await generateLineArtPicture(story.pages[i].scene, story.theme, t, { character: story.character, characterRef: reference });
         if (followFirst && !reference) reference = (await toPngDataUrl(src)) ?? undefined;
         void addMedia(src, { name: `${story.title} ${i + 1}`, source: "ai", width: size.width, height: size.height });
-        pages.push({ ...storyPageFromImage(src, size, space, story.pages[i].text), pageNumber: pages.length + 1 });
+        pages.push({ ...storyPageFromImage(src, size, space, story.pages[i].text, storyLang), pageNumber: pages.length + 1 });
+        pictures.push({ src, ...size });
         update(i, { status: "done" });
       } catch (err) {
         update(i, { status: "failed", error: err instanceof Error ? err.message : t("Generation failed") });
@@ -82,8 +97,10 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
       refresh();
     }
     if (pages.length === 0) return;
+    // The activity pages go after the story, numbered on from it.
+    const pack = buildStoryPack(space, story, pictures, packParts, storyLang).map((p, i) => ({ ...p, pageNumber: pages.length + i + 1 }));
     try {
-      const book = await createBook(story.title, pages, DEFAULT_TRIM_SIZE_ID);
+      const book = await createBook(story.title, [...pages, ...pack], DEFAULT_TRIM_SIZE_ID);
       onCreated(book.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Could not save this book."));
@@ -114,9 +131,73 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
             className="flex flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (idea.trim() && step === "idea") void write();
+              if ((source === "library" ? tale : idea.trim()) && step === "idea") void write();
             }}
           >
+            <div role="radiogroup" aria-label={t("Where the story comes from")} className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: "own", label: t("My idea or story"), Icon: PenLine },
+                  { value: "library", label: t("From the tale library"), Icon: Library },
+                ] as const
+              ).map(({ value, label, Icon }) => (
+                <button key={value} type="button" role="radio" aria-checked={source === value} onClick={() => setSource(value)} className={cn("flex items-center justify-center gap-2 rounded-row-sm border px-3 py-2.5 text-body font-semibold outline-none focus-visible:ring-2 focus-visible:ring-accent", source === value ? "border-accent bg-accent-tint text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt")}>
+                  <Icon size={16} aria-hidden /> {label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex flex-col gap-1">
+                <MetaLabel>{t("Language of the story")}</MetaLabel>
+                <select value={storyLang} onChange={(e) => setStoryLang(e.target.value as StoryLanguage)} aria-label={t("Language of the story")} className={cn(input, "h-10 py-0")}>
+                  {STORY_LANGUAGES.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <MetaLabel>{t("Age")}</MetaLabel>
+                <select value={age} onChange={(e) => setAge(e.target.value as StoryAge | "auto")} aria-label={t("Age")} className={cn(input, "h-10 py-0")}>
+                  <option value="auto">{t("As the story says")}</option>
+                  {AGE_OPTIONS.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {t(a.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {source === "library" ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Themes")}>
+                  {TALE_THEMES.map((th) => (
+                    <button key={th.value} type="button" aria-pressed={themeFilter === th.value} onClick={() => setThemeFilter((f) => (f === th.value ? null : th.value))} className={cn("rounded-pill border px-2.5 py-0.5 text-helper outline-none focus-visible:ring-2 focus-visible:ring-accent", themeFilter === th.value ? "border-accent bg-accent-tint font-semibold text-accent" : "border-hairline text-ink-secondary hover:bg-inset-alt")}>
+                      {t(th.label)}
+                    </button>
+                  ))}
+                </div>
+                <ul role="radiogroup" aria-label={t("Tales")} className="grid max-h-[40vh] grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
+                  {FAIRY_TALES.filter((ft) => !themeFilter || ft.themes.includes(themeFilter)).map((ft) => (
+                    <li key={ft.id}>
+                      <button type="button" role="radio" aria-checked={tale?.id === ft.id} onClick={() => setTale(ft)} className={cn("flex h-full w-full flex-col items-start gap-0.5 rounded-row-sm border px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent", tale?.id === ft.id ? "border-accent bg-accent-tint" : "border-hairline hover:bg-inset-alt")}>
+                        <span className="text-body font-semibold text-ink">{lang === "el" ? ft.title.el : ft.title.en}</span>
+                        <span className="text-helper text-ink-muted">
+                          {ft.source} · {ft.minAge}+ · {lang === "el" ? ft.moral.el : ft.moral.en}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <label className="flex items-center gap-2 text-helper text-ink-secondary">
+                  {t("Pages")}
+                  <input type="number" min={4} max={16} value={pageCount} onChange={(e) => setPageCount(Math.max(4, Math.min(16, Number(e.target.value) || 8)))} className={cn(input, "h-8 w-20 py-0")} aria-label={t("Pages")} />
+                </label>
+                <p className="text-helper text-ink-muted">{t("Classic tales, free to use. AI retells the one you pick in fresh words for the age and language you chose; you read and correct it before any picture is made.")}</p>
+              </div>
+            ) : (
+            <>
             <label className="flex flex-col gap-1.5">
               <MetaLabel>{t("What's the story about?")}</MetaLabel>
               <textarea value={idea} onChange={(e) => setIdea(e.target.value)} rows={6} maxLength={MAX_STORY_INPUT} autoFocus placeholder={t("A little turtle who wants to see the sea, 8 pages, for 4-year-olds")} className={cn(input, "resize-y")} />
@@ -125,9 +206,11 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
               </span>
             </label>
             <p className="text-helper text-ink-muted">{t("Write an idea, or paste your own story: AI splits it into pages, keeping your characters and events, with one picture to color per page and the same main character throughout. You can change every sentence before any picture is made.")}</p>
+            </>
+            )}
             {error && <p className="text-helper text-error">{error}</p>}
             <div className="flex justify-end">
-              <Button type="submit" variant="primary" disabled={!idea.trim() || step === "writing"} icon={step === "writing" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}>
+              <Button type="submit" variant="primary" disabled={(source === "library" ? !tale : !idea.trim()) || step === "writing"} icon={step === "writing" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}>
                 {step === "writing" ? t("Writing…") : t("Write the story")}
               </Button>
             </div>
@@ -157,6 +240,33 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
               ))}
             </ol>
             <Toggle checked={followFirst} onChange={setFollowFirst} label={t("Draw every page from page 1's character")} />
+            <fieldset className="flex flex-col gap-2 rounded-row-sm border border-hairline p-3">
+              <legend className="px-1 text-card-title font-semibold text-ink">{t("Story pack: activity pages after the story")}</legend>
+              <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                {PACK_PARTS.map((part) => (
+                  <label key={part.value} className="flex items-center gap-2 text-body text-ink">
+                    <input type="checkbox" checked={packParts.includes(part.value)} onChange={(e) => setPackParts((prev) => (e.target.checked ? [...prev, part.value] : prev.filter((x) => x !== part.value)))} className="h-4 w-4 accent-[var(--color-accent)]" />
+                    {t(part.label)}
+                  </label>
+                ))}
+              </div>
+              {packParts.includes("words") && (
+                <label className="flex flex-col gap-1">
+                  <MetaLabel>{t("Words for the word search")}</MetaLabel>
+                  <input value={story.words.join(", ")} onChange={(e) => setStory({ ...story, words: e.target.value.split(",").map((w) => w.trim()).filter(Boolean).slice(0, 10) })} className={cn(input, "h-9 py-0")} aria-label={t("Words for the word search")} />
+                </label>
+              )}
+              {packParts.includes("questions") && story.questions.length > 0 && (
+                <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-helper text-ink-secondary" aria-label={t("Questions about the story")}>
+                  {story.questions.map((q, i) => (
+                    <li key={i}>
+                      {q.question} <span className="text-ink-muted">({q.choices.map((c, j) => (j === q.answer ? `✓ ${c}` : c)).join(" / ")})</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <p className="text-helper text-ink-muted">{t("Written in the story's language. No AI credits: only the story pictures use them.")}</p>
+            </fieldset>
             <p className="text-helper text-ink-muted">{t("{n} pages = {n} AI images.", { n: story.pages.length })} {creditsLeft !== null && t("{left} left this month.", { left: creditsLeft })}</p>
             {error && <p className="text-helper text-error">{error}</p>}
             <div className="flex justify-between gap-2">

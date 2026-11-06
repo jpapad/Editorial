@@ -72,7 +72,7 @@ export function pageFromImage(src: string, size: ImageSize, space: PageSpace, ca
 export const STORY_TEXT_SHARE = 0.26;
 
 /** A story page: the picture on top, one or two sentences of the story below it, left to color around. */
-export function storyPageFromImage(src: string, size: ImageSize, space: PageSpace, story: string): BookPage {
+export function storyPageFromImage(src: string, size: ImageSize, space: PageSpace, story: string, lang?: string): BookPage {
   const geo = geometryFromSpace(space);
   const { safe } = geo;
   const textSpace = Math.round((safe.bottom - safe.top) * STORY_TEXT_SHARE);
@@ -93,6 +93,8 @@ export function storyPageFromImage(src: string, size: ImageSize, space: PageSpac
     scaleY: 1,
     fill: "#111827",
     isDragging: false,
+    role: "storyText",
+    lang,
   };
   const page = createPageFromTemplate(0, space);
   page.objects = [fullPageStamp(src, size, geo, textSpace), text];

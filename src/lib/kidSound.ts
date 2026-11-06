@@ -74,10 +74,13 @@ export function playCheer() {
 }
 
 /** Reads `text` aloud in the UI language (Greek or English voice when the device has one). */
-export function speak(text: string, lang: "el" | "en") {
+const SPEECH_LOCALES: Record<string, string> = { el: "el-GR", en: "en-US", de: "de-DE", fr: "fr-FR", es: "es-ES", it: "it-IT" };
+
+/** `lang` is a language code ("el", "de"…): the UI language, or a story's own. */
+export function speak(text: string, lang: string) {
   if (typeof window === "undefined" || !soundOn() || !window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang === "el" ? "el-GR" : "en-US";
+  utterance.lang = SPEECH_LOCALES[lang] ?? lang;
   const voice = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang));
   if (voice) utterance.voice = voice;
   utterance.rate = 0.95;
