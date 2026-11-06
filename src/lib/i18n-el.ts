@@ -1150,7 +1150,6 @@ export const EL: Record<string, string> = {
   "Writing the story failed": "Η συγγραφή της ιστορίας απέτυχε",
   "What's the story about?": "Τι λέει η ιστορία;",
   "A little turtle who wants to see the sea, 8 pages, for 4-year-olds": "Μια μικρή χελωνίτσα που θέλει να δει τη θάλασσα, 8 σελίδες, για παιδιά 4 ετών",
-  "AI writes a short story with one picture to color per page, all with the same main character. You can change every sentence before any picture is made.": "Η AI γράφει μια σύντομη ιστορία με μία εικόνα για ζωγραφική σε κάθε σελίδα, όλες με τον ίδιο κύριο χαρακτήρα. Μπορείς να αλλάξεις κάθε πρόταση πριν φτιαχτεί οποιαδήποτε εικόνα.",
   "Writing…": "Γράφω…",
   "Write the story": "Γράψε την ιστορία",
   "Main character (how they look on every page)": "Κύριος χαρακτήρας (πώς φαίνεται σε κάθε σελίδα)",
@@ -1198,4 +1197,5 @@ export const EL: Record<string, string> = {
   "Browser": "Browser",
   "{n}× · last {date}": "{n}× · τελευταία {date}",
   "Fixed": "Διορθώθηκε",
+  "Write an idea, or paste your own story: AI splits it into pages, keeping your characters and events, with one picture to color per page and the same main character throughout. You can change every sentence before any picture is made.": "Γράψε μια ιδέα ή επικόλλησε τη δική σου ιστορία: η AI τη χωρίζει σε σελίδες κρατώντας τους χαρακτήρες και τα γεγονότα σου, με μία εικόνα για ζωγραφική ανά σελίδα και τον ίδιο κύριο χαρακτήρα παντού. Μπορείς να αλλάξεις κάθε πρόταση πριν φτιαχτεί οποιαδήποτε εικόνα.",
 };

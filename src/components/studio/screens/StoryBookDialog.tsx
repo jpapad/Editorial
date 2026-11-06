@@ -14,7 +14,7 @@ import { storyPageFromImage } from "@/utils/imagePages";
 import { interiorSpace } from "@/utils/pageGeometry";
 import { DEFAULT_TRIM_SIZE_ID } from "@/utils/trimSizes";
 import { createBook } from "@/utils/storage";
-import type { StoryPlan } from "@/services/storyBook";
+import { MAX_STORY_INPUT, type StoryPlan } from "@/services/storyBook";
 import type { BookPage } from "@/types/editor";
 
 type Step = "idea" | "writing" | "story" | "drawing";
@@ -119,9 +119,12 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
           >
             <label className="flex flex-col gap-1.5">
               <MetaLabel>{t("What's the story about?")}</MetaLabel>
-              <textarea value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} maxLength={500} autoFocus placeholder={t("A little turtle who wants to see the sea, 8 pages, for 4-year-olds")} className={cn(input, "resize-y")} />
+              <textarea value={idea} onChange={(e) => setIdea(e.target.value)} rows={6} maxLength={MAX_STORY_INPUT} autoFocus placeholder={t("A little turtle who wants to see the sea, 8 pages, for 4-year-olds")} className={cn(input, "resize-y")} />
+              <span className={cn("self-end font-pw-mono text-mono", idea.length >= MAX_STORY_INPUT ? "text-error" : "text-ink-muted")}>
+                {idea.length} / {MAX_STORY_INPUT}
+              </span>
             </label>
-            <p className="text-helper text-ink-muted">{t("AI writes a short story with one picture to color per page, all with the same main character. You can change every sentence before any picture is made.")}</p>
+            <p className="text-helper text-ink-muted">{t("Write an idea, or paste your own story: AI splits it into pages, keeping your characters and events, with one picture to color per page and the same main character throughout. You can change every sentence before any picture is made.")}</p>
             {error && <p className="text-helper text-error">{error}</p>}
             <div className="flex justify-end">
               <Button type="submit" variant="primary" disabled={!idea.trim() || step === "writing"} icon={step === "writing" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}>

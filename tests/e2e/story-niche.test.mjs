@@ -19,7 +19,13 @@ const story = {
     { text: "Splash! She swims with a crab.", scene: "Lina swimming next to a smiling crab" },
   ],
 };
-await p.route(`${BASE}/api/plan-story`, (route) => route.fulfill({ json: { story } }));
+const storyRequests = [];
+await p.route(`${BASE}/api/plan-story`, (route) => {
+  storyRequests.push(route.request().postDataJSON());
+  return route.fulfill({ json: { story } });
+});
+// A whole story pasted in (about 560 characters) must arrive whole, not cut at 500.
+const pasted = "Ο Μπόμπο, ένα μικρό και φιλικό αρκουδάκι, ξεκινάει μια όμορφη πρωινή βόλτα στο δάσος. Κατά τη διάρκεια της διαδρομής του, ανακαλύπτει τη φύση και συναντά νέους φίλους: τρώει ένα λαχταριστό μήλο, χαιρετάει μια πεταλούδα, παρακολουθεί ένα παπάκι κι ένα ψαράκι στη λίμνη, περιεργάζεται μανιτάρια κι ένα σκιουράκι, και θαυμάζει ένα ουράνιο τόξο μετά από μια σύντομη ψιχάλα. Όταν πέφτει η νύχτα, το φεγγάρι προβάλλει στον ουρανό και ο Μπόμπο επιστρέφει στο κρεβατάκι του για να κοιμηθεί γεμάτος όμορφες εικόνες.";
 const drawn = [];
 await p.route(`${BASE}/api/generate-line-art`, async (route) => {
   drawn.push(JSON.parse(route.request().postData()));
@@ -33,9 +39,10 @@ await p.goto(`${BASE}/studio`);
 await p.waitForTimeout(2000);
 await p.getByRole("button", { name: "Story book" }).click();
 const dialog = p.getByRole("dialog", { name: "Story book" });
-await dialog.getByRole("textbox", { name: "What's the story about?" }).fill("a little turtle who wants to see the sea");
+await dialog.getByRole("textbox", { name: "What's the story about?" }).fill(pasted);
 await dialog.getByRole("button", { name: "Write the story" }).click();
 await dialog.getByRole("textbox", { name: "Page 1 text" }).waitFor();
+check(pasted.length > 500 && storyRequests[0]?.idea === pasted, "a pasted story longer than 500 characters is sent whole", `${pasted.length} chars → ${storyRequests[0]?.idea.length}`);
 check((await dialog.getByRole("textbox", { name: "Main character (how they look on every page)" }).inputValue()).includes("tiny backpack"), "the story comes with its main character, editable");
 await dialog.getByRole("textbox", { name: "Page 2 text" }).fill("She walks slowly to the water.");
 await p.screenshot({ path: shot("story-plan.png") });

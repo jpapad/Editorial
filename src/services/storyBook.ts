@@ -7,6 +7,8 @@
 import type { PlanAge } from "@/services/bookPlanner";
 
 export const MAX_STORY_PAGES = 16;
+/** The most text the user can give: an idea, or a whole story to split into pages. */
+export const MAX_STORY_INPUT = 4000;
 export const DEFAULT_STORY_PAGES = 8;
 const AGES = ["3-5", "6-8", "9+"] as const;
 
@@ -60,9 +62,11 @@ export function buildStoryPrompt(idea: string, lang: "el" | "en"): string {
     '- "theme": one short English line describing the drawing style, matched to the age (e.g. "very simple bold outlines, big shapes" for 3-5).',
     '- "character": a detailed English visual description of the main character that stays the same on every page (species or kind, body shape, face, clothes, accessories, distinctive marks) — 1 or 2 sentences, no colors (it is a coloring book).',
     `- "pages": the story, page by page (as many as the idea asks for, at most ${MAX_STORY_PAGES}; ${DEFAULT_STORY_PAGES} if it doesn't say). Each page is {"text": 1–2 short sentences of the story in ${language}, simple enough for the age, "scene": a concrete English description of the picture for that page, naming the main character and what they do, with a few simple surroundings}.`,
-    "The story has a clear beginning, a small problem, and a happy ending on the last page. Keep everything gentle and G-rated. Reply with the JSON object only.",
+    "If the request is only an idea, write the story: a clear beginning, a small problem, and a happy ending on the last page.",
+    `If the request is already a story or a summary, do NOT invent a different one: keep its title (if it has one), its characters, its events and their order, and split it into pages — one scene per page, in the same order, with the story's own wording shortened to 1–2 sentences per page in ${language}.`,
+    "Keep everything gentle and G-rated. Reply with the JSON object only.",
     "",
-    `Idea: ${JSON.stringify(idea)}`,
+    `Request: ${JSON.stringify(idea)}`,
   ].join("\n");
 }
 
