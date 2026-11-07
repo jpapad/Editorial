@@ -23,13 +23,15 @@ export interface CharacterOptions {
   character?: string;
   /** A picture of the character (PNG data URL, see toPngDataUrl) to draw every page from. */
   characterRef?: string;
+  /** The picture's shape (default portrait, a full page); square suits pictures in a grid. */
+  aspectRatio?: "square" | "portrait" | "landscape";
 }
 
 export async function generateLineArtPicture(subject: string, theme: string | undefined, t: TFunction, options: CharacterOptions = {}): Promise<{ src: string; size: ImageSize }> {
   const response = await fetch("/api/generate-line-art", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subject, theme: theme?.trim() || undefined, count: 1, aspectRatio: "portrait", character: options.character?.trim() || undefined, characterRef: options.characterRef }),
+    body: JSON.stringify({ subject, theme: theme?.trim() || undefined, count: 1, aspectRatio: options.aspectRatio ?? "portrait", character: options.character?.trim() || undefined, characterRef: options.characterRef }),
   });
   const body = (await response.json().catch(() => null)) as { results?: { ok: boolean; svgMarkup?: string; error?: string }[]; error?: string } | null;
   const first = body?.results?.[0];
