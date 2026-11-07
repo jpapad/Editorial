@@ -10,6 +10,7 @@ import { useAiUsage } from "@/lib/aiUsage";
 import { generateLineArtPicture } from "@/lib/lineArt";
 import { layoutPageSpec, picturesToMake, type PictureMap } from "@/utils/pageLayout";
 import { PAGE_MODES, type PageBlock, type PageMode, type PageSpec } from "@/services/pageSpec";
+import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 
 const MODE_LABEL: Record<PageMode, { label: string; hint: string }> = {
   lineart: { label: "For coloring", hint: "Black outlines on white, for the child to color." },
@@ -64,12 +65,19 @@ function editableText(block: PageBlock): string | null {
  * checks and corrects the list; then the page is laid out by fixed rules
  * and its pictures are drawn. Nothing on the page that wasn't asked for.
  */
-export default function InstructionsPageDialog({ space, onAdd, onClose }: { space: PageSpace; onAdd: (pages: BookPage[]) => void; onClose: () => void }) {
+export interface InstructionsResult {
+  pages: BookPage[];
+  /** Copy the new page's background to every page of the book. */
+  backgroundToAll: boolean;
+}
+
+export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, onClose }: { space: PageSpace; onAdd: (result: InstructionsResult) => void; onTurnOnBleed?: () => void; onClose: () => void }) {
   const t = useT();
   const { lang } = useLanguage();
   const { usage, refresh } = useAiUsage();
   const [instructions, setInstructions] = useState("");
   const [mode, setMode] = useState<PageMode>("lineart");
+  const [backgroundToAll, setBackgroundToAll] = useState(false);
   const [step, setStep] = useState<"write" | "reading" | "review" | "making">("write");
   const [spec, setSpec] = useState<PageSpec | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -83,7 +91,7 @@ export default function InstructionsPageDialog({ space, onAdd, onClose }: { spac
       const body = (await response.json().catch(() => null)) as { spec?: PageSpec; error?: string } | null;
       if (!response.ok || !body?.spec) throw new Error(aiErrorText(t, response.status, body?.error ?? t("Could not read the instructions")));
       // An answer without the newer fields (an older server) still works: the kind asked for, no background.
-      setSpec({ ...body.spec, mode: body.spec.mode ?? mode, background: body.spec.background ?? null });
+      setSpec({ ...body.spec, mode: body.spec.mode ?? mode, background: body.spec.background ?? null, gradient: body.spec.gradient ?? null, pattern: body.spec.pattern ?? null, scene: body.spec.scene ?? null });
       setStep("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Could not read the instructions"));
@@ -93,6 +101,8 @@ export default function InstructionsPageDialog({ space, onAdd, onClose }: { spac
 
   const updateBlock = (i: number, block: PageBlock | null) => setSpec((s) => s && { ...s, blocks: block ? s.blocks.map((b, j) => (j === i ? block : b)) : s.blocks.filter((_, j) => j !== i) });
   const toMake = spec ? picturesToMake(spec) : [];
+  const hasBackground = Boolean(spec && (spec.background || spec.gradient || spec.pattern || spec.scene));
+  const credits = toMake.length + (spec?.scene ? 1 : 0);
   const creditsLeft = usage && usage.limit !== null ? Math.max(0, usage.limit - usage.used) + (usage.extra ?? 0) : null;
 
   async function make() {
@@ -112,8 +122,22 @@ export default function InstructionsPageDialog({ space, onAdd, onClose }: { spac
       }
       refresh();
     }
-    const { page, extraPages, continued } = layoutPageSpec(spec, space, pictures);
-    onAdd([page, ...extraPages]);
+    let scene: { src: string; width: number; height: number } | undefined;
+    if (spec.scene) {
+      setProgress(t("Drawing the background…"));
+      try {
+        // A whole-page scene, quiet in the middle where the page's content goes.
+        const theme = spec.mode === "color" ? "soft pastel full-page background scenery, edge to edge, calm and light, nothing important in the middle, no characters, no text" : "full-page background scenery drawn as clean line art, edge to edge, simple, nothing important in the middle, no characters, no text";
+        const made = await generateLineArtPicture(spec.scene.subject, theme, t, { aspectRatio: "portrait", color: spec.mode === "color" });
+        scene = { src: made.src, ...made.size };
+      } catch (err) {
+        failed++;
+        if (failed === 1) setError(err instanceof Error ? err.message : t("Generation failed"));
+      }
+      refresh();
+    }
+    const { page, extraPages, continued } = layoutPageSpec(spec, space, pictures, Date.now(), scene);
+    onAdd({ pages: [page, ...extraPages], backgroundToAll: backgroundToAll && hasBackground });
     if (continued || failed) {
       // Stay open long enough to say what didn't go as asked.
       setProgress(null);
@@ -194,6 +218,40 @@ export default function InstructionsPageDialog({ space, onAdd, onClose }: { spac
             <MetaLabel>{t("What I understood — top of the page first")}</MetaLabel>
             <p className="text-helper text-ink-secondary">{t("Kind of page")}: <b>{t(MODE_LABEL[spec.mode].label)}</b></p>
             <ol className="flex flex-col gap-2" aria-label={t("What I understood")}>
+              {spec.gradient && (
+                <li className="flex items-center gap-2 rounded-row-sm bg-inset-alt px-3 py-2 text-body text-ink">
+                  <CheckCircle2 size={16} className="shrink-0 text-success" aria-hidden />
+                  <span className="flex flex-1 items-center gap-2">
+                    {t("Background gradient")} <Swatch color={spec.gradient[0]} label={spec.gradient[0]} /> → <Swatch color={spec.gradient[1]} label={spec.gradient[1]} />
+                  </span>
+                  <button type="button" aria-label={t("Remove")} onClick={() => setSpec({ ...spec, gradient: null })} className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-secondary outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent">
+                    <Trash2 size={13} />
+                  </button>
+                </li>
+              )}
+              {spec.pattern && (
+                <li className="flex items-center gap-2 rounded-row-sm bg-inset-alt px-3 py-2 text-body text-ink">
+                  <CheckCircle2 size={16} className="shrink-0 text-success" aria-hidden />
+                  <span className="flex-1">{t("Background pattern: {name}", { name: t(getBackgroundPattern(spec.pattern)?.label ?? spec.pattern) })}</span>
+                  <button type="button" aria-label={t("Remove")} onClick={() => setSpec({ ...spec, pattern: null })} className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-secondary outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent">
+                    <Trash2 size={13} />
+                  </button>
+                </li>
+              )}
+              {spec.scene && (
+                <li className="flex flex-col gap-1.5 rounded-row-sm bg-inset-alt px-3 py-2">
+                  <div className="flex items-center gap-2 text-body text-ink">
+                    <CheckCircle2 size={16} className="shrink-0 text-success" aria-hidden />
+                    <span className="flex-1">
+                      {spec.mode === "lineart" ? t("Background scene to color: «{text}»", { text: spec.scene.label }) : spec.mode === "mixed" ? t("Faded background scene: «{text}»", { text: spec.scene.label }) : t("Color background scene: «{text}»", { text: spec.scene.label })}
+                    </span>
+                    <button type="button" aria-label={t("Remove")} onClick={() => setSpec({ ...spec, scene: null })} className="flex h-7 w-7 items-center justify-center rounded-pill text-ink-secondary outline-none hover:bg-inset focus-visible:ring-2 focus-visible:ring-accent">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <input value={spec.scene.subject} onChange={(e) => setSpec({ ...spec, scene: { ...spec.scene!, subject: e.target.value } })} aria-label={t("What the background shows")} className={cn(input, "h-9 py-0 text-helper")} />
+                </li>
+              )}
               {spec.background && (
                 <li className="flex items-center gap-2 rounded-row-sm bg-inset-alt px-3 py-2 text-body text-ink">
                   <CheckCircle2 size={16} className="shrink-0 text-success" aria-hidden />
@@ -247,9 +305,28 @@ export default function InstructionsPageDialog({ space, onAdd, onClose }: { spac
                 ))}
               </ul>
             )}
+            {hasBackground && (
+              <>
+                <label className="flex items-center gap-2 text-body text-ink">
+                  <input type="checkbox" checked={backgroundToAll} onChange={(e) => setBackgroundToAll(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
+                  {t("Use this background on every page of the book")}
+                </label>
+                {space.bleed === 0 && (
+                  <p role="alert" className="flex flex-wrap items-center gap-2 rounded-row-sm bg-warning/15 px-3 py-2 text-helper text-ink">
+                    <AlertTriangle size={14} className="shrink-0" aria-hidden />
+                    {t("A background reaches the page's edge: for Amazon KDP turn on bleed, or the trim may leave a thin white line.")}
+                    {onTurnOnBleed && (
+                      <button type="button" onClick={onTurnOnBleed} className="font-semibold text-accent underline outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        {t("Turn on bleed")}
+                      </button>
+                    )}
+                  </p>
+                )}
+              </>
+            )}
             {spec.mode === "color" && <p className="text-helper text-ink-muted">{t("Color pages print with color ink — on Amazon KDP that costs more per copy. Price & royalty shows the difference.")}</p>}
-            <p className={cn("text-helper", creditsLeft !== null && toMake.length > creditsLeft ? "text-error" : "text-ink-muted")}>
-              {toMake.length === 0 ? t("No AI pictures needed — this page costs no credits.") : t("{n} pictures = {n} AI credits.", { n: toMake.length })} {creditsLeft !== null && toMake.length > 0 && t("{left} left this month.", { left: creditsLeft })}
+            <p className={cn("text-helper", creditsLeft !== null && credits > creditsLeft ? "text-error" : "text-ink-muted")}>
+              {credits === 0 ? t("No AI pictures needed — this page costs no credits.") : t("{n} pictures = {n} AI credits.", { n: credits })} {creditsLeft !== null && credits > 0 && t("{left} left this month.", { left: creditsLeft })}
             </p>
             {error && <p className="text-helper text-error">{error}</p>}
             <div className="flex justify-between gap-2">

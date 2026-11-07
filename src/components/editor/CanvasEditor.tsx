@@ -19,7 +19,7 @@ import useImage from "use-image";
 // A value import (not `import type`) — Konva.Filters.Grayscale/Threshold are
 // runtime functions we apply to cached stamp nodes for the line-art filter.
 import Konva from "konva";
-import type { BookPage, DrawingTool, FillStyle, LineData, LineStyle, ObjectChanges, ObjectUpdate, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
+import type { BookPage, DrawingTool, FillStyle, LineData, LineStyle, ObjectChanges, ObjectUpdate, PageBackground, PageSpace, PendingPlacement, ShapeData, StampData, SymmetryMode, TextData } from "@/types/editor";
 import { patternPixels } from "@/components/studio/editor/fillPatterns";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
 import { isOpenStroke, isPolygonShape, polygonPoints } from "@/components/editor/shapeGeometry";
@@ -414,6 +414,20 @@ function TextNode({
       shadowBlur={obj.isDragging ? 12 : selected.shadowBlur}
       shadowOpacity={obj.isDragging ? 0.35 : selected.shadowOpacity}
     />
+  );
+}
+
+/** The page's own background: a color, a top-to-bottom gradient and/or a picture covering the page — under the pattern and every object. */
+function PageBackgroundLayer({ background, width, height }: { background: PageBackground; width: number; height: number }) {
+  const [image] = useImage(background.image ?? "", "anonymous");
+  // Cover the page without stretching: scale up until both sides are filled, centred (the overflow is cropped by the stage).
+  const k = image ? Math.max(width / image.width, height / image.height) : 1;
+  return (
+    <Layer listening={false}>
+      {background.color && <Rect x={0} y={0} width={width} height={height} fill={background.color} />}
+      {background.gradient && <Rect x={0} y={0} width={width} height={height} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 0, y: height }} fillLinearGradientColorStops={[0, background.gradient[0], 1, background.gradient[1]]} />}
+      {image && <KonvaImage image={image} x={(width - image.width * k) / 2} y={(height - image.height * k) / 2} width={image.width * k} height={image.height * k} opacity={background.imageOpacity ?? 1} />}
+    </Layer>
   );
 }
 
@@ -1105,6 +1119,8 @@ export default function CanvasEditor({
             <Rect x={0} y={0} width={pageWidth} height={pageHeight} fill={coverBackgroundColor ?? "#ffffff"} />
           </Layer>
         )}
+
+        {page.background && <PageBackgroundLayer background={page.background} width={pageWidth} height={pageHeight} />}
 
         {backgroundPatternId && <BackgroundPatternLayer patternId={backgroundPatternId} width={pageWidth} height={pageHeight} />}
 

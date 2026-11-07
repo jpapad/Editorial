@@ -42,12 +42,19 @@ export interface PageSpec {
   frame: string | null;
   /** The page's background color (color and mixed pages only). */
   background: string | null;
+  /** A top-to-bottom gradient instead of one color (color and mixed pages only). */
+  gradient: [string, string] | null;
+  /** A repeating pattern (backgroundPatterns.ts id). */
+  pattern: string | null;
+  /** A scenery picture behind everything: what it shows, for the image model (English) and in the user's words. */
+  scene: { subject: string; label: string } | null;
   blocks: PageBlock[];
   /** What was asked for but can't be done, in the user's language. */
   warnings: string[];
 }
 
 export const PAGE_FRAMES = ["classic", "simple", "dotted", "scallop", "stars", "hearts"] as const;
+export const PAGE_PATTERNS = ["stars", "dots", "clouds", "hearts", "geometric"] as const;
 
 const LIMITS = { blocks: 14, pictures: 12, columns: 4, lines: 20, tableRows: 12, tableCols: 6, options: 6, items: 12, words: 12 };
 
@@ -130,6 +137,18 @@ function parseBlockShape(raw: unknown): PageBlock | null {
   }
 }
 
+function parseGradient(v: unknown): [string, string] | null {
+  if (!Array.isArray(v) || v.length !== 2) return null;
+  const [from, to] = [parseColor(v[0]), parseColor(v[1])];
+  return from && to ? [from, to] : null;
+}
+
+function parseScene(v: unknown): PageSpec["scene"] {
+  const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  const subject = str(o.subject, 240);
+  return subject ? { subject, label: str(o.label, 120) || subject } : null;
+}
+
 /** `mode` is the user's choice, not the model's: a coloring page keeps no colors whatever the reply says. */
 export function parsePageSpec(raw: unknown, mode: PageMode = "lineart"): PageSpec {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -141,13 +160,16 @@ export function parsePageSpec(raw: unknown, mode: PageMode = "lineart"): PageSpe
     mode,
     frame: PAGE_FRAMES.includes(o.frame as (typeof PAGE_FRAMES)[number]) ? (o.frame as string) : null,
     background: mode === "lineart" ? null : parseColor(o.background),
+    gradient: mode === "lineart" ? null : parseGradient(o.gradient),
+    pattern: PAGE_PATTERNS.includes(o.pattern as (typeof PAGE_PATTERNS)[number]) ? (o.pattern as string) : null,
+    scene: parseScene(o.scene),
     blocks,
     warnings,
   };
 }
 
 const MODE_RULES: Record<PageMode, string> = {
-  lineart: "This is a COLORING page: everything is black on white. Use null for every color, fill and background. If the instructions ask for colors, add a warning that a coloring page stays black and white (choose a color or mixed page instead).",
+  lineart: "This is a COLORING page: everything is black on white. Use null for every color, fill, background and gradient. If the instructions ask for colors, add a warning that a coloring page stays black and white (choose a color or mixed page instead). A pattern or a scene background is fine — drawn as outlines to color.",
   mixed: 'This is a MIXED page: titles, texts, boxes, lines, table headers and the background may be colored, but pictures stay black outlines for the child to color. Use exactly the colors the instructions name, as hex (e.g. "κόκκινο"/"red" → "#e5484d"). Where no color is named, use null for texts (black) and a gentle, harmonious palette of at most 3 soft colors for titles, box fills and borders; background stays null unless asked for.',
   color: 'This is a COLOR page: a finished, full-color page (pictures are drawn in color too). Use exactly the colors the instructions name, as hex (e.g. "μπλε"/"blue" → "#2f80ed"). Where no color is named, choose a cheerful, harmonious palette of at most 4 colors for titles, borders and box fills, keep body text dark for reading; background null unless asked for or a very light tint suits the page.',
 };
@@ -166,8 +188,9 @@ export function buildPageSpecPrompt(instructions: string, lang: "el" | "en", mod
     "6. For each picture: \"subject\" in English for the image model, describing exactly the thing asked for (e.g. 'a cow'); \"label\" = the user's own word for it, verbatim, in their language (shown back to them, not printed); \"caption\" = text to PRINT under it — only if the instructions ask for a caption/name under the picture, verbatim; otherwise empty.",
     "",
     `7. ${MODE_RULES[mode]}`,
+    `8. Backgrounds, only when asked for: "background" = one color; "gradient" = [top color, bottom color] (e.g. "from light blue to white"); "pattern" = one of ${JSON.stringify(PAGE_PATTERNS)} for a repeating pattern (stars, dots, clouds, hearts, geometric shapes); "scene" = {"subject": an English description of a full-page background scenery for the image model (e.g. "a forest with tall trees and flowers, no people, no text"), "label": the user's own words for it, verbatim} for a picture behind everything. A pattern or scene that isn't in the list → a warning.`,
     "",
-    'Reply with {"frame": null or one of ' + JSON.stringify(PAGE_FRAMES) + ' (only if a border/frame is asked for), "background": null or a hex color, "blocks": [...], "warnings": [...]}. Every block also has "color" (its text, or its lines and borders) and "fill" (the inside of its box) — a hex color or null. Block types:',
+    'Reply with {"frame": null or one of ' + JSON.stringify(PAGE_FRAMES) + ' (only if a border/frame is asked for), "background": null or a hex color, "gradient": null or [hex, hex], "pattern": null or a pattern name, "scene": null or {"subject","label"}, "blocks": [...], "warnings": [...]}. Every block also has "color" (its text, or its lines and borders) and "fill" (the inside of its box) — a hex color or null. Block types:',
     '- {"type":"title","text","size":"small|medium|large","align":"left|center|right"}',
     '- {"type":"text","text","size","align","style":"normal|outline|dashed"}  — "dashed" = dotted letters to trace over; "outline" = hollow letters to color',
     '- {"type":"pictures","items":[{"subject","label","caption"}],"columns":1-4,"boxed":bool (a frame around each picture),"writeLine":bool (a line under each picture to write on),"marker":"none|circle|checkbox" (something to mark next to each picture)}',
@@ -195,6 +218,9 @@ const kind = (type: string, fields: Record<string, unknown>) => obj({ type: { ty
 export const PAGE_SPEC_SCHEMA = obj({
   frame: { anyOf: [{ type: "string", enum: [...PAGE_FRAMES] }, { type: "null" }] },
   background: hexOrNull,
+  gradient: { anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }] },
+  pattern: { anyOf: [{ type: "string", enum: [...PAGE_PATTERNS] }, { type: "null" }] },
+  scene: { anyOf: [obj({ subject: s, label: s }), { type: "null" }] },
   blocks: arr({
     anyOf: [
       kind("title", { text: s, size: { type: "string", enum: [...SIZES] }, align: { type: "string", enum: [...ALIGNS] } }),

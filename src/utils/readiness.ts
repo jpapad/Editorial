@@ -7,10 +7,12 @@
 import { runEditorPreflightCheck } from "@/utils/editorPreflight";
 import type { BookPage } from "@/types/editor";
 
+import { edgeWithoutBleed, hasEdgeBackground } from "@/utils/pageBackground";
+
 /** Amazon KDP's minimum page count for a paperback. */
 export const KDP_MIN_PAGES = 24;
 
-export type ReadinessCheck = "min-pages" | "page-count" | "thin-strokes" | "margin" | "empty-pages" | "duplicates" | "look-alikes" | "style";
+export type ReadinessCheck = "min-pages" | "page-count" | "thin-strokes" | "margin" | "empty-pages" | "duplicates" | "look-alikes" | "style" | "edge-bleed";
 export type ReadinessLevel = "ready" | "almost" | "work";
 
 export interface ReadinessItem {
@@ -33,7 +35,8 @@ export interface Readiness {
 const cap = (n: number, per: number, max: number) => Math.min(max, n * per);
 
 function isEmptyPage(p: BookPage): boolean {
-  return !p.isBlankBack && p.lines.length === 0 && p.objects.filter((o) => !o.hidden).length === 0 && !p.fillDataUrl;
+  // A background alone (color, pattern, scene) doesn't make a page.
+  return !p.isBlankBack && p.lines.length === 0 && p.objects.filter((o) => !o.hidden && o.role !== "pageBackground").length === 0 && !p.fillDataUrl;
 }
 
 function hash(text: string, seed: number): number {
@@ -72,7 +75,7 @@ function computeSignature(page: BookPage): number {
   const r = (v: number) => Math.round(v / 2);
   let h = hash(page.backgroundPatternId ?? "", 7);
   for (const o of page.objects) {
-    if (o.hidden || o.role === "pageNumber" || o.repeatId) continue;
+    if (o.hidden || o.role === "pageNumber" || o.role === "pageBackground" || o.repeatId) continue;
     h = hash(`${o.kind}|${r(o.x)}|${r(o.y)}|${r(o.width * o.scaleX)}|${r(o.height * o.scaleY)}|${r(o.rotation)}`, h);
     h = hash(o.kind === "stamp" ? sampleSrc(o.src) : o.kind === "text" ? `${o.text}|${o.fontFamily}|${o.fontSize}` : `${o.shapeKind}|${o.fill}`, h);
   }
@@ -115,6 +118,11 @@ export function bookReadiness(pages: BookPage[], looks?: LookHints): Readiness {
     { id: "empty-pages", ok: empty.length === 0, count: empty.length, pageIds: empty, penalty: cap(empty.length, 5, 20) },
     { id: "duplicates", ok: duplicates.length === 0, count: duplicates.length, pageIds: duplicates, penalty: cap(duplicates.length, 5, 20) },
   ];
+  // Only shown for books with edge-to-edge backgrounds: without bleed KDP's trim leaves a white sliver.
+  if (pages.some(hasEdgeBackground)) {
+    const unbled = edgeWithoutBleed(pages);
+    items.push({ id: "edge-bleed", ok: unbled.length === 0, count: unbled.length, pageIds: unbled, penalty: unbled.length ? 10 : 0 });
+  }
   if (looks) {
     // An exact repeat is already counted above — don't charge for it twice.
     const similar = looks.similar.filter((id) => !duplicates.includes(id));

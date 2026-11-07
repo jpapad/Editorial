@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImageUp, Palette, Trash2 } from "lucide-react";
+import { ImageUp, Layers, Palette, Trash2 } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -37,10 +37,14 @@ export interface PageToolsCardProps {
   onColorPreview: () => void;
   defaultLineWidth: number;
   onSetLineWidth: (width: number, allPages: boolean) => void;
+  /** Copies this page's background (color, gradient, picture, pattern, scene) to every page; absent when the page has none. */
+  onBackgroundToAll?: () => void;
+  /** Takes the background off this page. */
+  onClearBackground?: () => void;
 }
 
 /** Page numbers for the whole book, and this page's tracing reference. */
-export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace, onTraceChange, onColorPreview, defaultLineWidth, onSetLineWidth }: PageToolsCardProps) {
+export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace, onTraceChange, onColorPreview, defaultLineWidth, onSetLineWidth, onBackgroundToAll, onClearBackground }: PageToolsCardProps) {
   const t = useT();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +67,20 @@ export default function PageToolsCard({ pageNumbers, onPageNumbersChange, trace,
 
   return (
     <Card className="flex shrink-0 flex-col gap-3 p-4">
+      {onBackgroundToAll && (
+        <div className="flex flex-col gap-1.5">
+          <MetaLabel>{t("Page background")}</MetaLabel>
+          <Button variant="secondary" size="sm" icon={<Layers size={13} />} onClick={onBackgroundToAll}>
+            {t("Use this background on every page")}
+          </Button>
+          {onClearBackground && (
+            <Button variant="ghost" size="sm" icon={<Trash2 size={13} />} onClick={onClearBackground}>
+              {t("Remove the background from this page")}
+            </Button>
+          )}
+          <p className="text-helper text-ink-muted">{t("One look for the whole book: the color, pattern or scene of this page goes on every page; their content stays as it is.")}</p>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <Button variant="secondary" size="sm" icon={<Palette size={13} />} onClick={onColorPreview}>
           {t("Preview colored in")}

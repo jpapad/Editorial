@@ -5,7 +5,8 @@
 // spaces share what's left. If it can't all fit, pictures shrink and
 // `squeezed` says so — nothing is dropped.
 
-import type { BookPage, PageObject, PageSpace } from "@/types/editor";
+import type { BookPage, PageBackground, PageObject, PageSpace } from "@/types/editor";
+import { coverStamp } from "@/utils/pageBackground";
 import { createFrameStamp, makeId, rule, shape, text } from "@/components/editor/pageTemplates";
 import { wordSearchPages } from "@/components/editor/puzzles";
 import { mazePage } from "@/components/editor/worksheets";
@@ -269,7 +270,20 @@ function tint(objects: PageObject[], block: PageBlock): PageObject[] {
 }
 
 /** Lays one page's worth of blocks: fixed blocks take what they need, flexible ones share the rest. */
-function layoutOne(placed: Placed[], area: { left: number; right: number; top: number; bottom: number }, frame: PageObject | null, space: PageSpace, pictures: PictureMap, look: { background: string | null; inColor: boolean }): BookPage {
+interface PageLook {
+  background?: PageBackground;
+  pattern: string | null;
+  /** A scene to color, as a locked stamp at the back. */
+  sceneStamp: PageObject | null;
+  inColor: boolean;
+  /** Something busy behind the content: texts get a white panel so they stay readable. */
+  busy: boolean;
+}
+
+/** Text-like blocks that need a quiet panel to be read on top of a scene or pattern. */
+const READ_PANEL: PageBlock["type"][] = ["title", "text", "numbered", "choices"];
+
+function layoutOne(placed: Placed[], area: { left: number; right: number; top: number; bottom: number }, frame: PageObject | null, space: PageSpace, pictures: PictureMap, look: PageLook): BookPage {
   const width = area.right - area.left;
   const sizes = placed.map(({ block }) => measure(block, width));
   const fixedTotal = sizes.reduce((n, m) => n + m.fixed, 0) + GAP * Math.max(0, placed.length - 1);
@@ -284,8 +298,7 @@ function layoutOne(placed: Placed[], area: { left: number; right: number; top: n
     return Math.min(raw, Math.ceil(block.items.length / block.columns) * cellW * 1.15);
   };
   const objects: PageObject[] = [];
-  // The background covers the whole canvas (bleed included), behind everything, locked in place.
-  if (look.background) objects.push({ ...shape({ shapeKind: "rectangle", x: 0, y: 0, width: space.width, height: space.height, fill: look.background, stroke: look.background, strokeWidth: 0 }), locked: true });
+  if (look.sceneStamp) objects.push({ ...look.sceneStamp, id: makeId("stamp") });
   if (frame) objects.push({ ...frame, id: makeId("stamp") });
   let y = area.top;
   placed.forEach(({ block, index, offset }, i) => {
@@ -293,13 +306,34 @@ function layoutOne(placed: Placed[], area: { left: number; right: number; top: n
     const flex = share(m, block);
     // A split picture block looks its pictures up by their place in the original block.
     const lookup: PictureMap = offset ? new Map([...pictures].flatMap(([key, pic]) => { const [b, item] = key.split(":").map(Number); return b === index && item >= offset ? [[pictureKey(index, item - offset), pic]] : []; })) : pictures;
+    if (look.busy && READ_PANEL.includes(block.type) && m.fixed > 0) {
+      // Kept inside the safe area like everything else on the page.
+      const top = Math.max(area.top, y - 4);
+      const bottom = Math.min(area.bottom, y + m.fixed + 4);
+      objects.push(shape({ shapeKind: "rectangle", x: area.left, y: top, width, height: bottom - top, fill: "rgba(255,255,255,0.85)", stroke: "rgba(255,255,255,0)", strokeWidth: 0 }));
+    }
     objects.push(...tint(draw(block, index, { left: area.left, top: y, width }, m.fixed, flex, lookup), block));
     y += m.fixed + flex + GAP;
   });
-  return { id: makeId("page"), pageNumber: 0, space, lines: [], objects, ...(look.inColor ? { inColor: true } : {}) };
+  return {
+    id: makeId("page"),
+    pageNumber: 0,
+    space,
+    lines: [],
+    objects,
+    ...(look.background ? { background: { ...look.background } } : {}),
+    ...(look.pattern ? { backgroundPatternId: look.pattern } : {}),
+    ...(look.inColor ? { inColor: true } : {}),
+  };
 }
 
-export function layoutPageSpec(spec: PageSpec, space: PageSpace, pictures: PictureMap = new Map(), seed = Date.now()): LaidOutPage {
+/**
+ * `scene` is the background picture made for `spec.scene`, if any: on a
+ * coloring page it's a locked outline stamp (to color, and a wall for the
+ * bucket); on mixed and color pages it's the page's own background
+ * picture — faded on a mixed page so the content stays in front.
+ */
+export function layoutPageSpec(spec: PageSpec, space: PageSpace, pictures: PictureMap = new Map(), seed = Date.now(), scene?: PlacedPicture): LaidOutPage {
   const geo = geometryFromSpace(space);
   const frame = spec.frame ? createFrameStamp(spec.frame, geo) : null;
   const inset = frame ? 30 : 0;
@@ -323,7 +357,19 @@ export function layoutPageSpec(spec: PageSpec, space: PageSpace, pictures: Pictu
       groups.at(-1)!.push(piece);
     }
   });
-  const look = { background: spec.mode === "lineart" ? null : spec.background, inColor: spec.mode === "color" };
+  const colored = spec.mode !== "lineart";
+  const background: PageBackground = {
+    ...(colored && spec.background ? { color: spec.background } : {}),
+    ...(colored && spec.gradient ? { gradient: spec.gradient } : {}),
+    ...(colored && scene ? { image: scene.src, imageOpacity: spec.mode === "mixed" ? 0.35 : 1 } : {}),
+  };
+  const look: PageLook = {
+    background: Object.keys(background).length ? background : undefined,
+    pattern: spec.pattern,
+    sceneStamp: !colored && scene ? coverStamp(scene.src, scene, space, spec.scene?.label) : null,
+    inColor: spec.mode === "color",
+    busy: Boolean(scene || spec.pattern || spec.gradient),
+  };
   const pages = groups.map((g) => layoutOne(g, area, frame, space, pictures, look));
 
   const activities: BookPage[] = [];
