@@ -3,7 +3,8 @@
 // forces one. Pictures are always made by the image providers
 // (services/aiGenerator.ts) — Claude doesn't generate images.
 
-import { claudeEditorCommand, claudeListingIdeas, claudeNicheIdeas, claudePlanBook, claudePlanStory, claudeTranslate } from "@/services/claudeText";
+import { claudeEditorCommand, claudeListingIdeas, claudeNicheIdeas, claudePageSpec, claudePlanBook, claudePlanStory, claudeTranslate } from "@/services/claudeText";
+import { buildPageSpecPrompt, parsePageSpec, type PageSpec } from "@/services/pageSpec";
 import { buildNichePrompt, parseNicheIdeas, type NicheIdea, type NicheRequest } from "@/services/nicheIdeas";
 import { buildStoryPrompt, parseStoryPlan, type StoryLanguage, type StoryPlan } from "@/services/storyBook";
 import { buildListingIdeasPrompt, buildTranslatePrompt, parseListingIdeas, parseTranslations, type ListingIdeas, type ListingIdeasInput, type TranslateCode } from "@/services/bookTexts";
@@ -63,4 +64,10 @@ export async function nicheIdeasWithAi(req: NicheRequest): Promise<NicheIdea[]> 
   const provider = textProvider();
   if (!provider) throw new NoTextProviderError();
   return provider === "anthropic" ? claudeNicheIdeas(req) : parseNicheIdeas(await openAiJson(buildNichePrompt(req), "niche request", 3000));
+}
+
+export async function pageSpecWithAi(instructions: string, lang: "el" | "en"): Promise<PageSpec> {
+  const provider = textProvider();
+  if (!provider) throw new NoTextProviderError();
+  return provider === "anthropic" ? claudePageSpec(instructions, lang) : parsePageSpec(await openAiJson(buildPageSpecPrompt(instructions, lang), "page request", 4000));
 }

@@ -33,6 +33,7 @@ import ColorPreviewModal from "@/components/studio/editor/ColorPreviewModal";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
 import DigitalPackDialog from "@/components/studio/editor/DigitalPackDialog";
+import InstructionsPageDialog from "@/components/studio/editor/InstructionsPageDialog";
 import ProfitDialog from "@/components/studio/editor/ProfitDialog";
 import { licenseText, packStem, readmeText, trimCrop, type PackOptions } from "@/utils/digitalPack";
 import { buildZip, dataUrlBytes, downloadBytes, pageFileName, type ZipEntry } from "@/utils/zip";
@@ -238,6 +239,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
   const [showPrintAtHome, setShowPrintAtHome] = useState(false);
   const [showPack, setShowPack] = useState(false);
   const [showProfit, setShowProfit] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [showPersonalize, setShowPersonalize] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const pageLooks = usePageLooks(pages);
@@ -1572,6 +1574,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
           onSeriesStart={handleSeriesStart}
           onAppendImagePage={handleAppendImagePage}
           currentSubject={activePage.objects.flatMap((o) => (o.kind === "stamp" && o.label ? [o.label] : []))[0]}
+          onOpenInstructions={reviewMode ? undefined : () => setShowInstructions(true)}
           selectedPictureSrc={selectedObjects.length === 1 && selectedObjects[0].kind === "stamp" && !selectedObjects[0].isFrame ? selectedObjects[0].src : undefined}
         />
       )}
@@ -1695,6 +1698,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
       {showTranslate && <TranslateBookDialog pages={pages} coverPage={coverDesign ? fittedCover.page : null} onTranslated={handleTranslated} onClose={() => setShowTranslate(false)} />}
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
+      {showInstructions && <InstructionsPageDialog space={space} onAdd={handleAppendPages} onClose={() => setShowInstructions(false)} />}
       {showProfit && <ProfitDialog pageCount={pages.length} trimWidthPt={getTrimSize(trimSizeId).widthPt} trimHeightPt={getTrimSize(trimSizeId).heightPt} paper={paper} onClose={() => setShowProfit(false)} />}
       {showPack && <DigitalPackDialog pageCount={pages.filter((p) => !p.isBlankBack).length} onExport={handleDigitalPack} onClose={() => setShowPack(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}

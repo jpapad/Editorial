@@ -3,7 +3,7 @@
 import { variationSubjects } from "@/utils/bookTools";
 import { useRef, useState, type ChangeEvent } from "react";
 import { cn } from "@/utils/cn";
-import { Camera, CheckCircle2, Circle, Loader2, ScanLine, Sparkles, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Circle, Loader2, ScanLine, ScrollText, Sparkles, X, XCircle } from "lucide-react";
 import Card from "@/components/studio/ui/Card";
 import Button from "@/components/studio/ui/Button";
 import MetaLabel from "@/components/studio/ui/MetaLabel";
@@ -35,6 +35,8 @@ export interface AiStudioPanelProps {
   currentSubject?: string;
   /** The one selected picture on the page, if any — offered as the series' character reference. */
   selectedPictureSrc?: string;
+  /** Opens "Page from instructions". */
+  onOpenInstructions?: () => void;
 }
 
 type SeriesItem = { subject: string; status: "queued" | "running" | "done" | "failed"; error?: string };
@@ -452,6 +454,18 @@ export default function AiStudioPanel(props: AiStudioPanelProps) {
         <p className={cn("shrink-0 px-1 text-helper", usage.limit !== null && usage.used >= usage.limit ? "text-error" : "text-ink-muted")}>
           {usage.limit === null ? t("AI: unlimited (supervisor)") : t("{left} of {limit} AI credits left this month", { left: Math.max(0, usage.limit - usage.used), limit: usage.limit })}
         </p>
+      )}
+      {props.onOpenInstructions && (
+        <Card className="flex shrink-0 flex-col gap-2 p-4">
+          <div className="flex items-center gap-2">
+            <ScrollText size={15} className="text-accent" />
+            <p className="text-card-title font-semibold text-ink">{t("Page from instructions")}</p>
+          </div>
+          <p className="text-helper text-ink-muted">{t("Describe a page in your own words; it's made exactly as written.")}</p>
+          <Button variant="primary" size="sm" icon={<ScrollText size={13} />} onClick={props.onOpenInstructions}>
+            {t("Write instructions")}
+          </Button>
+        </Card>
       )}
       <AutoVectorizeToggle />
       <div className="shrink-0">
