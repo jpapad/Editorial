@@ -58,7 +58,7 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
   }
 
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ left: number; bottom: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ left: number; bottom: number; maxHeight: number } | null>(null);
   const addButtonRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -75,7 +75,8 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
 
   function openMenu() {
     const rect = addButtonRef.current?.getBoundingClientRect();
-    if (rect) setMenuPosition({ left: rect.left, bottom: window.innerHeight - rect.top + 8 });
+    // No taller than the room above the button (with a margin): a long list scrolls instead of running off the top of the window.
+    if (rect) setMenuPosition({ left: rect.left, bottom: window.innerHeight - rect.top + 8, maxHeight: Math.max(160, rect.top - 8 - 16) });
     setShowTemplateMenu((v) => !v);
   }
 
@@ -208,8 +209,8 @@ export default function PageFilmstrip({ pages, activePageId, onSelectPage, onAdd
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-50 flex w-56 flex-col gap-0.5 rounded-panel bg-panel p-1.5 shadow-panel"
-            style={{ left: menuPosition.left, bottom: menuPosition.bottom }}
+            className="fixed z-50 flex w-56 flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-panel bg-panel p-1.5 shadow-panel"
+            style={{ left: menuPosition.left, bottom: menuPosition.bottom, maxHeight: menuPosition.maxHeight }}
           >
             <p className="px-2 py-1 text-helper font-medium text-ink-muted">{t("Layout templates")}</p>
             {PAGE_TEMPLATE_OPTIONS.map((option) => (
