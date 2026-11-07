@@ -121,6 +121,7 @@ export interface BookPage {
   fillDataUrl?: string; // Color mode's raster paint layer (rasterFloodFill.ts), serialized as a PNG data URL so it survives page navigation/reload/autosave
   completedAt?: string; // the child tapped "I'm done!" in the coloring view — earns a sticker, shows in their gallery
   isBlankBack?: boolean; // an intentionally empty reverse side (single-sided coloring pages) — inserted/removed as a set by the filmstrip's "Blank backs" action
+  inColor?: boolean; // a finished color page (not for coloring in) — prints with color ink, see ProfitDialog
   thumbnailDataUrl?: string; // Low-res snapshot of the full rendered page (ink + fills + objects), captured on page-switch/export — real preview art for Library/Assemble instead of the striped placeholder
 }
 

@@ -1699,7 +1699,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       {showTranslate && <TranslateBookDialog pages={pages} coverPage={coverDesign ? fittedCover.page : null} onTranslated={handleTranslated} onClose={() => setShowTranslate(false)} />}
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
       {showInstructions && <InstructionsPageDialog space={space} onAdd={handleAppendPages} onClose={() => setShowInstructions(false)} />}
-      {showProfit && <ProfitDialog pageCount={pages.length} trimWidthPt={getTrimSize(trimSizeId).widthPt} trimHeightPt={getTrimSize(trimSizeId).heightPt} paper={paper} onClose={() => setShowProfit(false)} />}
+      {showProfit && <ProfitDialog pageCount={pages.length} trimWidthPt={getTrimSize(trimSizeId).widthPt} trimHeightPt={getTrimSize(trimSizeId).heightPt} paper={paper} hasColorPages={pages.some((p) => p.inColor)} onClose={() => setShowProfit(false)} />}
       {showPack && <DigitalPackDialog pageCount={pages.filter((p) => !p.isBlankBack).length} onExport={handleDigitalPack} onClose={() => setShowPack(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}
       {showVersions && bookId && <VersionHistoryDialog bookId={bookId} title={title} pages={pages} onRestore={handleRestoreVersion} onClose={() => setShowVersions(false)} />}

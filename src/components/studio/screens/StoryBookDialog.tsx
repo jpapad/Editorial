@@ -46,6 +46,8 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
   const [packParts, setPackParts] = useState<PackPart[]>(PACK_PARTS.map((p) => p.value));
   const [story, setStory] = useState<StoryPlan | null>(null);
   const [followFirst, setFollowFirst] = useState(true);
+  // A picture book in full color instead of pages to color in.
+  const [inColor, setInColor] = useState(false);
   const [statuses, setStatuses] = useState<{ status: Status; error?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const stopRef = useRef(false);
@@ -85,10 +87,10 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
       if (stopRef.current) break;
       update(i, { status: "running" });
       try {
-        const { src, size } = await generateLineArtPicture(story.pages[i].scene, story.theme, t, { character: story.character, characterRef: reference });
+        const { src, size } = await generateLineArtPicture(story.pages[i].scene, story.theme, t, { character: story.character, characterRef: reference, color: inColor });
         if (followFirst && !reference) reference = (await toPngDataUrl(src)) ?? undefined;
         void addMedia(src, { name: `${story.title} ${i + 1}`, source: "ai", width: size.width, height: size.height });
-        pages.push({ ...storyPageFromImage(src, size, space, story.pages[i].text, storyLang), pageNumber: pages.length + 1 });
+        pages.push({ ...storyPageFromImage(src, size, space, story.pages[i].text, storyLang), pageNumber: pages.length + 1, ...(inColor ? { inColor: true } : {}) });
         pictures.push({ src, ...size });
         update(i, { status: "done" });
       } catch (err) {
@@ -240,6 +242,8 @@ export default function StoryBookDialog({ onClose, onCreated }: { onClose: () =>
               ))}
             </ol>
             <Toggle checked={followFirst} onChange={setFollowFirst} label={t("Draw every page from page 1's character")} />
+            <Toggle checked={inColor} onChange={setInColor} label={t("A color picture book (not for coloring)")} />
+            {inColor && <p className="text-helper text-ink-muted">{t("The story's pictures are drawn in full color; the activity pages stay black and white to write and color on. Color pages cost more to print on Amazon KDP.")}</p>}
             <fieldset className="flex flex-col gap-2 rounded-row-sm border border-hairline p-3">
               <legend className="px-1 text-card-title font-semibold text-ink">{t("Story pack: activity pages after the story")}</legend>
               <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">

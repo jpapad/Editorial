@@ -25,19 +25,21 @@ export interface CharacterOptions {
   characterRef?: string;
   /** The picture's shape (default portrait, a full page); square suits pictures in a grid. */
   aspectRatio?: "square" | "portrait" | "landscape";
+  /** A finished color picture instead of an outline to color (color pages). Never traced to vector: that would drop the colors. */
+  color?: boolean;
 }
 
 export async function generateLineArtPicture(subject: string, theme: string | undefined, t: TFunction, options: CharacterOptions = {}): Promise<{ src: string; size: ImageSize }> {
   const response = await fetch("/api/generate-line-art", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subject, theme: theme?.trim() || undefined, count: 1, aspectRatio: options.aspectRatio ?? "portrait", character: options.character?.trim() || undefined, characterRef: options.characterRef }),
+    body: JSON.stringify({ subject, theme: theme?.trim() || undefined, count: 1, aspectRatio: options.aspectRatio ?? "portrait", character: options.character?.trim() || undefined, characterRef: options.characterRef, style: options.color ? "color" : "lineart" }),
   });
   const body = (await response.json().catch(() => null)) as { results?: { ok: boolean; svgMarkup?: string; error?: string }[]; error?: string } | null;
   const first = body?.results?.[0];
   if (!response.ok || !first?.ok || !first.svgMarkup) throw new Error(aiErrorText(t, response.status, first?.error ?? body?.error ?? `HTTP ${response.status}`));
   const raster = `data:image/svg+xml;utf8,${encodeURIComponent(first.svgMarkup)}`;
-  const src = await sharpen(raster);
+  const src = options.color ? raster : await sharpen(raster);
   return { src, size: await imageSize(src) };
 }
 

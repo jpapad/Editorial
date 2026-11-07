@@ -1,4 +1,5 @@
-import { buildPageSpecPrompt, parsePageSpec, type PageSpec } from "../../src/services/pageSpec";
+import { buildPageSpecPrompt, parseColor, parsePageSpec, type PageSpec } from "../../src/services/pageSpec";
+import { buildLineArtPrompt } from "../../src/services/aiGenerator";
 import { layoutPageSpec, pictureKey, picturesToMake, type PictureMap } from "../../src/utils/pageLayout";
 import { interiorSpace, geometryFromSpace } from "../../src/utils/pageGeometry";
 import { objectBounds } from "../../src/utils/objectGeometry";
@@ -76,6 +77,34 @@ ok(texts(m.page).includes("1. Πώς λέγεσαι;") && texts(m.page).includes
 ok(m.extraPages.length === 2, "word search and maze each get their own page after this one");
 ok(inside(m.page) && !m.continued, "a mixed page fits on one page, inside the margins");
 ok(pictureKey(2, 3) === "2:3", "picture keys are block:item");
+
+// ---- color
+ok(parseColor("#E5484D") === "#e5484d" && parseColor("#abc") === "#aabbcc" && parseColor("red") === "#e5484d" && parseColor("κόκκινο") === null && parseColor("url(x)") === null, "colors: hex and basic names accepted, anything else refused");
+const colored = { background: "#fff8e1", blocks: [
+  { type: "title", text: "Γεια", size: "large", align: "center", color: "#2f80ed", fill: null },
+  { type: "pictures", items: [{ subject: "a cat", label: "γάτα", caption: "γάτα" }], columns: 1, boxed: true, writeLine: false, marker: "checkbox", color: "#e5484d", fill: "#fde2e4" },
+  { type: "text", text: "Τέλος", size: "small", align: "left", style: "normal", color: "javascript:alert(1)", fill: null },
+] };
+const asLineart = parsePageSpec(colored, "lineart");
+ok(asLineart.background === null && asLineart.blocks.every((b) => !b.color && !b.fill), "a coloring page keeps no colors, whatever the reply says");
+const asColor = parsePageSpec(colored, "color");
+ok(asColor.mode === "color" && asColor.background === "#fff8e1" && asColor.blocks[0].color === "#2f80ed" && asColor.blocks[2].color === null, "a color page keeps valid colors; an invalid one is dropped");
+ok(buildPageSpecPrompt("x", "el", "lineart").includes("COLORING page") && buildPageSpecPrompt("x", "el", "mixed").includes("pictures stay black outlines") && buildPageSpecPrompt("x", "el", "color").includes("full-color"), "the prompt explains the chosen kind of page");
+
+const cl = layoutPageSpec(asColor, space, new Map([[pictureKey(1, 0), { src: "data:cat", width: 512, height: 512 }]]), 3).page;
+ok(cl.inColor === true, "a color page is marked as such (for the print cost)");
+const bg = cl.objects[0];
+ok(bg.kind === "shape" && bg.fill === "#fff8e1" && bg.locked === true && bg.width === space.width && bg.height === space.height, "the background covers the whole page, behind everything, locked");
+const title = cl.objects.find((o) => o.kind === "text" && (o as { text: string }).text === "Γεια") as { fill: string };
+ok(title.fill === "#2f80ed", "the title takes its color");
+const box = cl.objects.find((o) => o.kind === "shape" && o.shapeKind === "rectangle" && o.width > 100 && o !== bg) as { fill: string; stroke: string };
+ok(box.fill === "#fde2e4" && box.stroke === "#e5484d", "the picture's box takes its fill and border colors");
+const tick = cl.objects.find((o) => o.kind === "shape" && o.width <= 24) as { fill: string };
+ok(tick.fill === "#ffffff", "tick boxes stay white so they can be marked");
+ok(!layoutPageSpec(parsePageSpec(colored, "mixed"), space).page.inColor, "a mixed page isn't a color page (its pictures are for coloring)");
+
+const colorPrompt = buildLineArtPrompt({ subject: "a cat", style: "color" });
+ok(colorPrompt.includes("full-color") && !colorPrompt.includes("black-and-white") && buildLineArtPrompt({ subject: "a cat" }).includes("black-and-white"), "color pictures are asked for in color; line art stays black and white");
 
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASSED");
 process.exit(fails ? 1 : 0);
