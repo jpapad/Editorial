@@ -89,7 +89,7 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
     try {
       const response = await fetch("/api/page-from-instructions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instructions: instructions.trim(), lang, mode }) });
       const body = (await response.json().catch(() => null)) as { spec?: PageSpec; error?: string } | null;
-      if (!response.ok || !body?.spec) throw new Error(aiErrorText(t, response.status, body?.error ?? t("Could not read the instructions")));
+      if (!response.ok || !body?.spec) throw new Error(aiErrorText(t, response.status, body?.error ? t(body.error) : t("Could not read the instructions")));
       // An answer without the newer fields (an older server) still works: the kind asked for, no background.
       setSpec({ ...body.spec, mode: body.spec.mode ?? mode, background: body.spec.background ?? null, gradient: body.spec.gradient ?? null, pattern: body.spec.pattern ?? null, scene: body.spec.scene ?? null });
       setStep("review");
@@ -333,7 +333,7 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
               <Button variant="ghost" onClick={() => setStep("write")}>
                 {t("Back")}
               </Button>
-              <Button variant="primary" onClick={() => void make()} disabled={spec.blocks.length === 0} icon={<Sparkles size={14} />}>
+              <Button variant="primary" onClick={() => void make()} disabled={spec.blocks.length === 0 && !hasBackground && !spec.frame} icon={<Sparkles size={14} />}>
                 {t("Make the page")}
               </Button>
             </div>

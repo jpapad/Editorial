@@ -19,6 +19,15 @@ const line = parsePageSpec(raw, "lineart");
 ok(line.gradient === null && line.background === null && line.pattern === "clouds" && line.scene !== null, "a coloring page drops colors and gradients, keeps a pattern and a scene to color");
 ok(parsePageSpec({ ...raw, pattern: "unicorns", gradient: ["#fff", "nope"] }, "color").pattern === null && parsePageSpec({ ...raw, gradient: ["#fff", "nope"] }, "color").gradient === null, "unknown patterns and bad gradients are dropped");
 
+// A page that is only a background — "a page with a farm as background".
+const onlyScene = parsePageSpec({ blocks: [], warnings: [], scene: { subject: "a farm with a red barn", label: "ένα αγρόκτημα" } }, "color");
+ok(onlyScene.scene?.label === "ένα αγρόκτημα" && onlyScene.blocks.length === 0, "a page that is only a background scene is understood (not refused)");
+const onlyScenePage = layoutPageSpec(onlyScene, space, new Map(), 1, { src: "data:farm", width: 1024, height: 1536 }).page;
+ok(onlyScenePage.background?.image === "data:farm" && onlyScenePage.objects.length === 0, "…and laid out as a page with just that background");
+let refused = false;
+try { parsePageSpec({ blocks: [], warnings: [] }, "color"); } catch { refused = true; }
+ok(refused, "a truly empty answer is still refused");
+
 // ---- laying out, per kind of page
 const scene = { src: "data:scene", width: 1024, height: 1536 };
 const c = layoutPageSpec(color, space, new Map(), 1, scene).page;
