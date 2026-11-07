@@ -35,6 +35,7 @@ import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/
 import DigitalPackDialog from "@/components/studio/editor/DigitalPackDialog";
 import InstructionsPageDialog from "@/components/studio/editor/InstructionsPageDialog";
 import { applyBackgroundToAll, hasEdgeBackground } from "@/utils/pageBackground";
+import { addOntoPage } from "@/utils/placeOnPage";
 import ProfitDialog from "@/components/studio/editor/ProfitDialog";
 import { licenseText, packStem, readmeText, trimCrop, type PackOptions } from "@/utils/digitalPack";
 import { buildZip, dataUrlBytes, downloadBytes, pageFileName, type ZipEntry } from "@/utils/zip";
@@ -1092,6 +1093,27 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     setSelectedIds([]);
   }
 
+  /** New activity pages: appended — or, `ontoCurrent`, the first one into the free space of the page you're on and the rest appended. */
+  function handleAddActivity(added: BookPage[], ontoCurrent: boolean) {
+    if (!ontoCurrent || added.length === 0) {
+      handleAppendPages(added);
+      return;
+    }
+    const placed = addOntoPage(activePage, added[0], activeSpace);
+    if (!placed.ok) {
+      handleAppendPages(added);
+      setNotice(t("There isn't enough free space on this page, so it was added as a new page."));
+      return;
+    }
+    captureActiveThumbnail();
+    pushHistory();
+    const pageId = activePage.id;
+    const rest = added.slice(1);
+    setPages((prev) => renumber([...prev.map((p) => (p.id === pageId ? placed.page : p)), ...withRepeats(rest, prev)]));
+    setSelectedIds([]);
+    if (placed.scale < 0.999) setNotice(t("Added to this page, made smaller to fit the free space."));
+  }
+
   function handleDuplicatePage(id: string) {
     const index = pages.findIndex((p) => p.id === id);
     if (index === -1) return;
@@ -1716,8 +1738,9 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       {showInstructions && (
         <InstructionsPageDialog
           space={space}
-          onAdd={({ pages: added, backgroundToAll }) => {
-            handleAppendPages(added);
+          currentPage={activePage}
+          onAdd={({ pages: added, backgroundToAll, ontoCurrent }) => {
+            handleAddActivity(added, ontoCurrent);
             if (backgroundToAll) setPages((prev) => applyBackgroundToAll(prev, added[0].id));
           }}
           onTurnOnBleed={bleed ? undefined : () => void handleToggleBleed(true)}
@@ -1739,7 +1762,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
           onClose={() => setShowImport(false)}
         />
       )}
-      {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} capturePage={() => (stageRef.current ? captureStage(stageRef.current, 2) : null)} onAdd={handleAppendPages} onClose={() => setShowWorksheets(false)} />}
+      {showWorksheets && <WorksheetDialog space={space} currentPage={activePage} captureInk={() => (stageRef.current ? captureInk(stageRef.current) : null)} capturePage={() => (stageRef.current ? captureStage(stageRef.current, 2) : null)} onAdd={(added, { ontoCurrent }) => handleAddActivity(added, ontoCurrent)} onClose={() => setShowWorksheets(false)} />}
 
       {showListing && <ListingKitModal input={{ title, pages, trimSizeId, bleed }} onClose={() => setShowListing(false)} />}
       {showPublishTemplate && <PublishTemplateDialog title={title} pages={pages} trimSize={trimSizeId} bleed={bleed} onClose={() => setShowPublishTemplate(false)} />}
