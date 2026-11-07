@@ -155,8 +155,7 @@ export function parsePageSpec(raw: unknown, mode: PageMode = "lineart"): PageSpe
   let blocks = (Array.isArray(o.blocks) ? o.blocks : []).map(parseBlock).filter((b): b is PageBlock => b !== null).slice(0, LIMITS.blocks);
   if (mode === "lineart") blocks = blocks.map((b) => ({ ...b, color: null, fill: null }));
   const warnings = (Array.isArray(o.warnings) ? o.warnings : []).map((w) => str(w, 200)).filter(Boolean).slice(0, 6);
-  if (blocks.length === 0 && warnings.length === 0) throw new Error("Nothing on the page could be understood.");
-  return {
+  const spec: PageSpec = {
     mode,
     frame: PAGE_FRAMES.includes(o.frame as (typeof PAGE_FRAMES)[number]) ? (o.frame as string) : null,
     background: mode === "lineart" ? null : parseColor(o.background),
@@ -166,6 +165,10 @@ export function parsePageSpec(raw: unknown, mode: PageMode = "lineart"): PageSpe
     blocks,
     warnings,
   };
+  // A page can be just a background (a scene, a pattern, a color) or just a frame — that's still a page.
+  const hasLook = Boolean(spec.frame || spec.background || spec.gradient || spec.pattern || spec.scene);
+  if (blocks.length === 0 && warnings.length === 0 && !hasLook) throw new Error("Nothing on the page could be understood.");
+  return spec;
 }
 
 const MODE_RULES: Record<PageMode, string> = {
@@ -201,6 +204,7 @@ export function buildPageSpecPrompt(instructions: string, lang: "el" | "en", mod
     '- {"type":"bubble","text"}  — a speech bubble',
     '- {"type":"space","label","boxed":bool}  — an empty area to draw in, with an optional label above it',
     '- {"type":"activity","kind":"wordsearch|maze","words":[...]}  — added as its own extra page after this one',
+    'A page may be ONLY a background (e.g. "a page with a farm as background"): then "blocks" is empty and the background goes in "scene" (or "background"/"gradient"/"pattern"). Never turn a background into a picture block.',
     "Use sensible defaults only where the instructions are silent (e.g. title size large, centred). Reply with the JSON object only.",
     "",
     `Instructions: ${JSON.stringify(instructions)}`,

@@ -82,6 +82,8 @@ const EXTRA = [
   "We couldn't find that code. Check it with your teacher or parent.", "Classes aren't set up yet.",
   // Rate-limit / export-size messages from the API (shown through aiErrorText or as the error).
   "Too many requests — wait a moment and try again.", "This book is too big to export in one go. Try fewer pages.",
+  // Page-from-instructions errors from the server (shown through t(body.error)).
+  "Nothing on the page could be understood.", "Describe the page first.",
   "Rectangle", "Circle", "Triangle", "Star", "Heart", "Hexagon", "Line", "Arrow", "Left", "Center", "Right",
 ];
 

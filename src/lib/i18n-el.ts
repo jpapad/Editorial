@@ -1294,4 +1294,6 @@ export const EL: Record<string, string> = {
   "Backgrounds print to the edge (bleed is on)": "Τα φόντα τυπώνονται μέχρι την άκρη (το bleed είναι ενεργό)",
   "1 page has a background to the edge but bleed is off — the trim will leave a white sliver": "1 σελίδα έχει φόντο μέχρι την άκρη αλλά το bleed είναι ανενεργό — στο κόψιμο θα μείνει λευκή λωρίδα",
   "{n} pages have a background to the edge but bleed is off — the trim will leave a white sliver": "{n} σελίδες έχουν φόντο μέχρι την άκρη αλλά το bleed είναι ανενεργό — στο κόψιμο θα μείνει λευκή λωρίδα",
+  "Nothing on the page could be understood.": "Δεν μπόρεσα να καταλάβω τι θα μπει στη σελίδα. Δοκίμασε να το γράψεις πιο αναλυτικά.",
+  "Describe the page first.": "Περίγραψε πρώτα τη σελίδα.",
 };
