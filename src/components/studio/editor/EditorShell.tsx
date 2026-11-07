@@ -44,7 +44,7 @@ import { fitOnSheet, fullSheet, samplePages } from "@/utils/printables";
 import { applyName, nameSlots } from "@/utils/personalize";
 import { usePageLooks } from "@/lib/usePageLooks";
 import { applyCoverLayout, coverPictureFrom, type CoverStyle } from "@/utils/coverTemplates";
-import { externalize } from "@/utils/imageStore";
+import { externalize, withLinks } from "@/utils/imageStore";
 import { uploadBookImage } from "@/lib/imageUploader";
 import { addMedia, deleteMedia, listMedia } from "@/lib/mediaStore";
 import { isLibraryWorthy, type MediaItem, type MediaSource } from "@/utils/mediaLibrary";
@@ -730,7 +730,8 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
     if (!bookId || reviewMode) return;
     const timer = setTimeout(() => {
       void listVersions(bookId).then((versions) => {
-        if (snapshotDue(versions, bookSignature(pages), Date.now())) void saveVersion(bookId, title, pages).catch(() => undefined);
+        // Pictures already uploaded by autosave are kept as their links — a version is then kilobytes, not megabytes.
+        if (snapshotDue(versions, bookSignature(pages), Date.now())) void saveVersion(bookId, title, withLinks(pages, uploadedImagesRef.current)).catch(() => undefined);
       });
     }, 4000);
     return () => clearTimeout(timer);

@@ -67,6 +67,14 @@ ok(uploads.filter((u) => u === A).length === 1, "saving again does not upload th
 const failing = await externalize(pages, null, async () => { throw new Error("no bucket"); }, new Map());
 ok(failing.pages.every((p, i) => p === pages[i]), "when uploads fail the book is saved exactly as before");
 ok(withLinks(pages, new Map()) === pages, "no links → the same pages");
+// A background scene on every page (BookPage.background.image): uploaded once, a link everywhere.
+const S = big("scene");
+const themedPages: BookPage[] = [1, 2, 3].map((n) => ({ id: `b${n}`, pageNumber: n, space, lines: [], objects: [], background: { image: S, imageOpacity: 0.35 } }));
+ok(embeddedImages(themedPages).length === 1, "a background picture shared by every page is found once");
+const sceneUploads: string[] = [];
+const themedStored = await externalize(themedPages, null, async (s) => { sceneUploads.push(s); return "https://cdn/scene.png"; }, new Map());
+ok(sceneUploads.length === 1 && themedStored.pages.every((p) => p.background?.image === "https://cdn/scene.png" && p.background.imageOpacity === 0.35), "…uploaded once, and every page keeps just the link (its other settings unchanged)");
+ok(JSON.stringify(themedStored.pages).length < 2000 && JSON.stringify(themedPages).length > 3 * MIN_UPLOAD_CHARS, "so the saved book is kilobytes, not megabytes");
 const png = decodeDataUrl("data:image/png;base64," + btoa("\x89PNG"));
 const svg = decodeDataUrl("data:image/svg+xml;utf8," + encodeURIComponent("<svg>ά</svg>"));
 ok(png?.mime === "image/png" && png.bytes[0] === 0x89 && png.bytes.length === 4 && svg?.mime === "image/svg+xml" && new TextDecoder().decode(svg.bytes) === "<svg>ά</svg>" && decodeDataUrl("https://x") === null, "data URLs decode to bytes (base64 and text), anything else is refused");
