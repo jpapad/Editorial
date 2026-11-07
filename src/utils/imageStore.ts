@@ -24,6 +24,8 @@ export function embeddedImages(pages: BookPage[]): string[] {
   for (const page of pages) {
     for (const o of page.objects) if (o.kind === "stamp" && worthUploading(o.src)) found.add(o.src);
     if (worthUploading(page.traceImage?.src)) found.add(page.traceImage.src);
+    // A background picture (an AI scene) is as big as a full page — and with "background on every page" it's on all of them.
+    if (worthUploading(page.background?.image)) found.add(page.background.image);
   }
   return [...found];
 }
@@ -40,8 +42,16 @@ export function withLinks(pages: BookPage[], links: Map<string, string>): BookPa
       return { ...o, src: link };
     });
     const traceLink = page.traceImage ? links.get(page.traceImage.src) : undefined;
-    if (traceLink) changed = true;
-    return changed ? { ...page, objects, ...(traceLink ? { traceImage: { ...page.traceImage!, src: traceLink } } : {}) } : page;
+    const backgroundLink = page.background?.image ? links.get(page.background.image) : undefined;
+    if (traceLink || backgroundLink) changed = true;
+    return changed
+      ? {
+          ...page,
+          objects,
+          ...(traceLink ? { traceImage: { ...page.traceImage!, src: traceLink } } : {}),
+          ...(backgroundLink ? { background: { ...page.background!, image: backgroundLink } } : {}),
+        }
+      : page;
   });
 }
 
