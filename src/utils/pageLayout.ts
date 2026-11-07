@@ -111,7 +111,7 @@ function draw(block: PageBlock, index: number, box: Box, fixed: number, flex: nu
           out.push({ kind: "stamp", id: makeId("stamp"), src: pic.src, x: x + (cellW - pic.width * k) / 2, y: y + (picH - pic.height * k) / 2, width: pic.width * k, height: pic.height * k, rotation: 0, scaleX: 1, scaleY: 1, filter: "none", label: item.subject });
         } else {
           if (!block.boxed) out.push(shape({ shapeKind: "rectangle", x, y, width: cellW, height: picH, fill: "#ffffff", stroke: "#cbd5e1", strokeWidth: 1.5 }));
-          out.push(text({ text: item.subject, x: x + 6, y: y + picH / 2 - 10, width: cellW - 12, height: 20, fontSize: 13, fontFamily: PLAIN, fill: "#94a3b8" }));
+          out.push(text({ text: item.label || item.subject, x: x + 6, y: y + picH / 2 - 10, width: cellW - 12, height: 20, fontSize: 13, fontFamily: PLAIN, fill: PLACEHOLDER_INK }));
         }
         let ly = y + picH + 4;
         if (item.caption || block.marker !== "none") {
@@ -245,8 +245,31 @@ function splitToFit(block: PageBlock, index: number, room: number, width: number
   return [{ block, index, offset: 0 }];
 }
 
+const PLACEHOLDER_INK = "#94a3b8";
+
+/**
+ * A block's own colors on what it drew: `color` on its texts and on its
+ * lines and borders, `fill` inside its boxes. Tick boxes stay white (they're
+ * to be marked), placeholder labels stay grey, pictures are left alone.
+ */
+function tint(objects: PageObject[], block: PageBlock): PageObject[] {
+  const { color, fill } = block;
+  if (!color && !fill) return objects;
+  return objects.map((o) => {
+    if (o.kind === "text") return color && o.fill !== PLACEHOLDER_INK && block.type !== "bubble" ? { ...o, fill: color } : o;
+    if (o.kind !== "shape") return o;
+    const isMarker = o.width <= 24 && o.height <= 24;
+    const boxed = (o.shapeKind === "rectangle" || o.shapeKind === "triangle") && !isMarker;
+    return {
+      ...o,
+      stroke: color && o.stroke !== "#cbd5e1" ? color : o.stroke,
+      fill: fill && boxed && o.fill !== "transparent" ? fill : o.fill,
+    };
+  });
+}
+
 /** Lays one page's worth of blocks: fixed blocks take what they need, flexible ones share the rest. */
-function layoutOne(placed: Placed[], area: { left: number; right: number; top: number; bottom: number }, frame: PageObject | null, space: PageSpace, pictures: PictureMap): BookPage {
+function layoutOne(placed: Placed[], area: { left: number; right: number; top: number; bottom: number }, frame: PageObject | null, space: PageSpace, pictures: PictureMap, look: { background: string | null; inColor: boolean }): BookPage {
   const width = area.right - area.left;
   const sizes = placed.map(({ block }) => measure(block, width));
   const fixedTotal = sizes.reduce((n, m) => n + m.fixed, 0) + GAP * Math.max(0, placed.length - 1);
@@ -260,17 +283,20 @@ function layoutOne(placed: Placed[], area: { left: number; right: number; top: n
     const cellW = (width - GAP * (block.columns - 1)) / block.columns;
     return Math.min(raw, Math.ceil(block.items.length / block.columns) * cellW * 1.15);
   };
-  const objects: PageObject[] = frame ? [{ ...frame, id: makeId("stamp") }] : [];
+  const objects: PageObject[] = [];
+  // The background covers the whole canvas (bleed included), behind everything, locked in place.
+  if (look.background) objects.push({ ...shape({ shapeKind: "rectangle", x: 0, y: 0, width: space.width, height: space.height, fill: look.background, stroke: look.background, strokeWidth: 0 }), locked: true });
+  if (frame) objects.push({ ...frame, id: makeId("stamp") });
   let y = area.top;
   placed.forEach(({ block, index, offset }, i) => {
     const m = sizes[i];
     const flex = share(m, block);
     // A split picture block looks its pictures up by their place in the original block.
     const lookup: PictureMap = offset ? new Map([...pictures].flatMap(([key, pic]) => { const [b, item] = key.split(":").map(Number); return b === index && item >= offset ? [[pictureKey(index, item - offset), pic]] : []; })) : pictures;
-    objects.push(...draw(block, index, { left: area.left, top: y, width }, m.fixed, flex, lookup));
+    objects.push(...tint(draw(block, index, { left: area.left, top: y, width }, m.fixed, flex, lookup), block));
     y += m.fixed + flex + GAP;
   });
-  return { id: makeId("page"), pageNumber: 0, space, lines: [], objects };
+  return { id: makeId("page"), pageNumber: 0, space, lines: [], objects, ...(look.inColor ? { inColor: true } : {}) };
 }
 
 export function layoutPageSpec(spec: PageSpec, space: PageSpace, pictures: PictureMap = new Map(), seed = Date.now()): LaidOutPage {
@@ -297,7 +323,8 @@ export function layoutPageSpec(spec: PageSpec, space: PageSpace, pictures: Pictu
       groups.at(-1)!.push(piece);
     }
   });
-  const pages = groups.map((g) => layoutOne(g, area, frame, space, pictures));
+  const look = { background: spec.mode === "lineart" ? null : spec.background, inColor: spec.mode === "color" };
+  const pages = groups.map((g) => layoutOne(g, area, frame, space, pictures, look));
 
   const activities: BookPage[] = [];
   for (const block of spec.blocks) {

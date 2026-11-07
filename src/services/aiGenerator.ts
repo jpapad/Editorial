@@ -31,6 +31,8 @@ export interface LineArtRequest {
   aspectRatio?: "square" | "portrait" | "landscape";
   /** The book's recurring character, described in detail — repeated in every prompt so they look the same on each page. */
   character?: string;
+  /** "lineart" (default): a black outline to color in. "color": a finished, full-color picture for a color page. */
+  style?: "lineart" | "color";
 }
 
 export interface LineArtResult {
@@ -91,6 +93,7 @@ export function imageProvider(env: Record<string, string | undefined> = process.
  */
 export function buildLineArtPrompt(request: LineArtRequest): string {
   const themeClause = request.theme ? ` in a ${request.theme}-themed scene` : "";
+  if (request.style === "color") return buildColorPrompt(request, themeClause);
   return [
     `A simple black-and-white line art coloring book illustration of ${request.subject}${themeClause}.`,
     request.character ? `The main character is always drawn exactly like this, on every page of the book: ${request.character}. Same face, body shape, proportions, clothes and accessories — only the pose and expression may change.` : "",
@@ -103,15 +106,27 @@ export function buildLineArtPrompt(request: LineArtRequest): string {
     .join(" ");
 }
 
+/** A finished full-color picture (color pages): same subject rules, but colored, for children. */
+function buildColorPrompt(request: LineArtRequest, themeClause: string): string {
+  return [
+    `A bright, friendly, full-color children's book illustration of ${request.subject}${themeClause}.`,
+    request.character ? `The main character is always drawn exactly like this, on every page of the book: ${request.character}. Same face, body shape, proportions, clothes and accessories — only the pose and expression may change.` : "",
+    "Soft cheerful colors, clean shapes, gentle shading, warm and inviting, suitable for young children.",
+    "Plain white background, the subject only, centered. No text, no watermark, no signature.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /** For a picture drawn with a reference image of the book's character (the image edit endpoint). */
 export function buildReferencePrompt(request: LineArtRequest): string {
   return [
-    "The attached image shows the main character of a children's coloring book.",
-    `Draw a NEW coloring page with that very same character — identical face, body, proportions, clothes and accessories — in this scene: ${request.subject}.`,
+    request.style === "color" ? "The attached image shows the main character of a children's picture book." : "The attached image shows the main character of a children's coloring book.",
+    `Draw a NEW ${request.style === "color" ? "full-color picture" : "coloring page"} with that very same character — identical face, body, proportions, clothes and accessories — in this scene: ${request.subject}.`,
     request.character ? `Character notes: ${request.character}.` : "",
     request.theme ? `Style: ${request.theme}.` : "",
-    "Bold, thick, uniform black outlines only. Pure white background, no fill, no shading, no gradients, no color, no gray.",
-    "Clean closed outlines a child can color inside. No text, no watermark.",
+    request.style === "color" ? "Bright, soft, cheerful colors, clean shapes, plain white background." : "Bold, thick, uniform black outlines only. Pure white background, no fill, no shading, no gradients, no color, no gray.",
+    request.style === "color" ? "No text, no watermark." : "Clean closed outlines a child can color inside. No text, no watermark.",
   ]
     .filter(Boolean)
     .join(" ");

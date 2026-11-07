@@ -65,6 +65,7 @@ export async function POST(request: Request) {
     theme: typeof body.theme === "string" ? body.theme.slice(0, 200) : undefined,
     aspectRatio: body.aspectRatio,
     character: typeof body.character === "string" && body.character.trim() ? body.character.trim().slice(0, 400) : undefined,
+    style: body.style === "color" ? "color" : "lineart",
   };
   // With a reference picture of the character (and an OpenAI key), every page is drawn from it.
   const reference = process.env.OPENAI_API_KEY ? referenceImage(body.characterRef) : null;

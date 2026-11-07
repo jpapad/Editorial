@@ -30,14 +30,14 @@ const MARKET_IDS = Object.keys(MARKETS) as Marketplace[];
  * What a KDP paperback earns: printing cost from the page count, trim and
  * ink; royalty at the chosen list price; the lowest price KDP accepts.
  */
-export default function ProfitDialog({ pageCount, trimWidthPt, trimHeightPt, paper, onClose }: { pageCount: number; trimWidthPt: number; trimHeightPt: number; paper: PaperType; onClose: () => void }) {
+export default function ProfitDialog({ pageCount, trimWidthPt, trimHeightPt, paper, hasColorPages = false, onClose }: { pageCount: number; trimWidthPt: number; trimHeightPt: number; paper: PaperType; hasColorPages?: boolean; onClose: () => void }) {
   const t = useT();
   const large = isLargeTrim(trimWidthPt, trimHeightPt);
   const [market, setMarket] = useState<Marketplace>("us");
-  const [ink, setInk] = useState<InkType>(inkForPaper(paper));
+  const [ink, setInk] = useState<InkType>((hasColorPages ? "premium-color" : inkForPaper(paper)));
   const cost = printingCost(market, ink, large, pageCount);
   const [priceText, setPriceText] = useState(() => {
-    const c = printingCost("us", inkForPaper(paper), large, pageCount);
+    const c = printingCost("us", (hasColorPages ? "premium-color" : inkForPaper(paper)), large, pageCount);
     return c === null ? "9.99" : priceIdeas("us", c)[1].toFixed(2);
   });
   const [copiesText, setCopiesText] = useState("30");
@@ -92,6 +92,11 @@ export default function ProfitDialog({ pageCount, trimWidthPt, trimHeightPt, pap
             ))}
           </div>
           <p className="text-helper text-ink-muted">{t(INK_OPTIONS.find((o) => o.value === ink)!.hint)}</p>
+          {hasColorPages && ink === "black" && (
+            <p role="alert" className="rounded-row-sm bg-warning/15 px-3 py-2 text-helper text-ink">
+              {t("This book has color pages: with black ink they'd print in grey. Choose a color ink.")}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">

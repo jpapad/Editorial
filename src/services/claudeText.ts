@@ -9,7 +9,7 @@ import { buildBookPlanPrompt, MAX_PLAN_PAGES, parseBookPlan, type BookPlan } fro
 import { buildCommandPrompt } from "@/services/editorCommandAi";
 import { buildStoryPrompt, parseStoryPlan, STORY_SCHEMA, type StoryLanguage, type StoryPlan } from "@/services/storyBook";
 import { buildNichePrompt, NICHE_SCHEMA, parseNicheIdeas, type NicheIdea, type NicheRequest } from "@/services/nicheIdeas";
-import { buildPageSpecPrompt, PAGE_SPEC_SCHEMA, parsePageSpec, type PageSpec } from "@/services/pageSpec";
+import { buildPageSpecPrompt, PAGE_SPEC_SCHEMA, parsePageSpec, type PageMode, type PageSpec } from "@/services/pageSpec";
 import { COMMAND_FRAMES, COMMAND_PATTERNS, COMMAND_SHAPES, parseCommandResult, type CommandResult, type PageSummary } from "@/utils/editorCommand";
 
 /** Claude Opus 5.5 unless ANTHROPIC_MODEL says otherwise. */
@@ -118,7 +118,7 @@ export async function claudeNicheIdeas(req: NicheRequest): Promise<NicheIdea[]> 
   return parseNicheIdeas(await claudeJson(buildNichePrompt(req), NICHE_SCHEMA, "medium"));
 }
 
-export async function claudePageSpec(instructions: string, lang: "el" | "en"): Promise<PageSpec> {
+export async function claudePageSpec(instructions: string, lang: "el" | "en", mode: PageMode): Promise<PageSpec> {
   // Medium effort: it must read carefully (exact texts and numbers), but it's one page.
-  return parsePageSpec(await claudeJson(buildPageSpecPrompt(instructions, lang), PAGE_SPEC_SCHEMA, "medium"));
+  return parsePageSpec(await claudeJson(buildPageSpecPrompt(instructions, lang, mode), PAGE_SPEC_SCHEMA, "medium"), mode);
 }

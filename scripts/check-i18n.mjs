@@ -54,6 +54,7 @@ const DYNAMIC = [
   "src/components/studio/screens/NicheIdeasDialog.tsx",
   "src/utils/storyPack.ts",
   "src/data/fairyTales.ts",
+  "src/components/studio/editor/InstructionsPageDialog.tsx",
 ];
 const EXTRA = [
   // One-off keys passed to t() through variables.

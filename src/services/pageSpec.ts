@@ -12,7 +12,17 @@ export type TextSize = "small" | "medium" | "large";
 export type TextStyle = "normal" | "outline" | "dashed";
 export type Marker = "none" | "circle" | "checkbox";
 
-export type PageBlock =
+/** "lineart": black outlines to color in (a coloring page). "color": a finished color page. "mixed": colored titles, boxes and lines, pictures left to color. */
+export type PageMode = "lineart" | "color" | "mixed";
+export const PAGE_MODES: PageMode[] = ["lineart", "mixed", "color"];
+
+/** Colors a block may carry (hex). `color`: its text, or its lines and borders; `fill`: the inside of its box. */
+export interface BlockColors {
+  color?: string | null;
+  fill?: string | null;
+}
+
+export type PageBlock = (
   | { type: "title"; text: string; size: TextSize; align: "left" | "center" | "right" }
   | { type: "text"; text: string; size: TextSize; align: "left" | "center" | "right"; style: TextStyle }
   | { type: "pictures"; items: { subject: string; label: string; caption: string }[]; columns: number; boxed: boolean; writeLine: boolean; marker: Marker }
@@ -22,11 +32,16 @@ export type PageBlock =
   | { type: "numbered"; items: string[]; writeLine: boolean }
   | { type: "bubble"; text: string }
   | { type: "space"; label: string; boxed: boolean }
-  | { type: "activity"; kind: "wordsearch" | "maze"; words: string[] };
+  | { type: "activity"; kind: "wordsearch" | "maze"; words: string[] }
+) &
+  BlockColors;
 
 export interface PageSpec {
+  mode: PageMode;
   /** Optional frame around the page (frameLibrary id) — only when asked for. */
   frame: string | null;
+  /** The page's background color (color and mixed pages only). */
+  background: string | null;
   blocks: PageBlock[];
   /** What was asked for but can't be done, in the user's language. */
   warnings: string[];
@@ -43,7 +58,26 @@ const SIZES = ["small", "medium", "large"] as const;
 const ALIGNS = ["left", "center", "right"] as const;
 const MARKERS = ["none", "circle", "checkbox"] as const;
 
+const NAMED: Record<string, string> = { red: "#e5484d", orange: "#f08c2e", yellow: "#f5c518", green: "#3cb371", blue: "#2f80ed", purple: "#8e5ad6", pink: "#e05a9b", brown: "#8a5a3c", black: "#111827", white: "#ffffff", gray: "#7b8fa8", grey: "#7b8fa8" };
+
+/** A color the page can use: #rgb / #rrggbb, or a few basic names; anything else → null. */
+export function parseColor(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const c = v.trim().toLowerCase();
+  if (NAMED[c]) return NAMED[c];
+  if (/^#[0-9a-f]{6}$/.test(c)) return c;
+  if (/^#[0-9a-f]{3}$/.test(c)) return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`;
+  return null;
+}
+
 function parseBlock(raw: unknown): PageBlock | null {
+  const block = parseBlockShape(raw);
+  if (!block) return null;
+  const o = raw as Record<string, unknown>;
+  return { ...block, color: parseColor(o.color), fill: parseColor(o.fill) };
+}
+
+function parseBlockShape(raw: unknown): PageBlock | null {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   switch (o.type) {
     case "title": {
@@ -96,15 +130,29 @@ function parseBlock(raw: unknown): PageBlock | null {
   }
 }
 
-export function parsePageSpec(raw: unknown): PageSpec {
+/** `mode` is the user's choice, not the model's: a coloring page keeps no colors whatever the reply says. */
+export function parsePageSpec(raw: unknown, mode: PageMode = "lineart"): PageSpec {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const blocks = (Array.isArray(o.blocks) ? o.blocks : []).map(parseBlock).filter((b): b is PageBlock => b !== null).slice(0, LIMITS.blocks);
+  let blocks = (Array.isArray(o.blocks) ? o.blocks : []).map(parseBlock).filter((b): b is PageBlock => b !== null).slice(0, LIMITS.blocks);
+  if (mode === "lineart") blocks = blocks.map((b) => ({ ...b, color: null, fill: null }));
   const warnings = (Array.isArray(o.warnings) ? o.warnings : []).map((w) => str(w, 200)).filter(Boolean).slice(0, 6);
   if (blocks.length === 0 && warnings.length === 0) throw new Error("Nothing on the page could be understood.");
-  return { frame: PAGE_FRAMES.includes(o.frame as (typeof PAGE_FRAMES)[number]) ? (o.frame as string) : null, blocks, warnings };
+  return {
+    mode,
+    frame: PAGE_FRAMES.includes(o.frame as (typeof PAGE_FRAMES)[number]) ? (o.frame as string) : null,
+    background: mode === "lineart" ? null : parseColor(o.background),
+    blocks,
+    warnings,
+  };
 }
 
-export function buildPageSpecPrompt(instructions: string, lang: "el" | "en"): string {
+const MODE_RULES: Record<PageMode, string> = {
+  lineart: "This is a COLORING page: everything is black on white. Use null for every color, fill and background. If the instructions ask for colors, add a warning that a coloring page stays black and white (choose a color or mixed page instead).",
+  mixed: 'This is a MIXED page: titles, texts, boxes, lines, table headers and the background may be colored, but pictures stay black outlines for the child to color. Use exactly the colors the instructions name, as hex (e.g. "κόκκινο"/"red" → "#e5484d"). Where no color is named, use null for texts (black) and a gentle, harmonious palette of at most 3 soft colors for titles, box fills and borders; background stays null unless asked for.',
+  color: 'This is a COLOR page: a finished, full-color page (pictures are drawn in color too). Use exactly the colors the instructions name, as hex (e.g. "μπλε"/"blue" → "#2f80ed"). Where no color is named, choose a cheerful, harmonious palette of at most 4 colors for titles, borders and box fills, keep body text dark for reading; background null unless asked for or a very light tint suits the page.',
+};
+
+export function buildPageSpecPrompt(instructions: string, lang: "el" | "en", mode: PageMode = "lineart"): string {
   const language = lang === "el" ? "Greek" : "English";
   return [
     "You turn a teacher's or parent's instructions for ONE printable children's page into a strict JSON layout list. You are a careful transcriber, not a designer.",
@@ -117,7 +165,9 @@ export function buildPageSpecPrompt(instructions: string, lang: "el" | "en"): st
     `5. Anything you cannot represent with the blocks below goes into "warnings" (in ${language}), saying plainly what will be missing. Do not approximate it with something else.`,
     "6. For each picture: \"subject\" in English for the image model, describing exactly the thing asked for (e.g. 'a cow'); \"label\" = the user's own word for it, verbatim, in their language (shown back to them, not printed); \"caption\" = text to PRINT under it — only if the instructions ask for a caption/name under the picture, verbatim; otherwise empty.",
     "",
-    'Reply with {"frame": null or one of ' + JSON.stringify(PAGE_FRAMES) + ' (only if a border/frame is asked for), "blocks": [...], "warnings": [...]}. Block types:',
+    `7. ${MODE_RULES[mode]}`,
+    "",
+    'Reply with {"frame": null or one of ' + JSON.stringify(PAGE_FRAMES) + ' (only if a border/frame is asked for), "background": null or a hex color, "blocks": [...], "warnings": [...]}. Every block also has "color" (its text, or its lines and borders) and "fill" (the inside of its box) — a hex color or null. Block types:',
     '- {"type":"title","text","size":"small|medium|large","align":"left|center|right"}',
     '- {"type":"text","text","size","align","style":"normal|outline|dashed"}  — "dashed" = dotted letters to trace over; "outline" = hollow letters to color',
     '- {"type":"pictures","items":[{"subject","label","caption"}],"columns":1-4,"boxed":bool (a frame around each picture),"writeLine":bool (a line under each picture to write on),"marker":"none|circle|checkbox" (something to mark next to each picture)}',
@@ -139,10 +189,12 @@ const b = { type: "boolean" };
 const i = { type: "integer" };
 const arr = (items: unknown) => ({ type: "array", items });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
-const kind = (type: string, fields: Record<string, unknown>) => obj({ type: { type: "string", enum: [type] }, ...fields });
+const hexOrNull = { anyOf: [{ type: "string" }, { type: "null" }] };
+const kind = (type: string, fields: Record<string, unknown>) => obj({ type: { type: "string", enum: [type] }, ...fields, color: hexOrNull, fill: hexOrNull });
 
 export const PAGE_SPEC_SCHEMA = obj({
   frame: { anyOf: [{ type: "string", enum: [...PAGE_FRAMES] }, { type: "null" }] },
+  background: hexOrNull,
   blocks: arr({
     anyOf: [
       kind("title", { text: s, size: { type: "string", enum: [...SIZES] }, align: { type: "string", enum: [...ALIGNS] } }),

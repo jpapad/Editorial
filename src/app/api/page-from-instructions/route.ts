@@ -6,11 +6,12 @@ import { NextResponse } from "next/server";
 import { requesterKey, takeRate, tooManyRequests } from "@/lib/rateLimit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NoTextProviderError, pageSpecWithAi } from "@/services/textAi";
+import { PAGE_MODES, type PageMode } from "@/services/pageSpec";
 
 const MAX_INSTRUCTIONS = 3000;
 
 export async function POST(request: Request) {
-  let body: { instructions?: unknown; lang?: unknown };
+  let body: { instructions?: unknown; lang?: unknown; mode?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
   if (!rate.ok) return tooManyRequests(rate.retryAfter);
 
   try {
-    const spec = await pageSpecWithAi(instructions, body.lang === "en" ? "en" : "el");
+    const mode = PAGE_MODES.includes(body.mode as PageMode) ? (body.mode as PageMode) : "lineart";
+    const spec = await pageSpecWithAi(instructions, body.lang === "en" ? "en" : "el", mode);
     return NextResponse.json({ spec });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not read the instructions";
