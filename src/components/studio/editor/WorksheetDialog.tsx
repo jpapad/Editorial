@@ -26,6 +26,7 @@ import { silhouetteDataUrl } from "@/lib/silhouette";
 import { findRegions, NUMBER_COLORS, numberRegions } from "@/components/studio/editor/regions";
 import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import type { BookPage, PageSpace } from "@/types/editor";
+import { addOntoPage } from "@/utils/placeOnPage";
 import { useLanguage, useT } from "@/lib/i18n";
 
 type Kind = "letters" | "numbers" | "dots" | "maze" | "spot" | "wordsearch" | "crossword" | "finish" | "cbn" | "sudoku" | "shadows" | "gridcopy" | "words" | "counting";
@@ -80,9 +81,13 @@ export interface WorksheetDialogProps {
   captureInk?: () => PixelBuffer | null;
   /** The current page as a PNG data URL — for "draw in the grid". */
   capturePage?: () => string | null;
-  onAdd: (pages: BookPage[]) => void;
+  /** `ontoCurrent`: the first page goes into the free space of the page you're on; the rest (answers…) are appended. */
+  onAdd: (pages: BookPage[], options: { ontoCurrent: boolean }) => void;
   onClose: () => void;
 }
+
+/** Kinds made from the page you're on (a copy of it) — those can't go onto that same page. */
+const FROM_CURRENT_PAGE: Kind[] = ["spot", "finish", "cbn", "gridcopy"];
 
 const MAX_PAGES = 40;
 
@@ -108,6 +113,7 @@ export default function WorksheetDialog({ space, currentPage, captureInk, captur
   const [countingMax, setCountingMax] = useState(6);
   const [countingPages, setCountingPages] = useState(2);
   const [busy, setBusy] = useState(false);
+  const [onto, setOnto] = useState(false);
   const pagePictures = currentPage.objects.filter((o) => o.kind === "stamp" && !o.isFrame && !o.hidden);
   const traceList = traceWords.split(/[\n,;]+/).map((w) => w.trim()).filter(Boolean).slice(0, 40);
   const [dotCount, setDotCount] = useState(25);
@@ -205,7 +211,15 @@ export default function WorksheetDialog({ space, currentPage, captureInk, captur
       pages = [result.puzzle, result.answers];
     }
     if (pages.length === 0) return;
-    onAdd(pages);
+    const ontoCurrent = onto && !FROM_CURRENT_PAGE.includes(kind);
+    if (ontoCurrent) {
+      const fits = addOntoPage(currentPage, pages[0], space);
+      if (!fits.ok) {
+        setError(fits.reason === "no-room" ? t("There isn't enough free space on this page. Make room, or add it as a new page.") : t("Nothing to add."));
+        return;
+      }
+    }
+    onAdd(pages, { ontoCurrent });
     onClose();
   }
 
@@ -416,12 +430,19 @@ export default function WorksheetDialog({ space, currentPage, captureInk, captur
 
         {error && <p className="text-helper text-error">{error}</p>}
 
+        <div className="flex flex-col gap-1">
+          <Toggle checked={onto && !FROM_CURRENT_PAGE.includes(kind)} onChange={setOnto} label={t("Add it to the page you're on")} />
+          <p className="text-helper text-ink-muted">
+            {FROM_CURRENT_PAGE.includes(kind) ? t("This one is made from the page you're on, so it always goes on a new page.") : t("The first page goes into the empty space of the current page, over its background, made smaller if it has to be. Any others (answers, more pages) are added after.")}
+          </p>
+        </div>
+
         <div className="flex items-center justify-end gap-2 border-t border-hairline pt-4">
           <Button variant="ghost" onClick={onClose}>
             {t("Cancel")}
           </Button>
           <Button variant="primary" onClick={() => void build()} disabled={pageCount === 0 || busy} icon={busy ? <Loader2 size={14} className="animate-spin" /> : undefined}>
-            {pageCount === 1 ? t("Add 1 page") : t("Add {n} pages", { n: pageCount })}
+            {onto && !FROM_CURRENT_PAGE.includes(kind) ? t("Add to this page") : pageCount === 1 ? t("Add 1 page") : t("Add {n} pages", { n: pageCount })}
           </Button>
         </div>
       </div>

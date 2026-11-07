@@ -11,6 +11,7 @@ import { generateLineArtPicture } from "@/lib/lineArt";
 import { layoutPageSpec, picturesToMake, type PictureMap } from "@/utils/pageLayout";
 import { PAGE_MODES, type PageBlock, type PageMode, type PageSpec } from "@/services/pageSpec";
 import { getBackgroundPattern } from "@/components/editor/backgroundPatterns";
+import { freeArea, MIN_FREE_SHARE } from "@/utils/placeOnPage";
 
 const MODE_LABEL: Record<PageMode, { label: string; hint: string }> = {
   lineart: { label: "For coloring", hint: "Black outlines on white, for the child to color." },
@@ -69,15 +70,21 @@ export interface InstructionsResult {
   pages: BookPage[];
   /** Copy the new page's background to every page of the book. */
   backgroundToAll: boolean;
+  /** The first page goes into the free space of the page you're on (the rest, if any, are appended). */
+  ontoCurrent: boolean;
 }
 
-export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, onClose }: { space: PageSpace; onAdd: (result: InstructionsResult) => void; onTurnOnBleed?: () => void; onClose: () => void }) {
+export default function InstructionsPageDialog({ space, currentPage, onAdd, onTurnOnBleed, onClose }: { space: PageSpace; currentPage: BookPage; onAdd: (result: InstructionsResult) => void; onTurnOnBleed?: () => void; onClose: () => void }) {
   const t = useT();
   const { lang } = useLanguage();
   const { usage, refresh } = useAiUsage();
   const [instructions, setInstructions] = useState("");
   const [mode, setMode] = useState<PageMode>("lineart");
   const [backgroundToAll, setBackgroundToAll] = useState(false);
+  // Add to the page you're on (over its background) instead of making a new page.
+  const [onto, setOnto] = useState(false);
+  const roomOnPage = freeArea(currentPage, space).share >= MIN_FREE_SHARE;
+  const ontoCurrent = onto && roomOnPage;
   const [step, setStep] = useState<"write" | "reading" | "review" | "making">("write");
   const [spec, setSpec] = useState<PageSpec | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -102,7 +109,7 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
   const updateBlock = (i: number, block: PageBlock | null) => setSpec((s) => s && { ...s, blocks: block ? s.blocks.map((b, j) => (j === i ? block : b)) : s.blocks.filter((_, j) => j !== i) });
   const toMake = spec ? picturesToMake(spec) : [];
   const hasBackground = Boolean(spec && (spec.background || spec.gradient || spec.pattern || spec.scene));
-  const credits = toMake.length + (spec?.scene ? 1 : 0);
+  const credits = toMake.length + (spec?.scene && !ontoCurrent ? 1 : 0);
   const creditsLeft = usage && usage.limit !== null ? Math.max(0, usage.limit - usage.used) + (usage.extra ?? 0) : null;
 
   async function make() {
@@ -123,7 +130,7 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
       refresh();
     }
     let scene: { src: string; width: number; height: number } | undefined;
-    if (spec.scene) {
+    if (spec.scene && !ontoCurrent) {
       setProgress(t("Drawing the background…"));
       try {
         // A whole-page scene, quiet in the middle where the page's content goes.
@@ -136,8 +143,10 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
       }
       refresh();
     }
-    const { page, extraPages, continued } = layoutPageSpec(spec, space, pictures, Date.now(), scene);
-    onAdd({ pages: [page, ...extraPages], backgroundToAll: backgroundToAll && hasBackground });
+    // Onto the current page: its own background and frame stay; only the content is added.
+    const laid = ontoCurrent ? { ...spec, frame: null, background: null, gradient: null, pattern: null, scene: null } : spec;
+    const { page, extraPages, continued } = layoutPageSpec(laid, space, pictures, Date.now(), scene);
+    onAdd({ pages: [page, ...extraPages], backgroundToAll: !ontoCurrent && backgroundToAll && hasBackground, ontoCurrent });
     if (continued || failed) {
       // Stay open long enough to say what didn't go as asked.
       setProgress(null);
@@ -191,6 +200,13 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
               <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={7} maxLength={3000} autoFocus placeholder={t("e.g. Title at the top: “Farm animals”. Below it 4 pictures in 2 rows: cow, sheep, hen, pig, with a line under each to write its name. At the bottom: “Circle the one that gives milk”.")} className={cn(input, "resize-y")} />
             </label>
             <p className="text-helper text-ink-muted">{t("Write it as you'd tell a person: what goes on the page, in what order, how many. Texts in quotes are printed exactly as written. You'll see what was understood before anything is made.")}</p>
+            <label className={cn("flex items-start gap-2 text-body", roomOnPage ? "text-ink" : "text-ink-muted")}>
+              <input type="checkbox" checked={ontoCurrent} disabled={!roomOnPage} onChange={(e) => setOnto(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--color-accent)]" />
+              <span>
+                {t("Add it to the page you're on")}
+                <span className="block text-helper text-ink-muted">{roomOnPage ? t("Goes into the page's empty space, over its background, made smaller if it has to be.") : t("The page you're on has no free space left, so this makes a new page.")}</span>
+              </span>
+            </label>
             {error && <p className="text-helper text-error">{error}</p>}
             <div className="flex justify-end">
               <Button type="submit" variant="primary" disabled={!instructions.trim() || step === "reading"} icon={step === "reading" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}>
@@ -305,7 +321,8 @@ export default function InstructionsPageDialog({ space, onAdd, onTurnOnBleed, on
                 ))}
               </ul>
             )}
-            {hasBackground && (
+            {hasBackground && ontoCurrent && <p className="text-helper text-ink-muted">{t("Added to the page you're on, it keeps that page's own background — the background asked for here isn't used.")}</p>}
+            {hasBackground && !ontoCurrent && (
               <>
                 <label className="flex items-center gap-2 text-body text-ink">
                   <input type="checkbox" checked={backgroundToAll} onChange={(e) => setBackgroundToAll(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
