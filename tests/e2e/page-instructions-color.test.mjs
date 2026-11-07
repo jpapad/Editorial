@@ -44,7 +44,7 @@ await p.waitForTimeout(1500);
 check(drawn.length === 2 && drawn.every((d) => d.style === "color"), "the pictures are drawn in color");
 const made = db.books[0].pages.at(-1);
 const stamp = made.objects.find((o) => o.kind === "stamp");
-check(made.inColor === true && made.objects[0].fill === "#fff8e1" && made.objects.find((o) => o.text === "Τα χρώματα")?.fill === "#e5484d", "the page is a color page, with its background and red title");
+check(made.inColor === true && made.background?.color === "#fff8e1" && made.objects.find((o) => o.text === "Τα χρώματα")?.fill === "#e5484d", "the page is a color page, with its background and red title");
 check(stamp?.src.includes("%23e5484d") || stamp?.src.includes("#e5484d"), "a color picture is kept as it is — not traced to black outlines");
 await p.screenshot({ path: shot("instructions-color-page.png") });
 
