@@ -45,6 +45,8 @@ function itemText(item: ReadinessItem, t: TFunction): string {
       return item.ok ? t("Pages match in style") : item.count === 1 ? t("1 page looks unlike the rest (line thickness or detail)") : t("{n} pages look unlike the rest (line thickness or detail)", { n: item.count });
     case "duplicates":
       return item.ok ? t("No repeated pages") : item.count === 1 ? t("1 page repeats an earlier one") : t("{n} pages repeat earlier ones", { n: item.count });
+    case "edge-bleed":
+      return item.ok ? t("Backgrounds print to the edge (bleed is on)") : item.count === 1 ? t("1 page has a background to the edge but bleed is off — the trim will leave a white sliver") : t("{n} pages have a background to the edge but bleed is off — the trim will leave a white sliver", { n: item.count });
   }
 }
 

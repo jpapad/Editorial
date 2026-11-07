@@ -31,8 +31,9 @@ export interface EditorPreflightIssue {
 }
 
 /** Page frames deliberately sit in the margin band (see pageTemplates' FRAME_MARGIN), so the safe-area check and its autofix leave them alone. */
+/** Frames and edge-to-edge backgrounds belong at the page's edge — the safe-area check leaves them alone. */
 function isFrame(obj: PageObject): boolean {
-  return obj.kind === "stamp" && obj.isFrame === true;
+  return (obj.kind === "stamp" && obj.isFrame === true) || obj.role === "pageBackground";
 }
 
 function lineBounds(line: LineData) {

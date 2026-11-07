@@ -93,11 +93,10 @@ ok(buildPageSpecPrompt("x", "el", "lineart").includes("COLORING page") && buildP
 
 const cl = layoutPageSpec(asColor, space, new Map([[pictureKey(1, 0), { src: "data:cat", width: 512, height: 512 }]]), 3).page;
 ok(cl.inColor === true, "a color page is marked as such (for the print cost)");
-const bg = cl.objects[0];
-ok(bg.kind === "shape" && bg.fill === "#fff8e1" && bg.locked === true && bg.width === space.width && bg.height === space.height, "the background covers the whole page, behind everything, locked");
+ok(cl.background?.color === "#fff8e1" && !cl.objects.some((o) => o.kind === "shape" && (o as { fill: string }).fill === "#fff8e1"), "the background color is the page's own (under everything, edge to edge), not an object on it");
 const title = cl.objects.find((o) => o.kind === "text" && (o as { text: string }).text === "Γεια") as { fill: string };
 ok(title.fill === "#2f80ed", "the title takes its color");
-const box = cl.objects.find((o) => o.kind === "shape" && o.shapeKind === "rectangle" && o.width > 100 && o !== bg) as { fill: string; stroke: string };
+const box = cl.objects.find((o) => o.kind === "shape" && o.shapeKind === "rectangle" && o.width > 100) as { fill: string; stroke: string };
 ok(box.fill === "#fde2e4" && box.stroke === "#e5484d", "the picture's box takes its fill and border colors");
 const tick = cl.objects.find((o) => o.kind === "shape" && o.width <= 24) as { fill: string };
 ok(tick.fill === "#ffffff", "tick boxes stay white so they can be marked");

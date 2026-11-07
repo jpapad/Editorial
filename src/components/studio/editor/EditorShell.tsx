@@ -34,6 +34,7 @@ import type { PixelBuffer } from "@/components/studio/editor/rasterFloodFill";
 import PrintAtHomeDialog, { type PrintAtHomeRequest } from "@/components/studio/editor/PrintAtHomeDialog";
 import DigitalPackDialog from "@/components/studio/editor/DigitalPackDialog";
 import InstructionsPageDialog from "@/components/studio/editor/InstructionsPageDialog";
+import { applyBackgroundToAll, hasEdgeBackground } from "@/utils/pageBackground";
 import ProfitDialog from "@/components/studio/editor/ProfitDialog";
 import { licenseText, packStem, readmeText, trimCrop, type PackOptions } from "@/utils/digitalPack";
 import { buildZip, dataUrlBytes, downloadBytes, pageFileName, type ZipEntry } from "@/utils/zip";
@@ -1628,7 +1629,7 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
             mode === "draw" || mode === "color" ? (
               <ReadinessCard
                 readiness={bookReadiness(pages, pageLooks)}
-                fixes={{ "page-count": fixPageCount, "thin-strokes": fixThinStrokes, margin: fixMargins }}
+                fixes={{ "page-count": fixPageCount, "thin-strokes": fixThinStrokes, margin: fixMargins, "edge-bleed": () => void handleToggleBleed(true) }}
                 onGoToPage={(id) => pages.some((p) => p.id === id) && handleSelectPage(id)}
               />
             ) : undefined
@@ -1651,6 +1652,19 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
             ) : mode === "draw" ? (
               <>
                 <PageToolsCard
+                  onBackgroundToAll={
+                    hasEdgeBackground(activePage)
+                      ? () => {
+                          pushHistory();
+                          setPages((prev) => applyBackgroundToAll(prev, activePage.id));
+                          setNotice(t("This page's background is now on every page."));
+                        }
+                      : undefined
+                  }
+                  onClearBackground={() => {
+                    pushHistory();
+                    updateActivePage({ background: undefined, backgroundPatternId: null, objects: activePage.objects.filter((o) => o.role !== "pageBackground") });
+                  }}
                   pageNumbers={pageNumberMode(pages)}
                   onPageNumbersChange={handlePageNumbers}
                   defaultLineWidth={strokeWidth}
@@ -1698,7 +1712,17 @@ function EditorShellLoaded({ darkSurround = false, bookId, initialBook, initialR
       {colorPreviewInk && <ColorPreviewModal ink={colorPreviewInk} fileName={`${slugify(title)}-page-${activePage.pageNumber}`} onClose={() => setColorPreviewInk(null)} />}
       {showTranslate && <TranslateBookDialog pages={pages} coverPage={coverDesign ? fittedCover.page : null} onTranslated={handleTranslated} onClose={() => setShowTranslate(false)} />}
       {showPrintAtHome && <PrintAtHomeDialog title={title} pageCount={pages.length} onExport={handlePrintAtHome} onClose={() => setShowPrintAtHome(false)} />}
-      {showInstructions && <InstructionsPageDialog space={space} onAdd={handleAppendPages} onClose={() => setShowInstructions(false)} />}
+      {showInstructions && (
+        <InstructionsPageDialog
+          space={space}
+          onAdd={({ pages: added, backgroundToAll }) => {
+            handleAppendPages(added);
+            if (backgroundToAll) setPages((prev) => applyBackgroundToAll(prev, added[0].id));
+          }}
+          onTurnOnBleed={bleed ? undefined : () => void handleToggleBleed(true)}
+          onClose={() => setShowInstructions(false)}
+        />
+      )}
       {showProfit && <ProfitDialog pageCount={pages.length} trimWidthPt={getTrimSize(trimSizeId).widthPt} trimHeightPt={getTrimSize(trimSizeId).heightPt} paper={paper} hasColorPages={pages.some((p) => p.inColor)} onClose={() => setShowProfit(false)} />}
       {showPack && <DigitalPackDialog pageCount={pages.filter((p) => !p.isBlankBack).length} onExport={handleDigitalPack} onClose={() => setShowPack(false)} />}
       {showPersonalize && <PersonalizeDialog slots={nameSlots(pages)} onApply={handleApplyName} onAddSlot={handleAddNameSlot} onClose={() => setShowPersonalize(false)} />}

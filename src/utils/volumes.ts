@@ -14,7 +14,7 @@ export function nextVolumeTitle(title: string): string {
 /** A page whose content is a picture to colour (as opposed to front matter, a certificate, a worksheet made of text and shapes). */
 export function isPicturePage(page: BookPage): boolean {
   if (page.fillDataUrl) return true;
-  if (page.objects.some((o) => o.kind === "stamp" && !o.isFrame && !o.repeatId)) return true;
+  if (page.objects.some((o) => o.kind === "stamp" && !o.isFrame && !o.repeatId && o.role !== "pageBackground")) return true;
   // Hand-drawn strokes: solid, more than two points. Ruled and dashed lines belong to templates and worksheets.
   return page.lines.some((l) => l.tool === "pen" && !l.style && l.points.length > 4);
 }
@@ -29,7 +29,7 @@ export function nextVolumePages(pages: BookPage[]): BookPage[] {
     const copy = duplicatePage(page, i + 1);
     const base = { ...copy, isCover: page.isCover, thumbnailDataUrl: undefined, completedAt: undefined, traceImage: undefined };
     if (!isPicturePage(page)) return base;
-    return { ...base, fillDataUrl: undefined, lines: [], objects: copy.objects.filter((o) => (o.kind === "stamp" && o.isFrame) || o.repeatId || o.role === "pageNumber") };
+    return { ...base, fillDataUrl: undefined, lines: [], objects: copy.objects.filter((o) => (o.kind === "stamp" && o.isFrame) || o.repeatId || o.role === "pageNumber" || o.role === "pageBackground") };
   });
 }
 

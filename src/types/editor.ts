@@ -42,7 +42,8 @@ interface Placeable {
   // "pageNumber": the automatic page number (utils/pageNumbers.ts), re-stamped when pages move.
   // "coverLayout": placed by a ready-made cover layout (utils/coverTemplates.ts), swapped out when another is chosen.
   // "storyText": the words of a story page — what "Read it to me" reads aloud (utils/storyPack.ts).
-  role?: "pageNumber" | "coverLayout" | "storyText";
+  // "pageBackground": a background scene drawn as outlines to color (utils/pageBackground.ts) — locked, at the back, edge to edge.
+  role?: "pageBackground" | "pageNumber" | "coverLayout" | "storyText";
   repeatId?: string; // copies of one element repeated on every page share this (utils/pageNumbers.ts)
 }
 
@@ -121,8 +122,20 @@ export interface BookPage {
   fillDataUrl?: string; // Color mode's raster paint layer (rasterFloodFill.ts), serialized as a PNG data URL so it survives page navigation/reload/autosave
   completedAt?: string; // the child tapped "I'm done!" in the coloring view — earns a sticker, shows in their gallery
   isBlankBack?: boolean; // an intentionally empty reverse side (single-sided coloring pages) — inserted/removed as a set by the filmstrip's "Blank backs" action
+  background?: PageBackground; // color / gradient / picture under everything (pattern and objects included)
   inColor?: boolean; // a finished color page (not for coloring in) — prints with color ink, see ProfitDialog
   thumbnailDataUrl?: string; // Low-res snapshot of the full rendered page (ink + fills + objects), captured on page-switch/export — real preview art for Library/Assemble instead of the striped placeholder
+}
+
+/** What's painted under a page, edge to edge (bleed included) — its own canvas layer, below the pattern and the objects. */
+export interface PageBackground {
+  color?: string;
+  /** Top to bottom. */
+  gradient?: [string, string];
+  /** A full-page picture (an AI scene), fitted to cover the page. */
+  image?: string;
+  /** 0–1; faded pictures keep what's on top readable. Default 1. */
+  imageOpacity?: number;
 }
 
 export type PageTemplate = "blank" | "storybook" | "border-frame" | "belongs-to" | "color-test" | "copyright" | "certificate" | "stickers";
